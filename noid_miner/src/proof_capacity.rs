@@ -30,6 +30,15 @@ impl AdaptiveProofCapacity {
     /// Effective page-position budget for the next template: 25 or 255.
     /// A mandatory system payout consumes one position inside that budget.
     pub fn page_limit(&self) -> usize {
+        // Local acceptance fixtures must be able to exercise B255 even on a
+        // machine which correctly elects B25 in normal operation. This branch
+        // is compiled away in the public-network profile. It changes only the
+        // producer's chosen page budget, never block admission or proof rules.
+        if noid_chain::consensus::params::ISOLATED_V1_1_TESTNET
+            && std::env::var("NOID_ISOLATED_FORCE_B255").as_deref() == Ok("1")
+        {
+            return BlockProofClass::B255.page_capacity();
+        }
         let target_ms = target_prepare_ms();
         let b255_fits = match self.b255_prepare_ms_ewma {
             Some(measured_ms) => measured_ms <= target_ms,

@@ -51,22 +51,23 @@ pub const INLINE_BLOCK_GOSSIP_THRESHOLD: usize = 1024 * 1024;
 /// v1 consensus cap for one serialized fused `HistoryStep` terminal.
 pub const V1_MAX_HISTORY_STEP_TERMINAL_BYTES: usize = 1024 * 1024;
 
-/// v2 consensus cap for one serialized fused `HistoryStep` terminal.
+/// v1.1 consensus cap for one serialized fused `HistoryStep` terminal.
 ///
-/// 1.1 MB. This admits the authenticated v2 B255 terminal while keeping the
-/// allocation and transport increase narrowly bounded.
-pub const V2_MAX_HISTORY_STEP_TERMINAL_BYTES: usize = 1_100_000;
+/// 1.1 MB. This also bounds the expanded B255 representation while keeping
+/// allocation and transport headroom narrow. After activation consensus counts
+/// the canonical shared-path encoding, not the expanded in-memory proof.
+pub const V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES: usize = 1_100_000;
 
 /// Absolute allocation, storage and transport bound understood by this
 /// binary. Consensus still selects the smaller height-dependent cap below.
-pub const MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES: usize = V2_MAX_HISTORY_STEP_TERMINAL_BYTES;
+pub const MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES: usize = V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES;
 
 /// Active consensus cap for a terminal belonging to `height`.
 #[inline]
 pub const fn history_step_terminal_bytes_limit(height: u64) -> usize {
     history_step_terminal_bytes_limit_with_activation(
         height,
-        crate::consensus::params::V2_ACTIVATION_HEIGHT,
+        crate::consensus::params::V1_1_ACTIVATION_HEIGHT,
     )
 }
 
@@ -75,8 +76,8 @@ pub(crate) const fn history_step_terminal_bytes_limit_with_activation(
     height: u64,
     activation_height: Option<u64>,
 ) -> usize {
-    if crate::consensus::params::v2_active_with(height, activation_height) {
-        V2_MAX_HISTORY_STEP_TERMINAL_BYTES
+    if crate::consensus::params::v1_1_active_with(height, activation_height) {
+        V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES
     } else {
         V1_MAX_HISTORY_STEP_TERMINAL_BYTES
     }
@@ -165,11 +166,11 @@ mod tests {
         );
         assert_eq!(MAX_BLOCK_BYTES, 82_905);
         assert!(V1_MAX_HISTORY_STEP_TERMINAL_BYTES > 580_495);
-        assert_eq!(V2_MAX_HISTORY_STEP_TERMINAL_BYTES, 1_100_000);
-        assert!(V2_MAX_HISTORY_STEP_TERMINAL_BYTES >= 1_081_108);
+        assert_eq!(V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES, 1_100_000);
+        assert!(V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES >= 1_081_108);
         assert_eq!(
             MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
-            V2_MAX_HISTORY_STEP_TERMINAL_BYTES
+            V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES
         );
         assert_eq!(
             history_step_terminal_bytes_limit(0),
@@ -181,7 +182,7 @@ mod tests {
         );
         assert_eq!(
             history_step_terminal_bytes_limit_with_activation(42, Some(42)),
-            V2_MAX_HISTORY_STEP_TERMINAL_BYTES
+            V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES
         );
     }
 

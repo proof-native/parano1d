@@ -16,21 +16,26 @@ pub const EPOCH_LENGTH: u64 = 6;
 /// ASERT halflife in seconds = EPOCH_LENGTH × BLOCK_TIME.
 pub const HALFLIFE: u64 = EPOCH_LENGTH * BLOCK_TIME; // 120s at BLOCK_TIME=20
 
-/// First block height governed by the complete v2 consensus rules.
+/// First block height governed by the complete v1.1 consensus rules.
 ///
-/// `None` keeps every v2 rule disabled. The release activation height is set
-/// once for the complete upgrade; individual v2 changes must not introduce
-/// independent activation clocks.
-pub const V2_ACTIVATION_HEIGHT: Option<u64> = None;
+/// `None` keeps every v1.1 rule disabled. The release activation height is set
+/// once for the complete upgrade; individual v1.1 changes must not introduce
+/// independent activation clocks. This fork preserves the existing recursive
+/// construction and matrix artifacts.
+pub const V1_1_ACTIVATION_HEIGHT: Option<u64> = if ISOLATED_V1_1_TESTNET { Some(5) } else { None };
 
-/// Whether one candidate block height is governed by the v2 consensus rules.
+/// Deliberately incompatible local test profile, never a release default.
+/// The daemon refuses this profile outside a loopback-only network namespace.
+pub const ISOLATED_V1_1_TESTNET: bool = cfg!(feature = "isolated-v1-1-testnet");
+
+/// Whether one candidate block height is governed by the v1.1 consensus rules.
 #[inline]
-pub const fn v2_active(height: u64) -> bool {
-    v2_active_with(height, V2_ACTIVATION_HEIGHT)
+pub const fn v1_1_active(height: u64) -> bool {
+    v1_1_active_with(height, V1_1_ACTIVATION_HEIGHT)
 }
 
 #[inline]
-pub(crate) const fn v2_active_with(height: u64, activation_height: Option<u64>) -> bool {
+pub(crate) const fn v1_1_active_with(height: u64, activation_height: Option<u64>) -> bool {
     matches!(activation_height, Some(activation_height) if height >= activation_height)
 }
 

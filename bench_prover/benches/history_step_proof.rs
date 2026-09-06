@@ -7,6 +7,8 @@
 //!
 //! ```text
 //! source "$PACK_ROOT/pins.env"
+//! export NOID_HISTORY_STEP_RUNTIME_METADATA_RELEASE_DIGEST
+//! export NOID_HISTORY_STEP_PACK_LEAF_DIGESTS
 //! export NOID_HISTORY_STEP_PACK_DIR="$PACK_ROOT"
 //! cargo bench -p bench_prover --bench history_step_proof
 //! ```
@@ -16,6 +18,13 @@
 //! launch classes run. `NOID_HISTORY_STEP_BENCH_SAMPLES=N` reuses the proved
 //! parent and authenticated matrix pack for N production samples, then reports
 //! nearest-rank p50/p95 values; the default is one sample.
+//! `NOID_HISTORY_STEP_BENCH_WIRE_AUDIT=1` additionally checks exact round trips
+//! through both terminal encodings and reports sizes and codec timings outside
+//! the timed proving interval. It does not activate any consensus change.
+//! `NOID_HISTORY_STEP_BENCH_ALL_PARENTS=1` runs both child classes after each
+//! parent class, reusing the authenticated pack. Do not combine it with a filter.
+//! Legacy B255 bytes are a diagnostic baseline only: their length exceeds the
+//! pre-fork terminal cap, so they are not a pre-fork admissible block.
 //!
 //! Transaction construction, wallet proving, block-template construction and
 //! matrix authentication are setup. `history_step_ms` covers the node's
@@ -400,6 +409,30 @@ fn benchmark_tier<const TIER: usize>(
     if accepted.class_id() != class || accepted.semantic_id() != terminal.semantic_id() {
         return Err(format!("B{TIER} accepted terminal boundary drift"));
     }
+    if std::env::var_os("NOID_HISTORY_STEP_BENCH_WIRE_AUDIT").is_some() {
+        let audit =
+            noid_recursive::acceptance::history_step::audit_history_step_terminal_encodings(
+                runtime,
+                &terminal,
+                &block.header,
+                &epoch_anchor,
+            )
+            .map_err(|error| format!("B{TIER} wire roundtrip audit: {error}"))?;
+        println!("B{TIER} wire_audit legacy_bytes={} shared_bytes={} saved_bytes={} exact_legacy_roundtrip=true original_terminal_verified=true both_formats_native_verified=true fork_format_checks={} malformed_inputs_rejected={}", audit.legacy_bytes, audit.shared_bytes, audit.legacy_bytes - audit.shared_bytes, audit.fork_format_checks, audit.malformed_inputs_rejected);
+        for (operation, values) in [
+            ("legacy_encode", &audit.legacy_encode_ns),
+            ("shared_encode", &audit.shared_encode_ns),
+            ("legacy_decode", &audit.legacy_decode_ns),
+            ("shared_decode", &audit.shared_decode_ns),
+        ] {
+            println!(
+                "B{TIER} wire_codec operation={operation} samples={} p50_us={:.3} p95_us={:.3}",
+                values.len(),
+                nearest_rank(values.clone(), 50) as f64 / 1000.0,
+                nearest_rank(values.clone(), 95) as f64 / 1000.0,
+            );
+        }
+    }
 
     Ok(TierMeasurement {
         class_index: class.index(),
@@ -492,54 +525,65 @@ fn run_on_production_pool() -> Result<(), String> {
     let filter = benchmark_filter()?;
     let sample_count = benchmark_sample_count()?;
     let (runtime, source) = load_runtime()?;
-    let mut provider = HonestHistoryStepFixtureProvider::new(FIXTURE_SEED)?;
+    let all_parents = std::env::var_os("NOID_HISTORY_STEP_BENCH_ALL_PARENTS").is_some();
+    if all_parents && filter.is_some() {
+        return Err("ALL_PARENTS cannot be combined with a class filter".to_owned());
+    }
+    let parent_slots = if all_parents {
+        vec![0, 1]
+    } else {
+        vec![filter.map_or(0, |(_, parent_slot)| parent_slot)]
+    };
     let c00 = CanonicalHistoryStepClassId::new(0).expect("B25 class");
-    let target_parent_slot = filter.map_or(0, |(_, parent_slot)| parent_slot);
-    // Authenticate and convert outside every reported assembly interval. The
-    // production node receives the same packed layout from its release build;
-    // this file-backed benchmark deliberately performs the full canonical
-    // authentication itself instead of minting a file-derived build seal.
-    source.load_checked(c00)?;
-    let (parent_block, parent) = build_parent(&runtime, &mut provider, target_parent_slot)?;
-
-    let parent_wire = encode_history_step_terminal(&runtime, &parent)
-        .map_err(|error| format!("encode benchmark parent: {error}"))?;
-    let accepted_parent = decode_verify_history_step_terminal(
-        &runtime,
-        &parent_wire,
-        &parent_block.header,
-        &noid_chain::consensus::genesis_header(),
-    )
-    .map_err(|error| format!("verify benchmark parent: {error}"))?;
-    if accepted_parent.class_id() != parent.class_id()
-        || accepted_parent.semantic_id() != parent.semantic_id()
-    {
-        return Err("verified benchmark parent boundary drift".to_owned());
-    }
-    if provider.parent_accumulator(target_parent_slot) != Some(parent.accumulator()) {
-        return Err("benchmark checkpoint and proved parent disagree".to_owned());
-    }
-
-    let parent_accumulator: &ChainAccumulator = parent.accumulator();
-    let parent_class = parent.class_id();
-    // The production LRU holds exactly two matrices. Preload current first
-    // and the exact parent class second before every timed recursive build;
-    // this remains correct when the unfiltered benchmark advances to B255 and
-    // would otherwise evict the parent while admitting the current class.
-    if class_is_selected(filter, c00) {
+    for target_parent_slot in parent_slots {
+        println!("HistoryStep benchmark parent_class=c{target_parent_slot:02}");
+        let mut provider = HonestHistoryStepFixtureProvider::new(FIXTURE_SEED)?;
+        // Authenticate and convert outside every reported assembly interval. The
+        // production node receives the same packed layout from its release build;
+        // this file-backed benchmark deliberately performs the full canonical
+        // authentication itself instead of minting a file-derived build seal.
         source.load_checked(c00)?;
-        source.load_checked(parent_class)?;
-        benchmark_tier_samples(&runtime, &parent, sample_count, || {
-            provider.b25_coinbase_only(c00, parent_accumulator)
-        })?;
-    }
-    let c01 = CanonicalHistoryStepClassId::new(1).expect("B255 class");
-    if class_is_selected(filter, c01) {
-        source.load_checked(c01)?;
-        source.load_checked(parent_class)?;
-        benchmark_tier_samples(&runtime, &parent, sample_count, || {
-            provider.b255(c01, parent_accumulator)
-        })?;
+        let (parent_block, parent) = build_parent(&runtime, &mut provider, target_parent_slot)?;
+
+        let parent_wire = encode_history_step_terminal(&runtime, &parent)
+            .map_err(|error| format!("encode benchmark parent: {error}"))?;
+        let accepted_parent = decode_verify_history_step_terminal(
+            &runtime,
+            &parent_wire,
+            &parent_block.header,
+            &noid_chain::consensus::genesis_header(),
+        )
+        .map_err(|error| format!("verify benchmark parent: {error}"))?;
+        if accepted_parent.class_id() != parent.class_id()
+            || accepted_parent.semantic_id() != parent.semantic_id()
+        {
+            return Err("verified benchmark parent boundary drift".to_owned());
+        }
+        if provider.parent_accumulator(target_parent_slot) != Some(parent.accumulator()) {
+            return Err("benchmark checkpoint and proved parent disagree".to_owned());
+        }
+
+        let parent_accumulator: &ChainAccumulator = parent.accumulator();
+        let parent_class = parent.class_id();
+        // The production LRU holds exactly two matrices. Preload current first
+        // and the exact parent class second before every timed recursive build;
+        // this remains correct when the unfiltered benchmark advances to B255 and
+        // would otherwise evict the parent while admitting the current class.
+        if class_is_selected(filter, c00) {
+            source.load_checked(c00)?;
+            source.load_checked(parent_class)?;
+            benchmark_tier_samples(&runtime, &parent, sample_count, || {
+                provider.b25_coinbase_only(c00, parent_accumulator)
+            })?;
+        }
+        let c01 = CanonicalHistoryStepClassId::new(1).expect("B255 class");
+        if class_is_selected(filter, c01) {
+            source.load_checked(c01)?;
+            source.load_checked(parent_class)?;
+            benchmark_tier_samples(&runtime, &parent, sample_count, || {
+                provider.b255(c01, parent_accumulator)
+            })?;
+        }
     }
     Ok(())
 }

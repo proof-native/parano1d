@@ -123,6 +123,17 @@ enum MiningMempoolRefresh {
     ReceiverLagged(u64),
 }
 
+/// Begin a fresh notification window before capturing a new template.
+fn renew_template_mempool_notifications(receiver: &mut broadcast::Receiver<MempoolEvent>) {
+    // Past admissions are already reflected in the mempool which the next
+    // template will read. Replaying one after each expensive proof can keep
+    // cancelling empty-block PoW long after those transactions were mined.
+    // Resubscribe BEFORE capture, not after proving: genuinely new admissions
+    // and lag during preparation must still refresh a coinbase-only template.
+    // This changes only this miner's cursor, not the pool or other subscribers.
+    *receiver = receiver.resubscribe();
+}
+
 /// Wait for a mempool event that can actually change a coinbase-only
 /// template. Confirmations and evictions emitted while applying our own block
 /// belong to the previous height and must not cancel fresh PoW on the next
@@ -351,6 +362,24 @@ impl BlockMiner {
 
         tracing::debug!("BlockMiner started");
 
+        // Test-only start barrier: fill a live miner's mempool before taking
+        // its first template, without a process restart or a consensus bypass.
+        // Public-network builds compile this branch away. The isolated node
+        // entry point additionally requires a loopback-only network namespace.
+        if noid_chain::consensus::params::ISOLATED_V1_1_TESTNET {
+            if let Some(path) = std::env::var_os("NOID_ISOLATED_MINER_START_GATE") {
+                let path = std::path::PathBuf::from(path);
+                tracing::info!("isolated fixture miner is waiting for its start gate");
+                while !path.exists() {
+                    if self.stopped.load(Ordering::Acquire) {
+                        return;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                tracing::info!("isolated fixture miner start gate opened");
+            }
+        }
+
         'mining: loop {
             // Clean shutdown: stop() sets `stopped` permanently; break before
             // starting a new template build so the task exits promptly.
@@ -361,6 +390,8 @@ impl BlockMiner {
             if !self.wait_for_proof_network().await {
                 break;
             }
+
+            renew_template_mempool_notifications(&mut mempool_events);
 
             // Changes already observed before this iteration are represented
             // by the fresh parent and payout captured below.
@@ -1009,5 +1040,70 @@ mod tests {
             .unwrap(),
             MiningMempoolRefresh::TransactionAdmitted,
         );
+    }
+
+    #[tokio::test]
+    async fn previous_template_admissions_do_not_cancel_fresh_pow() {
+        let (sender, mut receiver) = broadcast::channel(1024);
+        for index in 0..191 {
+            sender
+                .send(MempoolEvent::TxAdmitted {
+                    hash: noid_poseidon2b::primitives::TxBodyHash([index as u8; 32]),
+                    fee: 9_000,
+                    intent_bytes: Arc::from(Vec::<u8>::new().into_boxed_slice()),
+                })
+                .unwrap();
+        }
+        renew_template_mempool_notifications(&mut receiver);
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(20),
+                next_mining_mempool_refresh(&mut receiver)
+            )
+            .await
+            .is_err(),
+            "old admissions already represented by the new template must not restart PoW"
+        );
+        sender
+            .send(MempoolEvent::TxAdmitted {
+                hash: noid_poseidon2b::primitives::TxBodyHash([255; 32]),
+                fee: 9_000,
+                intent_bytes: Arc::from(Vec::<u8>::new().into_boxed_slice()),
+            })
+            .unwrap();
+        assert_eq!(
+            tokio::time::timeout(
+                Duration::from_secs(1),
+                next_mining_mempool_refresh(&mut receiver)
+            )
+            .await
+            .unwrap(),
+            MiningMempoolRefresh::TransactionAdmitted
+        );
+    }
+
+    #[tokio::test]
+    async fn previous_template_lag_is_cleared_but_new_lag_still_refreshes() {
+        let (sender, mut receiver) = broadcast::channel(4);
+        let event = || MempoolEvent::TxAdmitted {
+            hash: noid_poseidon2b::primitives::TxBodyHash([7; 32]),
+            fee: 9_000,
+            intent_bytes: Arc::from(Vec::<u8>::new().into_boxed_slice()),
+        };
+        for _ in 0..32 {
+            sender.send(event()).unwrap();
+        }
+        renew_template_mempool_notifications(&mut receiver);
+        assert!(matches!(
+            receiver.try_recv(),
+            Err(broadcast::error::TryRecvError::Empty)
+        ));
+        for _ in 0..32 {
+            sender.send(event()).unwrap();
+        }
+        assert!(matches!(
+            next_mining_mempool_refresh(&mut receiver).await,
+            MiningMempoolRefresh::ReceiverLagged(_)
+        ));
     }
 }

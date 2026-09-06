@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Canonical v1 terminal wire codec.
+//! Height-selected canonical terminal wire codec.
 //!
 //! Prefix (42 bytes): `version:u8 || height:u64-le || semantic_id:[u8;32] ||
 //! class_id:u8`. The remaining proof shape is derived entirely from the
-//! authenticated class/runtime. No vector lengths or serde representation
-//! occur on this wire.
+//! authenticated class/runtime. Before V1.1 activation the legacy full-path
+//! encoding is byte-for-byte unchanged. After activation query records carry
+//! their leaves first, followed by shared sibling dictionaries. Dictionary
+//! keys/counts are derived from query positions, never supplied by the peer.
+//! The decoded proof, transcript and recursive matrices are unchanged.
+
+mod shared_paths;
+
+use noid_chain::history_step::{
+    history_step_terminal_wire_version_with_activation, HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION,
+};
 
 use noid_ivc_core::field::{F128, F256};
 use noid_ivc_core::pcs::basefold::{C1QueryOpening, C1RoundMessage};
@@ -56,6 +65,17 @@ struct BaseFoldWireShape {
 }
 
 impl BaseFoldWireShape {
+    fn path_depths(&self) -> Vec<usize> {
+        let mut depths = vec![self.initial_path, self.post_row_batch_path];
+        depths.extend(self.epoch_shapes.iter().map(|(_, depth)| *depth));
+        depths
+    }
+
+    fn full_path_bytes(&self) -> Result<usize, HistoryStepError> {
+        let depth_sum = self.path_depths().into_iter().try_fold(0, add)?;
+        mul(mul(self.queries, depth_sum)?, HASH_BYTES)
+    }
+
     fn derive(params: &PcsParams) -> Result<Self, HistoryStepError> {
         let log_msg_len = params
             .m
@@ -363,6 +383,7 @@ fn encode_field_proof(
     proof: &C1FieldR1csProof,
     shape: FieldShape,
     params: &PcsParams,
+    shared: bool,
 ) -> Result<(), HistoryStepError> {
     let skip = 1usize << shape.k_skip;
     encode_f256_vec(out, &proof.zerocheck.round1_ab, skip)?;
@@ -377,13 +398,19 @@ fn encode_field_proof(
     put_f256(out, proof.zerocheck.final_c_eval);
     encode_f256_pair_vec(out, &proof.lincheck.rounds, shape.k_log - shape.k_skip)?;
     encode_f256_vec(out, &proof.lincheck.z_partial, skip)?;
-    encode_basefold(out, &proof.pcs_open, &BaseFoldWireShape::derive(params)?)
+    encode_basefold(
+        out,
+        &proof.pcs_open,
+        &BaseFoldWireShape::derive(params)?,
+        shared,
+    )
 }
 
 fn decode_field_proof(
     reader: &mut Reader<'_>,
     shape: FieldShape,
     params: &PcsParams,
+    shared: bool,
 ) -> Result<C1FieldR1csProof, HistoryStepError> {
     let skip = 1usize << shape.k_skip;
     let zerocheck = noid_ivc_core::zerocheck::field_c1::C1ZerocheckProof {
@@ -398,7 +425,7 @@ fn decode_field_proof(
         rounds: decode_f256_pair_vec(reader, shape.k_log - shape.k_skip)?,
         z_partial: decode_f256_vec(reader, skip)?,
     };
-    let pcs_open = decode_basefold(reader, &BaseFoldWireShape::derive(params)?)?;
+    let pcs_open = decode_basefold(reader, &BaseFoldWireShape::derive(params)?, shared)?;
     Ok(C1FieldR1csProof {
         zerocheck,
         lincheck,
@@ -410,13 +437,18 @@ fn encode_query(
     out: &mut Vec<u8>,
     query: &C1QueryOpening,
     shape: &BaseFoldWireShape,
+    shared: bool,
 ) -> Result<(), HistoryStepError> {
     let position = u64::try_from(query.position).map_err(|_| HistoryStepError::WireEncoding)?;
     out.extend_from_slice(&position.to_le_bytes());
     encode_f128_vec(out, &query.initial_leaf, shape.initial_leaf)?;
-    encode_hash_vec(out, &query.initial_path, shape.initial_path)?;
+    if !shared {
+        encode_hash_vec(out, &query.initial_path, shape.initial_path)?;
+    }
     encode_f256_vec(out, &query.post_row_batch_leaf, shape.post_row_batch_leaf)?;
-    encode_hash_vec(out, &query.post_row_batch_path, shape.post_row_batch_path)?;
+    if !shared {
+        encode_hash_vec(out, &query.post_row_batch_path, shape.post_row_batch_path)?;
+    }
     if query.epoch_leaves.len() != shape.epoch_shapes.len()
         || query.epoch_paths.len() != shape.epoch_shapes.len()
     {
@@ -424,7 +456,9 @@ fn encode_query(
     }
     for (index, (leaf, path)) in shape.epoch_shapes.iter().enumerate() {
         encode_f256_vec(out, &query.epoch_leaves[index], *leaf)?;
-        encode_hash_vec(out, &query.epoch_paths[index], *path)?;
+        if !shared {
+            encode_hash_vec(out, &query.epoch_paths[index], *path)?;
+        }
     }
     Ok(())
 }
@@ -432,17 +466,22 @@ fn encode_query(
 fn decode_query(
     reader: &mut Reader<'_>,
     shape: &BaseFoldWireShape,
+    shared: bool,
 ) -> Result<C1QueryOpening, HistoryStepError> {
     let position = usize::try_from(reader.u64()?).map_err(|_| HistoryStepError::WireEncoding)?;
+    if shared && position >= (1usize << shape.initial_path) {
+        return Err(HistoryStepError::WireEncoding);
+    }
     let initial_leaf = decode_f128_vec(reader, shape.initial_leaf)?;
-    let initial_path = decode_hash_vec(reader, shape.initial_path)?;
+    let initial_path = decode_hash_vec(reader, if shared { 0 } else { shape.initial_path })?;
     let post_row_batch_leaf = decode_f256_vec(reader, shape.post_row_batch_leaf)?;
-    let post_row_batch_path = decode_hash_vec(reader, shape.post_row_batch_path)?;
+    let post_row_batch_path =
+        decode_hash_vec(reader, if shared { 0 } else { shape.post_row_batch_path })?;
     let mut epoch_leaves = Vec::with_capacity(shape.epoch_shapes.len());
     let mut epoch_paths = Vec::with_capacity(shape.epoch_shapes.len());
     for (leaf, path) in &shape.epoch_shapes {
         epoch_leaves.push(decode_f256_vec(reader, *leaf)?);
-        epoch_paths.push(decode_hash_vec(reader, *path)?);
+        epoch_paths.push(decode_hash_vec(reader, if shared { 0 } else { *path })?);
     }
     Ok(C1QueryOpening {
         position,
@@ -459,6 +498,7 @@ fn encode_basefold(
     out: &mut Vec<u8>,
     proof: &C1BaseFoldProof,
     shape: &BaseFoldWireShape,
+    shared: bool,
 ) -> Result<(), HistoryStepError> {
     if proof.round_messages.len() != shape.round_messages
         || proof.round_commitments.len() != shape.round_commitments
@@ -480,7 +520,10 @@ fn encode_basefold(
     encode_f256_vec(out, &proof.plaintext_tail, shape.plaintext_tail)?;
     out.extend_from_slice(&proof.pow_nonce.to_le_bytes());
     for query in &proof.queries {
-        encode_query(out, query, shape)?;
+        encode_query(out, query, shape, shared)?;
+    }
+    if shared {
+        encode_shared_paths(out, &proof.queries, shape)?;
     }
     Ok(())
 }
@@ -488,6 +531,7 @@ fn encode_basefold(
 fn decode_basefold(
     reader: &mut Reader<'_>,
     shape: &BaseFoldWireShape,
+    shared: bool,
 ) -> Result<C1BaseFoldProof, HistoryStepError> {
     let mut round_messages = Vec::with_capacity(shape.round_messages);
     for _ in 0..shape.round_messages {
@@ -512,7 +556,10 @@ fn decode_basefold(
     let pow_nonce = reader.u64()?;
     let mut queries = Vec::with_capacity(shape.queries);
     for _ in 0..shape.queries {
-        queries.push(decode_query(reader, shape)?);
+        queries.push(decode_query(reader, shape, shared)?);
+    }
+    if shared {
+        decode_shared_paths(reader, &mut queries, shape)?;
     }
     Ok(C1BaseFoldProof {
         round_messages,
@@ -527,13 +574,84 @@ fn decode_basefold(
     })
 }
 
+fn positions_for_tree(
+    queries: &[C1QueryOpening],
+    initial_depth: usize,
+    depth: usize,
+) -> Result<Vec<usize>, HistoryStepError> {
+    let shift = initial_depth
+        .checked_sub(depth)
+        .ok_or(HistoryStepError::WireEncoding)?;
+    if queries
+        .iter()
+        .any(|q| q.position >= (1usize << initial_depth))
+    {
+        return Err(HistoryStepError::WireEncoding);
+    }
+    Ok(queries.iter().map(|q| q.position >> shift).collect())
+}
+
+fn encode_shared_paths(
+    out: &mut Vec<u8>,
+    queries: &[C1QueryOpening],
+    shape: &BaseFoldWireShape,
+) -> Result<(), HistoryStepError> {
+    for (tree, depth) in shape.path_depths().into_iter().enumerate() {
+        let positions = positions_for_tree(queries, shape.initial_path, depth)?;
+        let paths: Vec<&[[u8; HASH_BYTES]]> = queries
+            .iter()
+            .map(|q| match tree {
+                0 => q.initial_path.as_slice(),
+                1 => q.post_row_batch_path.as_slice(),
+                _ => q.epoch_paths[tree - 2].as_slice(),
+            })
+            .collect();
+        shared_paths::encode(out, &positions, depth, &paths)?;
+    }
+    Ok(())
+}
+
+fn decode_shared_paths(
+    reader: &mut Reader<'_>,
+    queries: &mut [C1QueryOpening],
+    shape: &BaseFoldWireShape,
+) -> Result<(), HistoryStepError> {
+    for (tree, depth) in shape.path_depths().into_iter().enumerate() {
+        let positions = positions_for_tree(queries, shape.initial_path, depth)?;
+        let paths = shared_paths::decode(reader, &positions, depth)?;
+        for (q, path) in queries.iter_mut().zip(paths) {
+            match tree {
+                0 => q.initial_path = path,
+                1 => q.post_row_batch_path = path,
+                _ => q.epoch_paths[tree - 2] = path,
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn encode_history_step_terminal(
     runtime: &HistoryStepRuntime,
     terminal: &HistoryStepTerminal,
 ) -> Result<Vec<u8>, HistoryStepError> {
+    encode_terminal_in_format(runtime, terminal, terminal.wire_version())
+}
+
+fn encode_terminal_in_format(
+    runtime: &HistoryStepRuntime,
+    terminal: &HistoryStepTerminal,
+    version: u8,
+) -> Result<Vec<u8>, HistoryStepError> {
+    if !matches!(
+        version,
+        HISTORY_STEP_WIRE_VERSION | HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION
+    ) {
+        return Err(HistoryStepError::WireVersion);
+    }
     validate_terminal_metadata(runtime, terminal, None)?;
     let entry = runtime.bank().entry(terminal.class_id);
     let expected = terminal_len_for_class(runtime, terminal.class_id)?;
+    let shared = version == HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION;
     let block_vk = runtime
         .direct_block_vk(terminal.class_id.current_slot())
         .ok_or(HistoryStepError::RuntimeBlockVk(
@@ -546,7 +664,7 @@ pub fn encode_history_step_terminal(
         &terminal.proof.sidecar,
     )?;
     let mut out = Vec::with_capacity(expected);
-    out.push(HISTORY_STEP_WIRE_VERSION);
+    out.push(version);
     out.extend_from_slice(&terminal.height.to_le_bytes());
     out.extend_from_slice(&terminal.semantic_id);
     out.push(terminal.class_id.wire_id());
@@ -557,9 +675,10 @@ pub fn encode_history_step_terminal(
         &terminal.proof.field_proof,
         entry.shape(),
         entry.pcs_params(),
+        shared,
     )?;
     out.extend_from_slice(&sidecar);
-    if out.len() != expected {
+    if (!shared && out.len() != expected) || (shared && out.len() > expected) {
         return Err(HistoryStepError::WireLength {
             expected,
             actual: out.len(),
@@ -572,6 +691,41 @@ pub fn decode_history_step_terminal(
     runtime: &HistoryStepRuntime,
     bytes: &[u8],
 ) -> Result<HistoryStepTerminal, HistoryStepError> {
+    decode_terminal_with_activation(
+        runtime,
+        bytes,
+        noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT,
+    )
+}
+
+// Keep schedule injection private: diagnostics return measurements, never an
+// alternate accepted-terminal capability for a caller-selected fork height.
+fn decode_terminal_with_activation(
+    runtime: &HistoryStepRuntime,
+    bytes: &[u8],
+    activation: Option<u64>,
+) -> Result<HistoryStepTerminal, HistoryStepError> {
+    if bytes.len() < PREFIX_BYTES {
+        return Err(HistoryStepError::WireLength {
+            expected: PREFIX_BYTES,
+            actual: bytes.len(),
+        });
+    }
+    let height = u64::from_le_bytes(bytes[1..9].try_into().expect("bounded prefix"));
+    decode_terminal_in_format(
+        runtime,
+        bytes,
+        history_step_terminal_wire_version_with_activation(height, activation),
+    )
+}
+
+// Private format decoding is also exercised by the lossless-codec audit below.
+// Only the height-gated public entry point is used by node/consensus admission.
+fn decode_terminal_in_format(
+    runtime: &HistoryStepRuntime,
+    bytes: &[u8],
+    expected_version: u8,
+) -> Result<HistoryStepTerminal, HistoryStepError> {
     if bytes.len() < PREFIX_BYTES {
         return Err(HistoryStepError::WireLength {
             expected: PREFIX_BYTES,
@@ -579,29 +733,49 @@ pub fn decode_history_step_terminal(
         });
     }
     let mut prefix = Reader::new(&bytes[..PREFIX_BYTES]);
-    if prefix.u8()? != HISTORY_STEP_WIRE_VERSION {
+    let version = prefix.u8()?;
+    let height = prefix.u64()?;
+    if version != expected_version
+        || !matches!(
+            version,
+            HISTORY_STEP_WIRE_VERSION | HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION
+        )
+    {
         return Err(HistoryStepError::WireVersion);
     }
-    let height = prefix.u64()?;
+    let shared = version == HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION;
     let semantic_id = prefix.hash()?;
     let class_id = CanonicalHistoryStepClassId::from_index(prefix.u8()? as usize)
         .ok_or(HistoryStepError::InvalidClass)?;
     prefix.finish()?;
     let expected = terminal_len_for_class(runtime, class_id)?;
-    if bytes.len() != expected {
+    let entry = runtime.bank().entry(class_id);
+    let minimum = expected
+        .checked_sub(BaseFoldWireShape::derive(entry.pcs_params())?.full_path_bytes()?)
+        .ok_or(HistoryStepError::WireEncoding)?;
+    let allowed_length = if shared {
+        // Both input and expanded allocations are bounded before decoding.
+        // The expanded proof has the exact original class-derived shape.
+        expected <= noid_chain::consensus::wire_limits::MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES
+            && (minimum..=expected).contains(&bytes.len())
+            && bytes.len()
+                <= noid_chain::consensus::wire_limits::V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES
+    } else {
+        bytes.len() == expected
+    };
+    if !allowed_length {
         return Err(HistoryStepError::WireLength {
             expected,
             actual: bytes.len(),
         });
     }
 
-    // All following allocations have class-derived exact dimensions, and
-    // are reached only after the complete wire length matches those bounds.
-    let entry = runtime.bank().entry(class_id);
+    // All allocations are class-bounded. Shared dictionaries have at most
+    // q * depth entries and their exact counts come from bounded positions.
     let mut reader = Reader::new(&bytes[PREFIX_BYTES..]);
     let commitment_root = reader.hash()?;
     let io = decode_f128_vec(&mut reader, runtime.bank().spec().io_len)?;
-    let field_proof = decode_field_proof(&mut reader, entry.shape(), entry.pcs_params())?;
+    let field_proof = decode_field_proof(&mut reader, entry.shape(), entry.pcs_params(), shared)?;
     let block_vk = runtime
         .direct_block_vk(class_id.current_slot())
         .ok_or(HistoryStepError::RuntimeBlockVk(class_id.current_slot()))?;
@@ -638,6 +812,177 @@ pub fn decode_history_step_terminal(
     Ok(terminal)
 }
 
+/// Diagnostic measurements, not a decoded or accepted terminal capability.
+#[derive(Debug)]
+pub struct HistoryStepWireAudit {
+    pub legacy_bytes: usize,
+    pub shared_bytes: usize,
+    pub fork_format_checks: usize,
+    pub malformed_inputs_rejected: usize,
+    /// Warm, alternating-order samples. Destruction of the returned object is
+    /// excluded, as it is from an ordinary encode/decode function call.
+    pub legacy_encode_ns: Vec<u128>,
+    pub shared_encode_ns: Vec<u128>,
+    pub legacy_decode_ns: Vec<u128>,
+    pub shared_decode_ns: Vec<u128>,
+}
+
+/// Check both byte representations of a native terminal without changing any
+/// activation rule. Returns lengths and codec timings only.
+/// This diagnostic does not return a decoded/accepted terminal capability and
+/// cannot be used to admit a post-fork encoding before activation.
+pub fn audit_history_step_terminal_encodings(
+    runtime: &HistoryStepRuntime,
+    terminal: &HistoryStepTerminal,
+    expected_header: &BlockHeader,
+    epoch_anchor_header: &BlockHeader,
+) -> Result<HistoryStepWireAudit, HistoryStepError> {
+    let legacy = encode_terminal_in_format(runtime, terminal, HISTORY_STEP_WIRE_VERSION)?;
+    let shared =
+        encode_terminal_in_format(runtime, terminal, HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION)?;
+    let mut fork_format_checks = 0;
+    let mut malformed_inputs_rejected = 0;
+    for (version, bytes) in [
+        (HISTORY_STEP_WIRE_VERSION, &legacy),
+        (HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION, &shared),
+    ] {
+        let restored = decode_terminal_in_format(runtime, bytes, version)?;
+        if encode_terminal_in_format(runtime, &restored, HISTORY_STEP_WIRE_VERSION)? != legacy
+            || encode_terminal_in_format(runtime, &restored, version)? != *bytes
+        {
+            return Err(HistoryStepError::WireEncoding);
+        }
+        // Check the very same native verifier on each recovered proof, not
+        // only byte equality with the previously verified original terminal.
+        let _verified =
+            verify_history_step_terminal(runtime, &restored, expected_header, epoch_anchor_header)?;
+
+        // Simulate the terminal just before, at, and after a fork without
+        // changing the node's actual activation constant or proof relation.
+        for activation in [
+            None,
+            Some(terminal.height),
+            terminal.height.checked_add(1),
+            terminal.height.checked_sub(1),
+        ] {
+            let allowed = version
+                == history_step_terminal_wire_version_with_activation(terminal.height, activation);
+            match decode_terminal_with_activation(runtime, bytes, activation) {
+                Ok(decoded) if allowed => {
+                    if encode_terminal_in_format(runtime, &decoded, HISTORY_STEP_WIRE_VERSION)?
+                        != legacy
+                    {
+                        return Err(HistoryStepError::WireEncoding);
+                    }
+                }
+                Err(HistoryStepError::WireVersion) if !allowed => {}
+                _ => return Err(HistoryStepError::WireEncoding),
+            }
+            fork_format_checks += 1;
+        }
+
+        for length in [0, 1, 8, 9, PREFIX_BYTES - 1, PREFIX_BYTES, bytes.len() - 1] {
+            if decode_terminal_in_format(runtime, &bytes[..length], version).is_ok() {
+                return Err(HistoryStepError::WireEncoding);
+            }
+            malformed_inputs_rejected += 1;
+        }
+        let mut malformed = bytes.to_vec();
+        malformed.push(0);
+        if decode_terminal_in_format(runtime, &malformed, version).is_ok() {
+            return Err(HistoryStepError::WireEncoding);
+        }
+        malformed_inputs_rejected += 1;
+        malformed.truncate(bytes.len());
+        for class in [HISTORY_STEP_CLASS_COUNT as u8, u8::MAX] {
+            malformed[41] = class;
+            if decode_terminal_in_format(runtime, &malformed, version).is_ok() {
+                return Err(HistoryStepError::WireEncoding);
+            }
+            malformed_inputs_rejected += 1;
+        }
+        malformed[41] = bytes[41];
+        for invalid_version in 0..=u8::MAX {
+            if matches!(
+                invalid_version,
+                HISTORY_STEP_WIRE_VERSION | HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION
+            ) {
+                continue;
+            }
+            malformed[0] = invalid_version;
+            if decode_terminal_in_format(runtime, &malformed, invalid_version).is_ok() {
+                return Err(HistoryStepError::WireEncoding);
+            }
+            malformed_inputs_rejected += 1;
+        }
+        malformed[0] = version;
+        // A damaged commitment may parse, but it must not pass native proof
+        // verification. No codec success can substitute for that verification.
+        malformed[PREFIX_BYTES] ^= 1;
+        if let Ok(damaged) = decode_terminal_in_format(runtime, &malformed, version) {
+            if verify_history_step_terminal(runtime, &damaged, expected_header, epoch_anchor_header)
+                .is_ok()
+            {
+                return Err(HistoryStepError::WireEncoding);
+            }
+        }
+        malformed_inputs_rejected += 1;
+    }
+    const WARMUP: usize = 4;
+    const SAMPLES: usize = 32;
+    let mut audit = HistoryStepWireAudit {
+        legacy_bytes: legacy.len(),
+        shared_bytes: shared.len(),
+        fork_format_checks,
+        malformed_inputs_rejected,
+        legacy_encode_ns: Vec::with_capacity(SAMPLES),
+        shared_encode_ns: Vec::with_capacity(SAMPLES),
+        legacy_decode_ns: Vec::with_capacity(SAMPLES),
+        shared_decode_ns: Vec::with_capacity(SAMPLES),
+    };
+    for sample in 0..WARMUP + SAMPLES {
+        // Alternate the first format to avoid giving one format a fixed cache
+        // or frequency-ramp advantage. Equality checks are outside the timers.
+        let mut formats = [
+            (HISTORY_STEP_WIRE_VERSION, &legacy),
+            (HISTORY_STEP_TERMINAL_SHARED_PATH_VERSION, &shared),
+        ];
+        if sample % 2 != 0 {
+            formats.reverse();
+        }
+        for (version, bytes) in formats {
+            let started = std::time::Instant::now();
+            let encoded = encode_terminal_in_format(
+                std::hint::black_box(runtime),
+                std::hint::black_box(terminal),
+                version,
+            )?;
+            let encode_ns = started.elapsed().as_nanos();
+            if encoded != *bytes {
+                return Err(HistoryStepError::WireEncoding);
+            }
+            let started = std::time::Instant::now();
+            let restored = decode_terminal_in_format(
+                std::hint::black_box(runtime),
+                std::hint::black_box(bytes),
+                version,
+            )?;
+            std::hint::black_box(&restored);
+            let decode_ns = started.elapsed().as_nanos();
+            if sample >= WARMUP {
+                if version == HISTORY_STEP_WIRE_VERSION {
+                    audit.legacy_encode_ns.push(encode_ns);
+                    audit.legacy_decode_ns.push(decode_ns);
+                } else {
+                    audit.shared_encode_ns.push(encode_ns);
+                    audit.shared_decode_ns.push(decode_ns);
+                }
+            }
+        }
+    }
+    Ok(audit)
+}
+
 pub fn decode_verify_history_step_terminal(
     runtime: &HistoryStepRuntime,
     bytes: &[u8],
@@ -654,6 +999,118 @@ mod tests {
     use crate::acceptance::history_step_bank::{
         canonical_history_step_pcs_params, HISTORY_STEP_FRI_QUERIES,
     };
+
+    // Codec fixtures have consistent shared-node labels, but are not complete
+    // valid FRI proofs. Real Merkle paths are tested in shared_paths.rs.
+    fn codec_fixture(shape: &BaseFoldWireShape) -> C1BaseFoldProof {
+        let depths = shape.path_depths();
+        let queries = (0..shape.queries)
+            .map(|i| {
+                let i = if i + 1 == shape.queries { 0 } else { i };
+                let position = (i * 104_729 ^ (i >> 2)) & ((1usize << shape.initial_path) - 1);
+                let mut paths: Vec<Vec<[u8; 32]>> = depths
+                    .iter()
+                    .enumerate()
+                    .map(|(tree, &depth)| {
+                        let p = position >> (shape.initial_path - depth);
+                        (0..depth)
+                            .map(|level| {
+                                let mut hash = [0; 32];
+                                hash[..8].copy_from_slice(&(level as u64).to_le_bytes());
+                                hash[8..16]
+                                    .copy_from_slice(&(((p >> level) ^ 1) as u64).to_le_bytes());
+                                hash[16..24].copy_from_slice(&(tree as u64).to_le_bytes());
+                                hash
+                            })
+                            .collect()
+                    })
+                    .collect();
+                let initial_path = std::mem::take(&mut paths[0]);
+                let post_row_batch_path = std::mem::take(&mut paths[1]);
+                C1QueryOpening {
+                    position,
+                    initial_leaf: vec![F128::ZERO; shape.initial_leaf],
+                    initial_path,
+                    post_row_batch_leaf: vec![F256::ZERO; shape.post_row_batch_leaf],
+                    post_row_batch_path,
+                    epoch_leaves: shape
+                        .epoch_shapes
+                        .iter()
+                        .map(|(n, _)| vec![F256::ZERO; *n])
+                        .collect(),
+                    epoch_paths: paths.into_iter().skip(2).collect(),
+                }
+            })
+            .collect();
+        C1BaseFoldProof {
+            round_messages: vec![
+                C1RoundMessage {
+                    u_0: F256::ZERO,
+                    u_2: F256::ZERO
+                };
+                shape.round_messages
+            ],
+            post_row_batch_commit: RoundCommitment { root: [1; 32] },
+            round_commitments: vec![RoundCommitment { root: [2; 32] }; shape.round_commitments],
+            final_a: F256::ZERO,
+            final_b: F256::ZERO,
+            final_codeword: vec![F256::ZERO; shape.final_codeword],
+            plaintext_tail: vec![F256::ZERO; shape.plaintext_tail],
+            pow_nonce: 0x1234,
+            queries,
+        }
+    }
+
+    #[test]
+    fn shared_paths_restore_every_legacy_basefold_byte_for_both_classes() {
+        for index in 0..HISTORY_STEP_CLASS_COUNT {
+            let class = CanonicalHistoryStepClassId::from_index(index).unwrap();
+            let shape =
+                BaseFoldWireShape::derive(&canonical_history_step_pcs_params(class)).unwrap();
+            let proof = codec_fixture(&shape);
+            let mut full = Vec::new();
+            encode_basefold(&mut full, &proof, &shape, false).unwrap();
+            assert_eq!(full.len(), shape.encoded_len().unwrap());
+            let mut shared = Vec::new();
+            encode_basefold(&mut shared, &proof, &shape, true).unwrap();
+            assert!(shared.len() < full.len());
+            assert!(shared.len() >= full.len() - shape.full_path_bytes().unwrap());
+            let mut reader = Reader::new(&shared);
+            let restored = decode_basefold(&mut reader, &shape, true).unwrap();
+            reader.finish().unwrap();
+            assert_eq!(proof, restored);
+            let mut roundtrip = Vec::new();
+            encode_basefold(&mut roundtrip, &restored, &shape, false).unwrap();
+            assert_eq!(full, roundtrip);
+            roundtrip.clear();
+            encode_basefold(&mut roundtrip, &restored, &shape, true).unwrap();
+            assert_eq!(shared, roundtrip);
+        }
+    }
+
+    #[test]
+    fn shared_basefold_rejects_bad_positions_truncation_and_conflicting_paths() {
+        let class = CanonicalHistoryStepClassId::from_index(0).unwrap();
+        let shape = BaseFoldWireShape::derive(&canonical_history_step_pcs_params(class)).unwrap();
+        let mut proof = codec_fixture(&shape);
+        let mut encoded = Vec::new();
+        encode_basefold(&mut encoded, &proof, &shape, true).unwrap();
+        for cut in [0, 1, 63, encoded.len() / 2, encoded.len() - 1] {
+            assert!(decode_basefold(&mut Reader::new(&encoded[..cut]), &shape, true).is_err());
+        }
+        let prefix_bytes =
+            shape.encoded_len().unwrap() - shape.queries * shape.query_encoded_len().unwrap();
+        encoded[prefix_bytes..prefix_bytes + 8]
+            .copy_from_slice(&(1u64 << shape.initial_path).to_le_bytes());
+        assert!(decode_basefold(&mut Reader::new(&encoded), &shape, true).is_err());
+        proof.queries.last_mut().unwrap().initial_path[0][0] ^= 1;
+        assert!(encode_basefold(&mut Vec::new(), &proof, &shape, true).is_err());
+        // The pre-activation codec still serializes arbitrary full paths. It
+        // has not inherited any new compact-format validation rule.
+        assert!(encode_basefold(&mut Vec::new(), &proof, &shape, false).is_ok());
+        proof.queries[0].position = 1usize << shape.initial_path;
+        assert!(encode_basefold(&mut Vec::new(), &proof, &shape, true).is_err());
+    }
 
     #[test]
     fn c1_history_basefold_wire_shapes_are_exact() {

@@ -1704,9 +1704,49 @@ fn purge_chain_state(data_dir: &Path) -> anyhow::Result<()> {
 // Main
 // ---------------------------------------------------------------------------
 
+/// A local fork build must not open default user data or reach the public
+/// network. Check before loading configuration or creating any files.
+fn validate_isolated_fork_test(cli: &Cli) -> anyhow::Result<()> {
+    if !noid_chain::consensus::params::ISOLATED_V1_1_TESTNET {
+        return Ok(());
+    }
+    anyhow::ensure!(
+        cli.config.is_some() && cli.data_dir.is_some() && cli.disable_dns_seeds,
+        "isolated fork test requires explicit --config, --data-dir and --disable-dns-seeds"
+    );
+    for address in [cli.p2p_listen.as_deref(), cli.rpc_listen.as_deref()] {
+        let address: std::net::SocketAddr = address
+            .ok_or_else(|| {
+                anyhow::anyhow!("isolated fork test requires explicit loopback listeners")
+            })?
+            .parse()?;
+        anyhow::ensure!(
+            address.ip().is_loopback(),
+            "isolated fork test requires loopback listeners"
+        );
+    }
+    // /proc/net is relative to this process's network namespace. A fresh
+    // `unshare -Urn` namespace has no external interfaces or route to mainnet,
+    // even if a configuration accidentally contains a public peer address.
+    let devices = std::fs::read_to_string("/proc/net/dev")
+        .context("isolated fork tests require a Linux loopback-only network namespace")?;
+    let interfaces: Vec<_> = devices
+        .lines()
+        .skip(2)
+        .filter_map(|line| line.split_once(':').map(|(name, _)| name.trim()))
+        .collect();
+    anyhow::ensure!(
+        interfaces == ["lo"],
+        "isolated fork test refuses a network namespace with non-loopback interfaces"
+    );
+    eprintln!("ISOLATED FORK TEST BUILD: v1.1 activates at height 5; not for mainnet");
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut cli = Cli::parse();
+    validate_isolated_fork_test(&cli)?;
     if cli.check_hardware {
         let report = noid_core::cpu::ProductionHardwareReport::detect();
         print!("{report}");

@@ -764,7 +764,7 @@ impl HistoryStepTerminal {
     }
 
     pub const fn wire_version(&self) -> u8 {
-        HISTORY_STEP_WIRE_VERSION
+        noid_chain::history_step::history_step_terminal_wire_version(self.height)
     }
 
     pub const fn height(&self) -> u64 {

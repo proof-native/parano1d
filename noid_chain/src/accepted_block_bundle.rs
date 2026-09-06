@@ -568,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn transport_headroom_does_not_activate_the_v2_cap_early() {
+    fn transport_headroom_does_not_activate_the_v1_1_cap_early() {
         use crate::consensus::wire_limits::V1_MAX_HISTORY_STEP_TERMINAL_BYTES;
 
         let terminal_len = (V1_MAX_HISTORY_STEP_TERMINAL_BYTES + 1) as u64;
@@ -583,11 +583,14 @@ mod tests {
     }
 
     #[test]
-    fn canonical_b255_terminal_switches_exactly_at_the_v2_height() {
+    fn b255_expanded_length_exceeds_legacy_cap_but_fits_v1_1_bound() {
         use crate::consensus::wire_limits::history_step_terminal_bytes_limit_with_activation;
 
         const ACTIVATION_HEIGHT: u64 = 42;
         const B255_TERMINAL_BYTES: u64 = 1_081_108;
+        // Length accounting only. Version 4 B255 is not a valid pre-fork
+        // block, and after activation the independent format gate requires
+        // version 5. Low-level audits may still compare its expanded bytes.
         let before = history_step_terminal_bytes_limit_with_activation(
             ACTIVATION_HEIGHT - 1,
             Some(ACTIVATION_HEIGHT),

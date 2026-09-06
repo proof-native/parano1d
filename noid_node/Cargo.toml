@@ -4,6 +4,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+isolated-v1-1-testnet = ["noid_chain/isolated-v1-1-testnet"]
+
+# A separately named executable for explicit local workload fixtures. The
+# regular daemon target is never overwritten when this example is built.
+[[example]]
+name = "isolated_v1_1_node"
+path = "src/main.rs"
+required-features = ["isolated-v1-1-testnet"]
+
 # --- Daemon ---
 [[bin]]
 name = "parano1d"

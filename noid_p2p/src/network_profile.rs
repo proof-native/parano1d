@@ -37,12 +37,15 @@ pub struct NetworkProfile {
     /// It is independent of a Git commit, branch, host, and build timestamp.
     pub history_proof_bank_id: [u8; 32],
     pub max_block_bytes: u32,
-    /// Network-v7 pre-activation baseline. The scheduled v2 height raises the
+    /// Network-v7 pre-activation baseline. The scheduled v1.1 height raises the
     /// terminal cap without partitioning upgraded nodes before the fork.
     pub max_terminal_bytes: u32,
     pub max_segment_bytes: u32,
     pub max_header_batch: u16,
     pub finality_depth: u16,
+    /// Stable network-v7 baseline, not the active height-selected encoding.
+    /// Keeping version 4 here lets upgraded peers connect to legacy peers
+    /// before activation. Terminal admission independently enforces v4/v5.
     pub history_terminal_version: u8,
     pub history_class_count: u8,
     pub profile_id: [u8; 32],
@@ -56,7 +59,7 @@ impl NetworkProfile {
             history_proof_bank_id,
             max_block_bytes: u32::try_from(MAX_BLOCK_BYTES).expect("block cap fits u32"),
             // Keep the network-v7 baseline identical before the scheduled
-            // fork. Height-selected consensus permits the narrow v2 increase.
+            // fork. Height-selected consensus permits the narrow v1.1 increase.
             max_terminal_bytes: u32::try_from(V1_MAX_HISTORY_STEP_TERMINAL_BYTES)
                 .expect("terminal cap fits u32"),
             max_segment_bytes: u32::try_from(MAX_SEGMENT_BYTES).expect("segment cap fits u32"),
@@ -282,6 +285,7 @@ mod tests {
             profile.max_terminal_bytes,
             V1_MAX_HISTORY_STEP_TERMINAL_BYTES as u32
         );
+        assert_eq!(profile.history_terminal_version, 4);
         assert!(profile.is_for_proof_bank(TEST_PROOF_BANK_ID));
         let mut codec = NetworkProfileCodec;
         let mut encoded = futures::io::Cursor::new(Vec::new());

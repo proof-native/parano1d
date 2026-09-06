@@ -4,6 +4,10 @@ version.workspace = true
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+# Isolated live fork tests only. Never enable for a public-network release.
+isolated-v1-1-testnet = []
+
 [dependencies]
 tracing = { workspace = true }
 noid_core = { path = "../noid_core" }

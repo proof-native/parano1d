@@ -3,11 +3,11 @@
 
 //! ASERT difficulty adjustment.
 //!
-//! The corrected v2 rule is a direct port of Bitcoin Cash `CalculateASERT()`:
+//! The corrected v1.1 rule is a direct port of Bitcoin Cash `CalculateASERT()`:
 //!   https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/blob/master/src/pow.cpp
 //!
 //! The v1 mainnet rule remains explicit so existing history stays valid until
-//! the common v2 activation height is fixed. BCH uses `arith_uint256`; we use
+//! the common v1.1 activation height is fixed. BCH uses `arith_uint256`; we use
 //! inline `[u64; 4]` LE limb arithmetic. The corrected polynomial coefficients
 //! and fixed-point scheme are identical to the BCH reference:
 //!
@@ -23,7 +23,7 @@
 //! All arithmetic uses u64/u128 integers. NO FLOATS.
 
 use crate::consensus::params::{
-    BLOCK_TIME, GENESIS_TARGET, HALFLIFE, MAX_TARGET, MIN_TARGET, V2_ACTIVATION_HEIGHT,
+    BLOCK_TIME, GENESIS_TARGET, HALFLIFE, MAX_TARGET, MIN_TARGET, V1_1_ACTIVATION_HEIGHT,
 };
 
 /// Fractional factor committed by the v1 mainnet consensus rule.
@@ -49,7 +49,7 @@ fn bch_fractional_factor(frac: u16) -> u64 {
 }
 
 fn fractional_factor_at_height(frac: u16, height: u64, activation_height: Option<u64>) -> u64 {
-    if crate::consensus::params::v2_active_with(height, activation_height) {
+    if crate::consensus::params::v1_1_active_with(height, activation_height) {
         bch_fractional_factor(frac)
     } else {
         legacy_fractional_factor(frac)
@@ -79,7 +79,7 @@ pub fn next_target(
         anchor_target,
         height,
         timestamp,
-        V2_ACTIVATION_HEIGHT,
+        V1_1_ACTIVATION_HEIGHT,
     )
 }
 
@@ -529,14 +529,37 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "isolated-v1-1-testnet"))]
     fn disabled_activation_preserves_the_current_mainnet_target() {
-        assert_eq!(V2_ACTIVATION_HEIGHT, None);
+        assert_eq!(V1_1_ACTIVATION_HEIGHT, None);
         let target = next_target(0, 0, &GENESIS_TARGET, 6, 6 * BLOCK_TIME - 1);
         let mut legacy = [0u8; 32];
         legacy[27] = 0x20;
         legacy[28] = 0x12;
         legacy[29] = 0x36;
         assert_eq!(target, legacy);
+    }
+
+    #[test]
+    #[cfg(feature = "isolated-v1-1-testnet")]
+    fn isolated_profile_activates_all_rules_at_height_five() {
+        assert_eq!(V1_1_ACTIVATION_HEIGHT, Some(5));
+        for height in [1, 4, 5, 6, 23] {
+            let time = height * BLOCK_TIME - 1;
+            let schedule = if height < 5 { None } else { Some(0) };
+            assert_eq!(
+                next_target(0, 0, &GENESIS_TARGET, height, time),
+                next_target_with_activation(0, 0, &GENESIS_TARGET, height, time, schedule)
+            );
+            assert_eq!(
+                crate::history_step::history_step_terminal_wire_version(height),
+                if height < 5 { 4 } else { 5 }
+            );
+            assert_eq!(
+                crate::consensus::wire_limits::history_step_terminal_bytes_limit(height),
+                if height < 5 { 1_048_576 } else { 1_100_000 }
+            );
+        }
     }
 
     #[test]
