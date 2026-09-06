@@ -447,6 +447,34 @@ impl AsyncMempool {
             .collect()
     }
 
+    /// Snapshot the same anchored selection and existing output reservations
+    /// under one lock. Only selected proofs are copied; the rest contributes
+    /// slot indices, not another payload scan or a new admission index.
+    pub async fn select_for_block_at_anchor_with_output_reservations(
+        &self,
+        max_pages: usize,
+        epoch_anchor: [u8; 32],
+    ) -> (Vec<SelectedMempoolEntry>, HashSet<u32>) {
+        let st = self.state.lock().await;
+        let limit = max_pages.min(BLOCK_MAX_USER_PAGES);
+        let entries = st
+            .pool
+            .select_for_block_at_anchor(limit, &epoch_anchor)
+            .into_iter()
+            .map(|entry| SelectedMempoolEntry {
+                pages: entry.pages.clone(),
+                logical_txid: entry.spend.logical_txid,
+                cached_authorization: entry.cached_authorization().map(<[u8]>::to_vec),
+            })
+            .collect();
+        let outputs = if st.admitted_output_slots.is_empty() {
+            HashSet::new()
+        } else {
+            st.admitted_output_slots.clone()
+        };
+        (entries, outputs)
+    }
+
     // -----------------------------------------------------------------------
     // Block confirmation
     // -----------------------------------------------------------------------
@@ -1211,6 +1239,227 @@ mod tests {
         assert_eq!(two.len(), 2);
         assert_eq!(two[0].logical_txid, high_id);
         assert_eq!(two[1].logical_txid, low_id);
+    }
+
+    #[tokio::test]
+    async fn template_selection_snapshots_unselected_outputs_without_changing_selection() {
+        let state = ChainState::with_log_slots(6);
+        let pool = AsyncMempool::new(
+            ChainView::new(0, HashMap::new(), 0, state.state),
+            MempoolConfig::default().with_capacity(8),
+        );
+        let anchor = [0x11; 32];
+        let high = user_pages(anchor, 300, 1);
+        let low = user_pages(anchor, 100, 2);
+        let stale = user_pages([0x22; 32], 400, 3);
+        let high_id = validate_paged_spend(&high).unwrap().logical_txid;
+        {
+            let mut locked = pool.state.lock().await;
+            for pages in [high, low, stale] {
+                locked.pool.admit(pages, 0).unwrap();
+            }
+            locked
+                .pool
+                .set_intent_bytes(&high_id, retained_intent(0xA5, 1024));
+            rebuild_slot_sets(&mut locked);
+        }
+        for limit in [0, 1, 25, 255] {
+            let legacy = pool.select_for_block_at_anchor(limit, anchor).await;
+            let (selected, outputs) = pool
+                .select_for_block_at_anchor_with_output_reservations(limit, anchor)
+                .await;
+            assert_eq!(outputs, HashSet::from([4, 6, 8]));
+            assert_eq!(selected.len(), legacy.len());
+            for (new, old) in selected.iter().zip(&legacy) {
+                assert_eq!(new.logical_txid, old.logical_txid);
+                assert_eq!(new.pages, old.pages);
+                assert_eq!(new.cached_authorization, old.cached_authorization);
+            }
+        }
+        let (_, before) = pool
+            .select_for_block_at_anchor_with_output_reservations(1, anchor)
+            .await;
+        {
+            let mut locked = pool.state.lock().await;
+            locked.pool.on_block_confirmed(&[high_id]);
+            rebuild_slot_sets(&mut locked);
+        }
+        let (_, after) = pool
+            .select_for_block_at_anchor_with_output_reservations(1, anchor)
+            .await;
+        assert_eq!(before, HashSet::from([4, 6, 8]), "snapshot is owned");
+        assert_eq!(after, HashSet::from([6, 8]), "no stale reservation index");
+    }
+
+    #[tokio::test]
+    async fn empty_template_reservations_do_not_clone_retained_hash_capacity() {
+        let state = ChainState::with_log_slots(6);
+        let pool = AsyncMempool::new(
+            ChainView::new(0, HashMap::new(), 0, state.state),
+            MempoolConfig::default(),
+        );
+        {
+            let mut locked = pool.state.lock().await;
+            locked.admitted_output_slots.reserve(65_536);
+        }
+        let (entries, outputs) = pool
+            .select_for_block_at_anchor_with_output_reservations(25, [0; 32])
+            .await;
+        assert!(entries.is_empty());
+        assert!(outputs.is_empty());
+        assert_eq!(outputs.capacity(), 0);
+    }
+
+    #[tokio::test]
+    async fn mint_preference_preserves_a_real_pending_spend_for_the_next_block() {
+        use noid_chain::consensus::template::{
+            build_block_template, build_node_owned_block_template_avoiding_outputs,
+        };
+        use noid_gkr::{prove_paged_spend_authorization, OwnerAuthWitness};
+        use noid_poseidon2b::primitives::{derive_address, SpendSecret};
+        use noid_tx::PagedSpendIntent;
+
+        let secret = SpendSecret::from_bytes([0x39; 32]);
+        let owner = derive_address(&secret);
+        let mut state = ChainState::with_log_slots(8);
+        state
+            .state
+            .set_slot(
+                3,
+                SlotValue::with_owner_fields(100_000, 2, owner.as_fields()),
+            )
+            .unwrap();
+        state.active_slot_count = 1;
+        state.alloc_counter = 2;
+        state.circulating_supply_micronoid = 100_000;
+        let mut parent = genesis_header();
+        parent.log_slots = 8;
+        parent.state_root = state.state_root();
+        parent.active_slot_count = 1;
+        parent.alloc_counter = 2;
+        let anchor = noid_chain::consensus::pow::block_id(&parent);
+        let miner = Address([9; 32]);
+        let timestamp = parent.timestamp + 1;
+        let legacy =
+            build_block_template(&parent, &state, &[1], vec![], miner, timestamp, [0xff; 32])
+                .unwrap()
+                .into_block(0);
+        let colliding_slot = legacy.transactions[0].body.outputs[0].slot_index;
+        let mut body = user_pages(anchor, 6_500, 1).remove(0).body;
+        body.input_owner = owner;
+        body.inputs[0].amount = 100_000;
+        body.outputs[0].slot_index = colliding_slot;
+        body.outputs[0].amount = 93_500;
+        let pages = vec![TxPage::new(body).unwrap()];
+        let proof = prove_paged_spend_authorization(&pages, OwnerAuthWitness::new(secret)).unwrap();
+        let intent = PagedSpendIntent::new(pages, proof.to_bytes().unwrap()).unwrap();
+        let initial_view = ChainView::new(0, HashMap::from([(0, parent)]), 1, state.state.clone());
+
+        for avoid in [false, true] {
+            let pool = AsyncMempool::new(initial_view.clone(), MempoolConfig::default());
+            let id = pool
+                .submit(intent.clone(), intent.to_bytes().unwrap())
+                .await
+                .unwrap();
+            // Model an admitted transaction outside this block's selected prefix.
+            let (selected, pending) = pool
+                .select_for_block_at_anchor_with_output_reservations(0, anchor)
+                .await;
+            assert!(selected.is_empty());
+            assert!(pending.contains(&colliding_slot));
+            let block = if avoid {
+                build_node_owned_block_template_avoiding_outputs(
+                    &parent,
+                    &state,
+                    &[1],
+                    vec![],
+                    miner,
+                    timestamp,
+                    [0xff; 32],
+                    &pending,
+                )
+                .unwrap()
+                .0
+                .into_block(0)
+            } else {
+                legacy.clone()
+            };
+            let mut next_state = state.clone();
+            for tx in &block.transactions {
+                noid_chain::state::apply_tx_at(&mut next_state, &tx.body, block.header.height)
+                    .unwrap();
+            }
+            assert_eq!(next_state.state_root(), block.header.state_root);
+            let headers = HashMap::from([(0, parent), (1, block.header)]);
+            let view = ChainView::new(
+                1,
+                headers.clone(),
+                next_state.active_slot_count,
+                next_state.state.clone(),
+            );
+            pool.on_new_block(&[], 1, view).await;
+            assert_eq!(pool.try_contains(&id), Some(avoid));
+            assert_eq!(
+                next_state.state.slot(3),
+                state.state.slot(3),
+                "neither branch spends or charges the pending input"
+            );
+            if avoid {
+                let (entries, outputs) = pool
+                    .select_for_block_at_anchor_with_output_reservations(25, anchor)
+                    .await;
+                assert_eq!(entries.len(), 1);
+                assert_eq!(
+                    entries[0].cached_authorization.as_deref(),
+                    Some(intent.authorization_bytes.as_slice()),
+                    "reuse the original proof"
+                );
+                let users = entries[0]
+                    .pages
+                    .iter()
+                    .map(|page| noid_tx::Transaction::new(page.body.clone()))
+                    .collect();
+                let child = build_node_owned_block_template_avoiding_outputs(
+                    &block.header,
+                    &next_state,
+                    &[next_state.active_slot_count],
+                    users,
+                    miner,
+                    timestamp + 1,
+                    [0xff; 32],
+                    &outputs,
+                )
+                .unwrap()
+                .0
+                .into_block(0);
+                for tx in &child.transactions {
+                    noid_chain::state::apply_tx_at(&mut next_state, &tx.body, child.header.height)
+                        .unwrap();
+                }
+                assert_eq!(next_state.state_root(), child.header.state_root);
+                let mut headers = headers;
+                headers.insert(2, child.header);
+                pool.on_new_block(
+                    &[id],
+                    2,
+                    ChainView::new(
+                        2,
+                        headers,
+                        next_state.active_slot_count,
+                        next_state.state.clone(),
+                    ),
+                )
+                .await;
+                assert!(pool.is_empty().await);
+                assert!(pool.reserved_input_slots().await.is_empty());
+                assert!(pool.reserved_output_slots().await.is_empty());
+                assert!(next_state.state.slot(3).is_empty());
+                assert_eq!(next_state.state.slot(colliding_slot).amount(), 93_500);
+            } else {
+                assert!(pool.reserved_input_slots().await.is_empty());
+                assert!(pool.reserved_output_slots().await.is_empty());
+            }
+        }
     }
 
     #[tokio::test]

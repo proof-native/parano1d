@@ -426,6 +426,37 @@ fn select_system_mint_slot(
     None
 }
 
+/// A local preference, not a consensus reservation. Keep the legacy slot as
+/// a fallback and inspect at most 64 neighbours in the same resident or
+/// virtual-zero segment. Pending transactions cannot force another segment
+/// load, expand the search, or prevent a mandatory mint.
+const SYSTEM_MINT_PREFERENCE_PROBES: u32 = 64;
+
+fn select_system_mint_slot_avoiding_outputs(
+    state: &ChainState,
+    reuse_seed: u64,
+    reserved: &HashSet<u32>,
+    pending_outputs: &HashSet<u32>,
+) -> Option<u32> {
+    let fallback = select_system_mint_slot(state, reuse_seed, reserved)?;
+    if !pending_outputs.contains(&fallback) {
+        return Some(fallback);
+    }
+
+    let local_mask = (1u32 << state.state.effective_log_segment_size()) - 1;
+    let base = fallback & !local_mask;
+    for step in 1..=SYSTEM_MINT_PREFERENCE_PROBES.min(local_mask) {
+        let slot = base | (((fallback & local_mask) + step) & local_mask);
+        if !reserved.contains(&slot)
+            && !pending_outputs.contains(&slot)
+            && state.state.slot(slot) == crate::fri_state::SlotValue::EMPTY
+        {
+            return Some(slot);
+        }
+    }
+    Some(fallback)
+}
+
 /// Build a `BlockTemplate` from a set of candidate transactions.
 ///
 /// Steps:
@@ -461,6 +492,7 @@ pub fn build_block_template(
         miner_address,
         timestamp,
         difficulty_target,
+        &HashSet::new(),
     )
     .map(|(template, _)| template)
 }
@@ -480,6 +512,33 @@ pub fn build_node_owned_block_template(
     timestamp: u64,
     difficulty_target: Digest,
 ) -> Result<(BlockTemplate, PreparedBlockStateCommit), TemplateBuildError> {
+    build_node_owned_block_template_avoiding_outputs(
+        parent,
+        state,
+        finalized_active_counts,
+        candidate_txs,
+        miner_address,
+        timestamp,
+        difficulty_target,
+        &HashSet::new(),
+    )
+}
+
+/// Build once, with a best-effort preference against minting into outputs of
+/// other locally pending transactions. Selected transactions retain their
+/// hard slot exclusions. Neither validation nor the proof relation consumes
+/// this local snapshot, which may become stale while the template is mined.
+#[allow(clippy::too_many_arguments)]
+pub fn build_node_owned_block_template_avoiding_outputs(
+    parent: &BlockHeader,
+    state: &ChainState,
+    finalized_active_counts: &[u64],
+    candidate_txs: Vec<Transaction>,
+    miner_address: Address,
+    timestamp: u64,
+    difficulty_target: Digest,
+    pending_outputs: &HashSet<u32>,
+) -> Result<(BlockTemplate, PreparedBlockStateCommit), TemplateBuildError> {
     let (template, post_state) = build_block_template_with_post_state(
         parent,
         state,
@@ -488,6 +547,7 @@ pub fn build_node_owned_block_template(
         miner_address,
         timestamp,
         difficulty_target,
+        pending_outputs,
     )?;
     let nonce_free_block = template.clone().into_block(0);
     let undo_log = build_undo_log(state, &nonce_free_block).map_err(|error| {
@@ -511,6 +571,7 @@ fn build_block_template_with_post_state(
     miner_address: Address,
     timestamp: u64,
     difficulty_target: Digest,
+    pending_outputs: &HashSet<u32>,
 ) -> Result<(BlockTemplate, ChainState), TemplateBuildError> {
     use crate::consensus::development_allocation::{
         development_allocation, O1_NETWORK_FUND_ADDRESS, PARANO1D_LAB_ADDRESS,
@@ -648,15 +709,26 @@ fn build_block_template_with_post_state(
         let seed =
             scratch.alloc_counter ^ u64::from_le_bytes(parent.state_root[..8].try_into().unwrap());
 
-        let coinbase = select_system_mint_slot(&scratch, seed, &reserved)
-            .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
+        let coinbase =
+            select_system_mint_slot_avoiding_outputs(&scratch, seed, &reserved, pending_outputs)
+                .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
         reserved.insert(coinbase);
         let development = if allocation.payout_due {
-            let first = select_system_mint_slot(&scratch, seed, &reserved)
-                .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
+            let first = select_system_mint_slot_avoiding_outputs(
+                &scratch,
+                seed,
+                &reserved,
+                pending_outputs,
+            )
+            .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
             reserved.insert(first);
-            let second = select_system_mint_slot(&scratch, seed, &reserved)
-                .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
+            let second = select_system_mint_slot_avoiding_outputs(
+                &scratch,
+                seed,
+                &reserved,
+                pending_outputs,
+            )
+            .ok_or(TemplateBuildError::NoCoinbaseSlot)?;
             Some([first, second])
         } else {
             None
@@ -1029,6 +1101,481 @@ mod tests {
             .expect("the other production-size segment is virtual zero");
         assert_ne!((slot >> 16) as u16, primary);
         assert_eq!(state.state.slot(slot), crate::fri_state::SlotValue::EMPTY);
+    }
+
+    #[test]
+    fn mint_preference_preserves_legacy_choice_without_a_collision() {
+        for log_slots in [4, 8, 17, 32] {
+            let state = ChainState::with_log_slots(log_slots);
+            let hard = HashSet::from([0, 1, 2]);
+            for seed in [0, 7, u64::MAX] {
+                let legacy = select_system_mint_slot(&state, seed, &hard).unwrap();
+                for soft in [HashSet::new(), HashSet::from([legacy ^ 1])] {
+                    assert_eq!(
+                        select_system_mint_slot_avoiding_outputs(&state, seed, &hard, &soft),
+                        Some(legacy)
+                    );
+                }
+                assert_eq!(state.state.materialized_segment_ids().count(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn mint_preference_skips_hard_soft_and_occupied_neighbours() {
+        use crate::fri_state::SlotValue;
+
+        let mut state = ChainState::with_log_slots(17);
+        let value = SlotValue::with_owner_fields(100_000, 1, Address([4; 32]).as_fields());
+        state.state.set_slot(7, value).unwrap();
+        let legacy = select_system_mint_slot(&state, 7, &HashSet::new()).unwrap();
+        let base = legacy & !0xffff;
+        let neighbour = |step| base | ((legacy + step) & 0xffff);
+        state.state.set_slot(neighbour(3), value).unwrap();
+        let hard = HashSet::from([neighbour(1)]);
+        let soft = HashSet::from([legacy, neighbour(2)]);
+        assert_eq!(select_system_mint_slot(&state, 7, &hard), Some(legacy));
+        assert_eq!(
+            select_system_mint_slot_avoiding_outputs(&state, 7, &hard, &soft),
+            Some(neighbour(4))
+        );
+        assert_eq!(state.state.materialized_segment_ids().count(), 1);
+    }
+
+    #[test]
+    fn mint_preference_stops_at_the_probe_budget_and_never_relaxes_hard_exclusions() {
+        let state = ChainState::with_log_slots(17);
+        let hard = HashSet::from([0, 1, 2]);
+        let legacy = select_system_mint_slot(&state, 0, &hard).unwrap();
+        let base = legacy & !0xffff;
+        for last in [
+            SYSTEM_MINT_PREFERENCE_PROBES - 1,
+            SYSTEM_MINT_PREFERENCE_PROBES,
+        ] {
+            let soft = (0..=last)
+                .map(|step| base | ((legacy + step) & 0xffff))
+                .collect();
+            let expected = if last < SYSTEM_MINT_PREFERENCE_PROBES {
+                base | ((legacy + SYSTEM_MINT_PREFERENCE_PROBES) & 0xffff)
+            } else {
+                legacy
+            };
+            assert_eq!(
+                select_system_mint_slot_avoiding_outputs(&state, 0, &hard, &soft),
+                Some(expected)
+            );
+            assert!(!hard.contains(&expected));
+        }
+        let small = ChainState::with_log_slots(4);
+        let all = (0..16).collect();
+        assert_eq!(
+            select_system_mint_slot_avoiding_outputs(&small, 0, &all, &all),
+            None
+        );
+    }
+
+    #[test]
+    fn mint_preference_wraps_within_one_segment_without_hydrating_evicted_state() {
+        use crate::consensus::allocator::generate_zone_segment_hints;
+
+        let mut state = ChainState::with_log_slots(17);
+        state.alloc_counter = 0xffff;
+        let evicted = generate_zone_segment_hints(state.alloc_counter, 17, 2)[0];
+        state
+            .state
+            .install_evicted_exact_summary(evicted, 1)
+            .unwrap();
+        state.state.finish_evicted_exact_summaries();
+        let legacy = select_system_mint_slot(&state, 7, &HashSet::new()).unwrap();
+        assert_eq!(legacy & 0xffff, 0xffff);
+        let base = legacy & !0xffff;
+        let hard = HashSet::from([base]);
+        let soft = HashSet::from([legacy]);
+        assert_eq!(
+            select_system_mint_slot_avoiding_outputs(&state, 7, &hard, &soft),
+            Some(base + 1)
+        );
+        assert_ne!((base >> 16) as u16, evicted);
+        assert!(state.state.is_evicted(evicted));
+        assert_eq!(state.state.materialized_segment_ids().count(), 0);
+    }
+
+    #[test]
+    fn mint_preference_cannot_move_a_mint_to_another_segment() {
+        let state = ChainState::with_log_slots(17);
+        let hard = HashSet::new();
+        let legacy = select_system_mint_slot(&state, 0, &hard).unwrap();
+        let base = legacy & !0xffff;
+        let soft = (base..base + (1 << 16)).collect();
+        assert_eq!(
+            select_system_mint_slot_avoiding_outputs(&state, 0, &hard, &soft),
+            Some(legacy),
+            "the other empty segment must not be opened for a soft preference"
+        );
+    }
+
+    #[test]
+    fn mint_preference_covers_daily_payouts_and_all_reserved_fallback() {
+        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
+        for payout in [false, true] {
+            let mut state = ChainState::with_log_slots(8);
+            let mut parent = parent(&mut state);
+            if payout {
+                parent.height = TARGET_BLOCKS_PER_DAY - 1;
+            }
+            let legacy = node_owned_coinbase_template(&parent, &state)
+                .0
+                .into_block(0);
+            let old_slots: HashSet<_> = legacy
+                .transactions
+                .iter()
+                .flat_map(|tx| tx.body.live_outputs().map(|(_, out)| out.slot_index))
+                .collect();
+            for soft in [old_slots, (0..256).collect()] {
+                let (template, prepared) = build_node_owned_block_template_avoiding_outputs(
+                    &parent,
+                    &state,
+                    &[0],
+                    vec![],
+                    Address([9; 32]),
+                    1,
+                    [0xff; 32],
+                    &soft,
+                )
+                .unwrap();
+                let block = template.into_block(0);
+                assert_eq!(block.header.active_slot_count, if payout { 3 } else { 1 });
+                let slots: HashSet<_> = block
+                    .transactions
+                    .iter()
+                    .flat_map(|tx| tx.body.live_outputs().map(|(_, out)| out.slot_index))
+                    .collect();
+                assert_eq!(slots.len(), if payout { 3 } else { 1 });
+                if soft.len() == 256 {
+                    assert_eq!(
+                        block, legacy,
+                        "full soft reservation keeps the legacy block"
+                    );
+                } else {
+                    assert!(slots.is_disjoint(&soft));
+                }
+                assert_eq!(
+                    crate::consensus::validation::validate_mandatory_coinbase(&block, &parent),
+                    Ok(())
+                );
+                let mut replay = state.clone();
+                crate::block::apply_block(&mut replay, &block).unwrap();
+                assert_eq!(replay.state_root(), block.header.state_root);
+                assert_eq!(
+                    prepared.post_state.cached_state_root(),
+                    replay.cached_state_root()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mint_preference_cannot_block_a_payout_with_only_three_free_slots() {
+        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
+        use crate::fri_state::SlotValue;
+
+        let owner = Address([4; 32]);
+        let free = HashSet::from([1, 77, 200]);
+        let occupied: Vec<_> = (0..256)
+            .filter(|slot| !free.contains(slot))
+            .map(|slot| {
+                (
+                    slot,
+                    SlotValue::with_owner_fields(100_000, u64::from(slot) + 1, owner.as_fields()),
+                )
+            })
+            .collect();
+        let mut state = ChainState::with_log_slots(8);
+        state.state.apply_delta_unrooted(&occupied).unwrap();
+        state.active_slot_count = 253;
+        state.alloc_counter = 256;
+        state.circulating_supply_micronoid = 25_300_000;
+        let mut parent = parent(&mut state);
+        parent.height = TARGET_BLOCKS_PER_DAY - 1;
+        let old = build_node_owned_block_template(
+            &parent,
+            &state,
+            &[0; 18],
+            vec![],
+            Address([9; 32]),
+            1,
+            [0xff; 32],
+        )
+        .unwrap()
+        .0
+        .into_block(0);
+        let new = build_node_owned_block_template_avoiding_outputs(
+            &parent,
+            &state,
+            &[0; 18],
+            vec![],
+            Address([9; 32]),
+            1,
+            [0xff; 32],
+            &free,
+        )
+        .unwrap()
+        .0
+        .into_block(0);
+        assert_eq!(new, old, "soft reservations cannot veto mandatory mints");
+        assert_eq!(new.header.active_slot_count, 256);
+        crate::block::apply_block(&mut state, &new).unwrap();
+        assert_eq!(state.state_root(), new.header.state_root);
+    }
+
+    #[test]
+    fn mint_preference_keeps_b25_b255_users_and_their_slots_unchanged() {
+        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
+        use crate::fri_state::SlotValue;
+
+        for (count, payout) in [(25u32, false), (255, false), (24, true), (255, true)] {
+            let owner = Address([4; 32]);
+            let mut state = ChainState::with_log_slots(16);
+            let occupied: Vec<_> = (0..count)
+                .map(|slot| {
+                    (
+                        slot,
+                        SlotValue::with_owner_fields(1_000_000, 1, owner.as_fields()),
+                    )
+                })
+                .collect();
+            state.state.apply_delta_unrooted(&occupied).unwrap();
+            state.active_slot_count = u64::from(count);
+            state.alloc_counter = u64::from(count);
+            state.circulating_supply_micronoid = u128::from(count) * 1_000_000;
+            let mut parent = parent(&mut state);
+            if payout {
+                parent.height = TARGET_BLOCKS_PER_DAY - 1;
+            }
+            let candidates: Vec<_> = (0..count)
+                .map(|slot| user(slot, 1024 + slot, 1_000_000, owner, &parent))
+                .collect();
+            let legacy = build_block_template(
+                &parent,
+                &state,
+                &[u64::from(count)],
+                candidates.clone(),
+                Address([9; 32]),
+                1,
+                [0xff; 32],
+            )
+            .unwrap();
+            let old_slots: HashSet<_> = std::iter::once(&legacy.coinbase)
+                .chain(legacy.development_payout.iter())
+                .flat_map(|tx| tx.body.live_outputs().map(|(_, out)| out.slot_index))
+                .collect();
+            let mut soft: HashSet<_> = (1024..1024 + count).collect();
+            soft.extend(&old_slots);
+            let selected_count = (count as usize).min(255 - usize::from(payout));
+            for all_soft in [false, true] {
+                let avoid = if all_soft {
+                    (0..1 << 16).collect()
+                } else {
+                    soft.clone()
+                };
+                let (template, prepared) = build_node_owned_block_template_avoiding_outputs(
+                    &parent,
+                    &state,
+                    &[u64::from(count)],
+                    candidates.clone(),
+                    Address([9; 32]),
+                    1,
+                    [0xff; 32],
+                    &avoid,
+                )
+                .unwrap();
+                assert_eq!(template.txs, legacy.txs);
+                assert_eq!(template.txs.len(), selected_count);
+                let mint_slots: HashSet<_> = std::iter::once(&template.coinbase)
+                    .chain(template.development_payout.iter())
+                    .flat_map(|tx| tx.body.live_outputs().map(|(_, out)| out.slot_index))
+                    .collect();
+                assert_eq!(mint_slots.len(), if payout { 3 } else { 1 });
+                for slot in &mint_slots {
+                    assert!(!(0..count).contains(slot));
+                    assert!(!(1024..1024 + count).contains(slot));
+                }
+                for (new, old) in std::iter::once(&template.coinbase)
+                    .chain(template.development_payout.iter())
+                    .zip(std::iter::once(&legacy.coinbase).chain(legacy.development_payout.iter()))
+                {
+                    let mut old_body = old.body.clone();
+                    for (old_output, new_output) in
+                        old_body.outputs.iter_mut().zip(&new.body.outputs)
+                    {
+                        old_output.slot_index = new_output.slot_index;
+                    }
+                    assert_eq!(new.body, old_body, "only mint slots may change");
+                }
+                if all_soft {
+                    assert_eq!(template.clone().into_block(0), legacy.clone().into_block(0));
+                } else {
+                    assert!(mint_slots.is_disjoint(&old_slots));
+                    assert!(mint_slots.is_disjoint(&avoid));
+                }
+                let block = template.into_block(0);
+                crate::consensus::validation::validate_mandatory_coinbase(&block, &parent).unwrap();
+                let layout = crate::block::validate_block_page_stream(&block.transactions).unwrap();
+                assert_eq!(usize::from(layout.page_count), selected_count);
+                assert_eq!(layout.has_development_payout, payout);
+                assert_eq!(
+                    layout.proof_class,
+                    crate::consensus::paged_spend::BlockProofClass::for_page_count(
+                        selected_count + usize::from(payout)
+                    )
+                    .unwrap()
+                );
+                let mut replay = state.clone();
+                crate::block::apply_block(&mut replay, &block).unwrap();
+                assert_eq!(replay.state_root(), block.header.state_root);
+                assert_eq!(
+                    prepared.post_state.cached_state_root(),
+                    replay.cached_state_root()
+                );
+                crate::consensus::da_prune::revert_block(&mut replay, &prepared.undo_log).unwrap();
+                replay.active_slot_count = prepared.undo_log.active_slot_count_before;
+                replay.alloc_counter = prepared.undo_log.alloc_counter_before;
+                assert_eq!(replay.state_root(), parent.state_root);
+                assert_eq!(
+                    replay.circulating_supply_micronoid,
+                    state.circulating_supply_micronoid
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "manual release-mode latency benchmark, not a timing assertion"]
+    fn mint_preference_latency_benchmark() {
+        use crate::fri_state::SlotValue;
+        use std::hint::black_box;
+        use std::time::Instant;
+
+        fn median_ns(mut samples: Vec<u128>) -> u128 {
+            samples.sort_unstable();
+            samples[samples.len() / 2]
+        }
+
+        let mut state = ChainState::with_log_slots(24);
+        let owner = Address([4; 32]);
+        let occupied: Vec<_> = (0..255)
+            .map(|slot| {
+                (
+                    slot,
+                    SlotValue::with_owner_fields(1_000_000, 1, owner.as_fields()),
+                )
+            })
+            .collect();
+        state.state.apply_delta_unrooted(&occupied).unwrap();
+        state.active_slot_count = 255;
+        state.alloc_counter = 255;
+        state.circulating_supply_micronoid = 255_000_000;
+        let parent = parent(&mut state);
+        let seed =
+            state.alloc_counter ^ u64::from_le_bytes(parent.state_root[..8].try_into().unwrap());
+        let hard = (0..255).collect();
+        let legacy_slot = select_system_mint_slot(&state, seed, &hard).unwrap();
+        let worst_probe: HashSet<_> = (0..=SYSTEM_MINT_PREFERENCE_PROBES)
+            .map(|step| (legacy_slot & !0xffff) | ((legacy_slot + step) & 0xffff))
+            .collect();
+        let start = Instant::now();
+        for _ in 0..20_000 {
+            black_box(select_system_mint_slot(&state, seed, &hard));
+        }
+        let legacy_ns = start.elapsed().as_nanos() / 20_000;
+        let start = Instant::now();
+        for _ in 0..20_000 {
+            black_box(select_system_mint_slot_avoiding_outputs(
+                &state,
+                seed,
+                &hard,
+                &worst_probe,
+            ));
+        }
+        eprintln!(
+            "mint_probe legacy_ns={legacy_ns} all_64_blocked_ns={}",
+            start.elapsed().as_nanos() / 20_000
+        );
+
+        // This isolates the added integer-index copy. The largest case is an
+        // upper envelope of 1,024 entries with 255 two-output pages each, not
+        // a claim that all such proofs fit the byte-limited live mempool.
+        for count in [0, 2_048, 1_024 * 255 * 2] {
+            let outputs: HashSet<u32> = (1_000_000..1_000_000 + count).collect();
+            let samples = (0..31)
+                .map(|_| {
+                    let start = Instant::now();
+                    let copy = black_box(outputs.clone());
+                    let elapsed = start.elapsed().as_nanos();
+                    drop(copy);
+                    elapsed
+                })
+                .collect();
+            eprintln!(
+                "reservation_clone slots={count} median_ns={}",
+                median_ns(samples)
+            );
+        }
+        for pages in [0, 25, 255] {
+            let candidates: Vec<_> = (0..pages)
+                .map(|slot| user(slot, 1024 + slot, 1_000_000, owner, &parent))
+                .collect();
+            let legacy = build_node_owned_block_template(
+                &parent,
+                &state,
+                &[255],
+                candidates.clone(),
+                Address([9; 32]),
+                1,
+                [0xff; 32],
+            )
+            .unwrap()
+            .0;
+            let soft = HashSet::from([legacy.coinbase.body.outputs[0].slot_index]);
+            let mut baseline = Vec::new();
+            let mut preferred = Vec::new();
+            for _ in 0..15 {
+                let start = Instant::now();
+                drop(black_box(
+                    build_node_owned_block_template(
+                        &parent,
+                        &state,
+                        &[255],
+                        candidates.clone(),
+                        Address([9; 32]),
+                        1,
+                        [0xff; 32],
+                    )
+                    .unwrap(),
+                ));
+                baseline.push(start.elapsed().as_nanos());
+                let start = Instant::now();
+                drop(black_box(
+                    build_node_owned_block_template_avoiding_outputs(
+                        &parent,
+                        &state,
+                        &[255],
+                        candidates.clone(),
+                        Address([9; 32]),
+                        1,
+                        [0xff; 32],
+                        &soft,
+                    )
+                    .unwrap(),
+                ));
+                preferred.push(start.elapsed().as_nanos());
+            }
+            eprintln!(
+                "template pages={pages} legacy_median_ns={} preferred_median_ns={}",
+                median_ns(baseline),
+                median_ns(preferred)
+            );
+        }
     }
 
     #[test]

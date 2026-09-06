@@ -340,9 +340,9 @@ impl TemplateBuilder {
         // Filter against the captured anchor while entries are still borrowed
         // under the mempool lock. This preserves the same fee-ordered prefix
         // while cloning only the authorization bundles selected for this block.
-        let entries = self
+        let (entries, pending_outputs) = self
             .mempool
-            .select_for_block_at_anchor(max_user_pages, user_epoch_anchor)
+            .select_for_block_at_anchor_with_output_reservations(max_user_pages, user_epoch_anchor)
             .await;
         // Keep each authorization paired with its indivisible logical group;
         // flatten only the public pages passed into the chain template.
@@ -387,7 +387,7 @@ impl TemplateBuilder {
             return None;
         }
         let template_cpu_result = install_history_step_phase_cpu(|| {
-            match noid_chain::consensus::template::build_node_owned_block_template(
+            match noid_chain::consensus::template::build_node_owned_block_template_avoiding_outputs(
                 &parent,
                 &state,
                 finalized_active_counts,
@@ -395,6 +395,7 @@ impl TemplateBuilder {
                 miner_address,
                 timestamp,
                 difficulty_target,
+                &pending_outputs,
             ) {
                 Ok(inner) => Some(inner),
                 Err(error) => {
