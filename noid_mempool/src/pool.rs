@@ -84,6 +84,18 @@ pub(crate) struct MempoolState {
     pub admitted_output_slots: HashSet<u32>,
 }
 
+/// Mempool policy follows the candidate block, like the producer's activation
+/// gate. Refresh only on existing mutations; every consumer reads one floor.
+fn refresh_fee_floor(state: &mut MempoolState, config: &MempoolConfig, retained_bytes: usize) {
+    state.floor.update_pressure(
+        noid_chain::consensus::params::v1_1_active(state.view.tip_height.saturating_add(1)),
+        state.pool.len(),
+        config.capacity,
+        retained_bytes,
+        config.max_total_intent_bytes,
+    );
+}
+
 /// Compact immutable RPC/diagnostic projection of one mempool entry.
 ///
 /// This type deliberately contains no intent or authorization byte vector, so
@@ -173,13 +185,14 @@ impl AsyncMempool {
     pub fn new(view: ChainView, config: MempoolConfig) -> Self {
         let (events, _) = broadcast::channel(1024);
         let floor = FeeFloor::new(config.fee_floor_window);
-        let state = MempoolState {
+        let mut state = MempoolState {
             pool: Mempool::new(config.capacity),
             view,
             floor,
             admitted_input_slots: HashSet::new(),
             admitted_output_slots: HashSet::new(),
         };
+        refresh_fee_floor(&mut state, &config, 0);
         let max_permits = if config.auth_verify_workers == 0 {
             // 0 = unlimited concurrency; verification is still required
             usize::MAX / 2 // Semaphore::MAX_PERMITS
@@ -378,6 +391,8 @@ impl AsyncMempool {
         let intent_bytes: Arc<[u8]> = intent_bytes.into();
         st.pool.set_intent_bytes(&hash, Arc::clone(&intent_bytes));
         st.floor.record(fee);
+        // Reuse the authoritative byte-cap calculation above; no new scan.
+        refresh_fee_floor(&mut st, &self.config, projected_bytes);
         let _ = self.events.send(MempoolEvent::TxAdmitted {
             hash,
             fee,
@@ -504,19 +519,34 @@ impl AsyncMempool {
         // Update chain view BEFORE eviction so anchor check uses new state.
         st.view = new_view;
 
-        // Evict transactions from the previous exact epoch after a boundary.
-        let stale_anchor: Vec<TxBodyHash> = st
+        // Reuse the epoch-cleanup scan for cheap parent-context fee checks.
+        // The local relay floor is admission policy, not a reason to evict an
+        // already-admitted spend. No authorization or payload is reprocessed.
+        let stale_context: Vec<_> = st
             .pool
             .iter()
-            .filter(|(_, entry)| entry.spend.epoch_anchor != st.view.user_epoch_anchor_id)
-            .map(|(hash, _)| *hash)
+            .filter_map(|(hash, entry)| {
+                let reason = if entry.spend.epoch_anchor != st.view.user_epoch_anchor_id {
+                    EvictReason::EpochAnchorChanged
+                } else if entry.spend.fee
+                    < fee_breakdown(
+                        u64::from(entry.spend.live_inputs),
+                        u64::from(entry.spend.live_outputs),
+                        st.view.active_slot_count,
+                        st.view.log_slots(),
+                    )
+                    .required_total
+                {
+                    EvictReason::ConsensusFeeIncreased
+                } else {
+                    return None;
+                };
+                Some((*hash, reason))
+            })
             .collect();
-        for hash in stale_anchor {
+        for (hash, reason) in stale_context {
             st.pool.remove(&hash);
-            let _ = self.events.send(MempoolEvent::TxEvicted {
-                hash,
-                reason: EvictReason::EpochAnchorChanged,
-            });
+            let _ = self.events.send(MempoolEvent::TxEvicted { hash, reason });
         }
 
         // Evict txs whose output slots became occupied in the new block.
@@ -604,10 +634,8 @@ impl AsyncMempool {
         }
 
         // Rebuild slot sets after bulk eviction (O(pool) once/block vs O(N²) per submit).
-        rebuild_slot_sets(&mut st);
-        if st.pool.is_empty() {
-            st.floor.reset();
-        }
+        let retained_bytes = rebuild_slot_sets(&mut st);
+        refresh_fee_floor(&mut st, &self.config, retained_bytes);
 
         tracing::debug!(
             height = new_height,
@@ -652,10 +680,10 @@ impl AsyncMempool {
             }
         }
         if removed {
-            rebuild_slot_sets(&mut st);
-        }
-        if st.pool.is_empty() {
-            st.floor.reset();
+            let retained_bytes = rebuild_slot_sets(&mut st);
+            refresh_fee_floor(&mut st, &self.config, retained_bytes);
+        } else if st.pool.is_empty() {
+            refresh_fee_floor(&mut st, &self.config, 0);
         }
     }
 
@@ -945,10 +973,14 @@ fn run_admission_checks(
 // Helper: rebuild admitted slot sets from current pool (O(pool), after eviction)
 // ---------------------------------------------------------------------------
 
-fn rebuild_slot_sets(st: &mut MempoolState) {
+fn rebuild_slot_sets(st: &mut MempoolState) -> usize {
     st.admitted_input_slots.clear();
     st.admitted_output_slots.clear();
+    let mut retained_bytes = 0usize;
     for (_, entry) in st.pool.iter() {
+        // Account for bytes inside the existing cleanup walk, without
+        // cloning payloads or adding a separate full-pool pass.
+        retained_bytes = retained_bytes.saturating_add(entry.intent_bytes.len());
         for page in &entry.pages {
             for (_, inp) in page.body.live_inputs() {
                 st.admitted_input_slots.insert(inp.slot_index);
@@ -958,6 +990,7 @@ fn rebuild_slot_sets(st: &mut MempoolState) {
             }
         }
     }
+    retained_bytes
 }
 
 // ---------------------------------------------------------------------------
@@ -1089,9 +1122,11 @@ mod tests {
     };
 
     use super::{
-        check_input_slots, rebuild_slot_sets, run_admission_checks, AsyncMempool, MempoolState,
+        check_input_slots, rebuild_slot_sets, refresh_fee_floor, run_admission_checks,
+        AsyncMempool, MempoolState,
     };
     use crate::config::MempoolConfig;
+    use crate::error::SubmitError;
     use crate::view::ChainView;
     use std::collections::HashSet;
 
@@ -1201,6 +1236,454 @@ mod tests {
         pool.on_new_block(&[], 1, view).await;
 
         assert_eq!(pool.fee_floor().await, MIN_FEE_BASE);
+    }
+
+    // Populate already-admitted metadata directly: these tests exercise fee
+    // policy and removal, not wallet authorization generation or verification.
+    async fn fee_test_pool(
+        fees: &[u64],
+    ) -> (
+        AsyncMempool,
+        ChainView,
+        Vec<noid_poseidon2b::primitives::TxBodyHash>,
+    ) {
+        fee_test_pool_at(fees, 0, MempoolConfig::default(), 0).await
+    }
+
+    async fn fee_test_pool_at(
+        fees: &[u64],
+        tip_height: u64,
+        config: MempoolConfig,
+        retained_bytes_per_entry: usize,
+    ) -> (
+        AsyncMempool,
+        ChainView,
+        Vec<noid_poseidon2b::primitives::TxBodyHash>,
+    ) {
+        let genesis = genesis_header();
+        let anchor = noid_chain::consensus::pow::block_id(&genesis);
+        let mut state = ChainState::with_log_slots(6);
+        let groups: Vec<_> = fees
+            .iter()
+            .enumerate()
+            .map(|(index, fee)| user_pages(anchor, *fee, (index + 1) as u8))
+            .collect();
+        for pages in &groups {
+            let body = &pages[0].body;
+            let input = body.inputs[0];
+            state
+                .state
+                .set_slot(
+                    input.slot_index,
+                    SlotValue::with_owner_fields(
+                        input.amount,
+                        input.creation_id,
+                        body.input_owner.as_fields(),
+                    ),
+                )
+                .unwrap();
+        }
+        let view = ChainView::new(
+            tip_height,
+            HashMap::from([(0, genesis)]),
+            fees.len() as u64,
+            state.state,
+        );
+        let pool = AsyncMempool::new(view.clone(), config);
+        let mut ids = Vec::new();
+        {
+            let mut st = pool.state.lock().await;
+            for pages in groups {
+                let facts = validate_paged_spend(&pages).unwrap();
+                ids.push(facts.logical_txid);
+                st.pool.admit(pages, 0).unwrap();
+                if retained_bytes_per_entry > 0 {
+                    // Synthetic retained bytes test counter accounting only.
+                    st.pool.set_intent_bytes(
+                        &facts.logical_txid,
+                        vec![0x5A; retained_bytes_per_entry],
+                    );
+                }
+                st.floor.record(facts.fee);
+                let retained_bytes = st.pool.len() * retained_bytes_per_entry;
+                refresh_fee_floor(&mut st, &pool.config, retained_bytes);
+            }
+            rebuild_slot_sets(&mut st);
+        }
+        (pool, view, ids)
+    }
+
+    #[tokio::test]
+    async fn configured_activation_uses_next_child_and_reorg_restores_legacy_policy() {
+        use noid_chain::consensus::params::{MIN_FEE_BASE, V1_1_ACTIVATION_HEIGHT};
+        // Run the same scenario in the normal profile (None, no switch) and
+        // with noid_chain/isolated-v1-1-testnet (the actual shared H5 gate).
+        let activation = V1_1_ACTIVATION_HEIGHT.unwrap_or(5);
+        let (pool, mut view, _) = fee_test_pool_at(
+            &[100_000; 6],
+            activation - 2,
+            MempoolConfig::default().with_capacity(10),
+            0,
+        )
+        .await;
+        assert_eq!(pool.fee_floor().await, 90_000);
+        for tip in [activation - 1, activation, activation - 2, activation - 1] {
+            view.tip_height = tip;
+            pool.on_new_block(&[], tip, view.clone()).await;
+            let expected = if V1_1_ACTIVATION_HEIGHT.is_some() && tip + 1 >= activation {
+                MIN_FEE_BASE
+            } else {
+                90_000
+            };
+            assert_eq!(
+                pool.len().await,
+                6,
+                "policy change must not evict admitted fees"
+            );
+            assert_eq!(pool.fee_floor().await, expected, "tip={tip}");
+        }
+        let fresh = AsyncMempool::new(view, MempoolConfig::default());
+        assert_eq!(fresh.fee_floor().await, MIN_FEE_BASE);
+    }
+
+    #[tokio::test]
+    async fn partial_block_and_reorg_drains_refresh_count_and_byte_pressure() {
+        use noid_chain::consensus::params::{MIN_FEE_BASE, V1_1_ACTIVATION_HEIGHT};
+        let tip = V1_1_ACTIVATION_HEIGHT.unwrap_or(5) - 1;
+        for byte_pressure in [false, true] {
+            for reorg in [false, true] {
+                let config = MempoolConfig::default()
+                    .with_capacity(if byte_pressure { 100 } else { 10 })
+                    .with_max_total_intent_bytes(1000);
+                let (pool, view, ids) = fee_test_pool_at(
+                    &[100_000; 8],
+                    tip,
+                    config,
+                    if byte_pressure { 100 } else { 0 },
+                )
+                .await;
+                assert_eq!(pool.fee_floor().await, 90_000);
+                for index in 0..8 {
+                    if reorg {
+                        pool.readmit_after_reorg(vec![ids[index]]).await;
+                    } else {
+                        pool.on_new_block(&[ids[index]], tip, view.clone()).await;
+                    }
+                    let remaining = 7 - index;
+                    let low = remaining == 0 || (V1_1_ACTIVATION_HEIGHT.is_some() && remaining < 5);
+                    let usage = pool.usage_snapshot().await;
+                    assert_eq!(usage.size, remaining);
+                    assert_eq!(
+                        usage.intent_bytes,
+                        if byte_pressure { remaining * 100 } else { 0 }
+                    );
+                    assert_eq!(usage.fee_floor, if low { MIN_FEE_BASE } else { 90_000 });
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn admission_and_every_fee_projection_use_the_same_latched_floor() {
+        use noid_chain::consensus::params::{MIN_FEE_BASE, V1_1_ACTIVATION_HEIGHT};
+        let tip = V1_1_ACTIVATION_HEIGHT.unwrap_or(5) - 1;
+        let (pool, view, ids) = fee_test_pool_at(
+            &[9_000; 8],
+            tip,
+            MempoolConfig::default().with_capacity(10),
+            0,
+        )
+        .await;
+        {
+            let mut st = pool.state.lock().await;
+            for _ in 0..50 {
+                st.floor.record(100_000);
+            }
+            refresh_fee_floor(&mut st, &pool.config, 0);
+        }
+        for removed in [0, 4] {
+            pool.on_new_block(&ids[..removed], tip, view.clone()).await;
+            let expected = if removed == 4 && V1_1_ACTIVATION_HEIGHT.is_some() {
+                MIN_FEE_BASE
+            } else {
+                90_000
+            };
+            assert_eq!(pool.fee_floor().await, expected);
+            assert_eq!(pool.usage_snapshot().await.fee_floor, expected);
+            assert_eq!(pool.metadata_snapshot().await.fee_floor, expected);
+            assert_eq!(pool.try_recovery_inventory().unwrap().0.fee_floor, expected);
+            let pages = user_pages(view.user_epoch_anchor_id, 9_000, 1);
+            let facts = validate_paged_spend(&pages).unwrap();
+            let st = pool.state.lock().await;
+            let result = run_admission_checks(&pages, &facts, &st);
+            if expected == MIN_FEE_BASE {
+                result.unwrap(); // The removed input is live and unreserved.
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(SubmitError::Consensus(
+                        noid_chain::consensus::ConsensusError::BelowMinFee {
+                            required: 90_000,
+                            actual: 9_000,
+                        }
+                    ))
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn pressure_updates_do_not_add_full_pool_byte_scans() {
+        let source = include_str!("pool.rs");
+        let helper = source
+            .split_once("fn refresh_fee_floor(")
+            .unwrap()
+            .1
+            .split_once("/// Compact immutable")
+            .unwrap()
+            .0;
+        assert!(!helper.contains("total_intent_bytes()"));
+        assert!(!helper.contains(".iter()"));
+        let admission = source
+            .split_once("pub async fn submit(")
+            .unwrap()
+            .1
+            .split_once("// Block assembly")
+            .unwrap()
+            .0;
+        assert_eq!(admission.matches(".total_intent_bytes()").count(), 2);
+        let cleanup = source
+            .split_once("pub async fn on_new_block(")
+            .unwrap()
+            .1
+            .split_once("// Accessors")
+            .unwrap()
+            .0;
+        assert!(!cleanup.contains(".total_intent_bytes()"));
+    }
+
+    #[tokio::test]
+    async fn fee_floor_resets_after_each_kind_of_block_driven_drain() {
+        use noid_chain::consensus::params::MIN_FEE_BASE;
+
+        for reason in ["confirmed", "epoch", "input", "output"] {
+            let (pool, mut view, ids) = fee_test_pool(&[100_000]).await;
+            assert_eq!(pool.fee_floor().await, 90_000);
+            match reason {
+                "epoch" => view.user_epoch_anchor_id = [0x77; 32],
+                "input" | "output" => {
+                    let mut state = ChainState::with_log_slots(6);
+                    if reason == "output" {
+                        state.state.set_slot(3, view.try_slot(3).unwrap()).unwrap();
+                        state
+                            .state
+                            .set_slot(
+                                4,
+                                SlotValue::with_owner_fields(
+                                    100,
+                                    42,
+                                    Address([0x77; 32]).as_fields(),
+                                ),
+                            )
+                            .unwrap();
+                    }
+                    view = ChainView::new(
+                        view.tip_height,
+                        view.recent_headers.clone(),
+                        if reason == "output" { 2 } else { 0 },
+                        state.state,
+                    );
+                }
+                _ => {}
+            }
+            pool.on_new_block(if reason == "confirmed" { &ids } else { &[] }, 1, view)
+                .await;
+            assert!(pool.is_empty().await, "{reason}");
+            assert_eq!(pool.fee_floor().await, MIN_FEE_BASE, "{reason}");
+        }
+    }
+
+    #[tokio::test]
+    async fn fee_floor_survives_partial_drain_and_resets_after_last_entry() {
+        use noid_chain::consensus::params::MIN_FEE_BASE;
+
+        for reorg in [false, true] {
+            let (pool, view, ids) = fee_test_pool(&[100_000, 100_000]).await;
+            for (index, hash) in ids.iter().enumerate() {
+                if reorg {
+                    pool.readmit_after_reorg(vec![*hash]).await;
+                } else {
+                    pool.on_new_block(&[*hash], index as u64 + 1, view.clone())
+                        .await;
+                }
+                assert_eq!(pool.len().await, 1 - index);
+                assert_eq!(
+                    pool.fee_floor().await,
+                    if index == 0 { 90_000 } else { MIN_FEE_BASE }
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn fee_floor_is_local_and_a_fresh_pool_starts_at_base() {
+        let (busy, view, _) = fee_test_pool(&[100_000]).await;
+        let fresh = AsyncMempool::new(view, MempoolConfig::default());
+        assert_eq!(busy.fee_floor().await, 90_000);
+        assert_eq!(
+            fresh.fee_floor().await,
+            noid_chain::consensus::params::MIN_FEE_BASE
+        );
+    }
+
+    #[tokio::test]
+    async fn admission_uses_current_fee_floor_not_the_original_quote() {
+        let (pool, view, ids) = fee_test_pool(&[9_000]).await;
+        pool.readmit_after_reorg(ids).await;
+        let pages = user_pages(view.user_epoch_anchor_id, 9_000, 1);
+        let facts = validate_paged_spend(&pages).unwrap();
+        let mut st = pool.state.lock().await;
+        run_admission_checks(&pages, &facts, &st).unwrap();
+        st.floor.record(100_000);
+        assert!(matches!(
+            run_admission_checks(&pages, &facts, &st),
+            Err(crate::error::SubmitError::Consensus(
+                noid_chain::consensus::ConsensusError::BelowMinFee {
+                    required: 90_000,
+                    actual: 9_000,
+                }
+            ))
+        ));
+        st.floor.reset();
+        run_admission_checks(&pages, &facts, &st).unwrap();
+    }
+
+    async fn growth_fee_test_pool(
+        active_slots: u64,
+        fee: u64,
+    ) -> (
+        AsyncMempool,
+        ChainView,
+        noid_poseidon2b::primitives::TxBodyHash,
+    ) {
+        let genesis = genesis_header();
+        let anchor = noid_chain::consensus::pow::block_id(&genesis);
+        let mut pages = user_pages(anchor, fee, 1);
+        pages[0].body.outputs[0].amount = 50;
+        pages[0].body.outputs[1] = TxOutput {
+            slot_index: 62,
+            amount: 50,
+            owner: Address([2; 32]),
+        };
+        pages[0].body.validity_bitmap |= output_bitmap_bit(1);
+        let facts = validate_paged_spend(&pages).unwrap();
+        let input = pages[0].body.inputs[0];
+        let mut state = ChainState::with_log_slots(6);
+        state
+            .state
+            .set_slot(
+                input.slot_index,
+                SlotValue::with_owner_fields(
+                    input.amount,
+                    input.creation_id,
+                    pages[0].body.input_owner.as_fields(),
+                ),
+            )
+            .unwrap();
+        let view = ChainView::new(0, HashMap::from([(0, genesis)]), active_slots, state.state);
+        let pool = AsyncMempool::new(view.clone(), MempoolConfig::default());
+        {
+            let mut st = pool.state.lock().await;
+            run_admission_checks(&pages, &facts, &st).unwrap();
+            st.pool.admit(pages, 0).unwrap();
+            st.floor.record(facts.fee);
+            rebuild_slot_sets(&mut st);
+        }
+        (pool, view, facts.logical_txid)
+    }
+
+    #[tokio::test]
+    async fn growth_pressure_evicts_only_underpriced_pending_spends_at_every_boundary() {
+        use crate::event::{EvictReason, MempoolEvent};
+        use noid_chain::consensus::params::MIN_FEE_BASE;
+
+        for (before, at, old_fee, new_fee) in [
+            (31, 32, 9_000, 11_500),
+            (47, 48, 11_500, 16_500),
+            (57, 58, 16_500, 26_500),
+        ] {
+            for fee in [old_fee, new_fee] {
+                let (pool, mut view, id) = growth_fee_test_pool(before, fee).await;
+                let mut events = pool.subscribe();
+                view.active_slot_count = at;
+                pool.on_new_block(&[], 1, view).await;
+                let st = pool.state.lock().await;
+                if fee < new_fee {
+                    assert!(st.pool.is_empty());
+                    assert!(st.admitted_input_slots.is_empty());
+                    assert!(st.admitted_output_slots.is_empty());
+                    assert_eq!(st.floor.current(), MIN_FEE_BASE);
+                    assert!(
+                        matches!(events.try_recv().unwrap(), MempoolEvent::TxEvicted {
+                        hash, reason: EvictReason::ConsensusFeeIncreased,
+                    } if hash == id)
+                    );
+                } else {
+                    assert!(st.pool.contains(&id));
+                    assert_eq!(st.pool.get(&id).unwrap().spend.fee, fee);
+                    assert!(st.admitted_input_slots.contains(&3));
+                    assert!(st.admitted_output_slots.contains(&62));
+                }
+                assert!(events.try_recv().is_err());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn confirmation_at_old_parent_price_precedes_new_pressure_cleanup() {
+        use crate::event::MempoolEvent;
+        let (pool, mut view, id) = growth_fee_test_pool(31, 9_000).await;
+        let mut events = pool.subscribe();
+        view.active_slot_count = 32;
+        pool.on_new_block(&[id], 1, view).await;
+        assert!(pool.is_empty().await);
+        assert!(
+            matches!(events.try_recv().unwrap(), MempoolEvent::TxConfirmed {
+            hash, block_height: 1,
+        } if hash == id)
+        );
+        assert!(events.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn rising_local_floor_and_state_pressure_do_not_evict_nongrowing_spends() {
+        let (pool, mut view, ids) = fee_test_pool(&[9_000]).await;
+        {
+            let mut st = pool.state.lock().await;
+            for _ in 0..50 {
+                st.floor.record(100_000);
+            }
+        }
+        view.active_slot_count = 58;
+        pool.on_new_block(&[], 1, view).await;
+        assert_eq!(pool.len().await, 1);
+        assert_eq!(pool.try_contains(&ids[0]), Some(true));
+        assert_eq!(pool.fee_floor().await, 90_000);
+        assert!(pool.reserved_input_slots().await.contains(&3));
+    }
+
+    #[tokio::test]
+    async fn falling_pressure_preserves_pending_spends_and_does_not_recreate_evicted_ones() {
+        let (pool, mut view, id) = growth_fee_test_pool(32, 11_500).await;
+        view.active_slot_count = 31;
+        pool.on_new_block(&[], 1, view.clone()).await;
+        assert_eq!(pool.try_contains(&id), Some(true));
+        view.active_slot_count = 48;
+        pool.on_new_block(&[], 2, view.clone()).await;
+        assert!(pool.is_empty().await);
+        view.active_slot_count = 31;
+        pool.on_new_block(&[], 3, view).await;
+        assert!(pool.is_empty().await);
     }
 
     #[tokio::test]

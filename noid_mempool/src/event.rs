@@ -43,6 +43,9 @@ pub enum MempoolEvent {
 pub enum EvictReason {
     /// The canonical transaction epoch anchor advanced at a boundary.
     EpochAnchorChanged,
+    /// The fee is below the current parent-State consensus minimum.
+    /// A later increase of the node-local relay floor does not cause eviction.
+    ConsensusFeeIncreased,
     /// Pool over capacity; low-fee tx was dropped.
     CapacityPressure,
     /// The transaction's claimed input slot was spent by a confirmed block.

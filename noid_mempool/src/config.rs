@@ -16,6 +16,7 @@ pub struct MempoolConfig {
 
     /// Number of recent admitted-tx fees used to compute the dynamic fee floor.
     /// Floor = max(MIN_FEE_BASE, median(last N fees) × 0.9).
+    /// From v1.1 it is applied only while the 80%/50% pressure latch is active.
     pub fee_floor_window: usize,
 
     /// Number of concurrent authorization verification workers (`spawn_blocking` slots).

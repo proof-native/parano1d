@@ -1254,7 +1254,8 @@ struct AutomaticPeerState {
     /// Peer identities deliberately selected by this process for an outbound
     /// bootstrap/neighbour dial. The intent survives cross-dial collapse when
     /// libp2p keeps the inbound half, and is removed after the last transport
-    /// closes. It is therefore a topology decision, not a TCP direction bit.
+    /// closes. An authenticated configured bootstrap identity can restore that
+    /// intent on reconnect. It is a topology decision, not a TCP direction bit.
     locally_selected_peers: std::collections::HashSet<PeerId>,
     /// Logical selected neighbours that currently have at least one identified
     /// transport. This is the topology count; physical dial direction is not.
@@ -1528,6 +1529,43 @@ impl AutomaticPeerState {
             .count()
     }
 
+    fn release_candidates(
+        &self,
+        release_seed: bool,
+        bootstrap_peers: &std::collections::HashSet<PeerId>,
+        protects_peer: impl Fn(PeerId) -> bool,
+    ) -> Vec<(libp2p::swarm::ConnectionId, PeerId)> {
+        let mut candidates: Vec<_> = self
+            .managed_connections
+            .iter()
+            .filter(|(_, connection)| {
+                !protects_peer(connection.peer)
+                    && if release_seed {
+                        bootstrap_peers.contains(&connection.peer)
+                    } else {
+                        matches!(connection.kind, ManagedOutboundKind::Peer)
+                            && !bootstrap_peers.contains(&connection.peer)
+                    }
+            })
+            .map(|(id, connection)| (*id, connection.peer))
+            .collect();
+        if release_seed {
+            // Local bootstrap selection survives an incoming cross-dial
+            // replacement. Retirement must find that surviving transport too,
+            // without treating arbitrary inbound peers as managed neighbours.
+            // The caller still requires a stable replacement and protects
+            // active relay carriers before requesting any seed release.
+            candidates.extend(self.identified_connections.iter().filter_map(|(id, peer)| {
+                (!self.managed_connections.contains_key(id)
+                    && self.is_locally_selected(*peer)
+                    && bootstrap_peers.contains(peer)
+                    && !protects_peer(*peer))
+                .then_some((*id, *peer))
+            }));
+        }
+        candidates
+    }
+
     fn note_connection_established(
         &mut self,
         connection_id: libp2p::swarm::ConnectionId,
@@ -1584,6 +1622,13 @@ impl AutomaticPeerState {
             // authenticated bootstrap transport, it must no longer compete
             // for an ordinary neighbour slot.
             self.peers.remove(&peer);
+        }
+        if !outbound && self.is_bootstrap_peer(peer) {
+            // Cross-dial replacement can briefly leave no transport. Restore
+            // only a configured source whose identity we already bound through
+            // authenticated outbound bootstrap, never an advertised seed address
+            // or an unsolicited inbound wallet. Identify/profile gates remain.
+            self.mark_local_selection(peer);
         }
         if outbound {
             self.outbound_connections.insert(connection_id, peer);
@@ -5318,22 +5363,9 @@ fn maintain_automatic_outbound(
     // neighbour each time discovery filled the ordinary mesh.
     let release_ordinary = ordinary_release_needed(release_seed, automatic.topology_peer_count());
     if release_seed || release_ordinary {
-        let mut releasable = automatic
-            .managed_connections
-            .iter()
-            .filter(|(_, connection)| {
-                if relay_reservations.protects_peer(connection.peer) {
-                    return false;
-                }
-                if release_seed {
-                    bootstrap_peers.contains(&connection.peer)
-                } else {
-                    matches!(connection.kind, ManagedOutboundKind::Peer)
-                        && !bootstrap_peers.contains(&connection.peer)
-                }
-            })
-            .map(|(connection_id, connection)| (*connection_id, connection.peer))
-            .collect::<Vec<_>>();
+        let mut releasable = automatic.release_candidates(release_seed, &bootstrap_peers, |peer| {
+            relay_reservations.protects_peer(peer)
+        });
         releasable.shuffle(&mut rand::thread_rng());
         if let Some((connection_id, peer)) = releasable.first().copied() {
             if release_seed {
@@ -10836,6 +10868,197 @@ mod tests {
 
         state.clear_local_selection(peer);
         assert!(!state.is_locally_selected(peer));
+    }
+
+    #[test]
+    fn authenticated_configured_seed_reconnect_restores_selection_after_transport_gap() {
+        let peer = PeerId::random();
+        let seed: Multiaddr = "/dns4/seed.example/tcp/9500".parse().unwrap();
+        let outbound = libp2p::swarm::ConnectionId::new_unchecked(181);
+        let inbound = libp2p::swarm::ConnectionId::new_unchecked(182);
+        let mut state = AutomaticPeerState::new(PeerId::random());
+        state.register_bootstrap(seed.clone());
+        state
+            .pending
+            .insert(outbound, PendingAutomaticDial::Bootstrap(seed));
+        state.note_connection_established(outbound, peer, true, None);
+        state.note_identified(outbound, peer);
+
+        // The remote side may close our old outbound path before we observe
+        // its replacement inbound path. Unlike overlapping cross-dials, this
+        // ordering briefly reports zero established transports.
+        state.note_connection_closed(outbound);
+        state.clear_local_selection(peer);
+        assert!(!state.is_locally_selected(peer));
+        state.note_connection_established(inbound, peer, false, None);
+        assert!(state.is_locally_selected(peer));
+        assert_eq!(state.outbound_peer_count(), 0); // Identify is still required.
+        state.note_identified(inbound, peer);
+        assert_eq!(state.outbound_peer_count(), 1);
+        assert_eq!(state.connected_bootstrap_peer_ids(), vec![peer]);
+    }
+
+    fn seed_retirement_after_inbound_replacement(with_transport_gap: bool) {
+        let seed_peer = PeerId::random();
+        let seed: Multiaddr = "/dns4/seed.example/tcp/9500".parse().unwrap();
+        let outbound = libp2p::swarm::ConnectionId::new_unchecked(601);
+        let inbound = libp2p::swarm::ConnectionId::new_unchecked(602);
+        let ordinary_id = libp2p::swarm::ConnectionId::new_unchecked(603);
+        let mut state = AutomaticPeerState::new(PeerId::random());
+        state.register_bootstrap(seed.clone());
+        state
+            .pending
+            .insert(outbound, PendingAutomaticDial::Bootstrap(seed));
+        state.note_connection_established(outbound, seed_peer, true, None);
+        state.note_identified(outbound, seed_peer);
+        if with_transport_gap {
+            state.note_connection_closed(outbound);
+            state.clear_local_selection(seed_peer);
+            state.note_connection_established(inbound, seed_peer, false, None);
+            state.note_identified(inbound, seed_peer);
+        } else {
+            state.note_connection_established(inbound, seed_peer, false, None);
+            state.note_identified(inbound, seed_peer);
+            state.note_connection_closed(outbound);
+        }
+        let ordinary = PeerId::random();
+        state.track_managed_connection(ordinary_id, ordinary, ManagedOutboundKind::Peer);
+        state.note_identified(ordinary_id, ordinary);
+        let now = Instant::now();
+        state.selected_identified_since.insert(
+            ordinary,
+            now - AUTOMATIC_PEER_HEALTHY_AFTER - Duration::from_secs(1),
+        );
+        let stable = state.stable_non_bootstrap_peer_count(now);
+        assert_eq!(stable, 1);
+        assert_eq!(desired_bootstrap_connections(false, stable, 1), 1);
+        assert_eq!(desired_bootstrap_connections(true, 0, 1), 1);
+        assert_eq!(desired_bootstrap_connections(true, stable, 1), 0);
+        state.bootstrap_complete = true;
+        assert_eq!(state.connected_bootstrap_peer_ids(), vec![seed_peer]);
+        let bootstrap = state.bootstrap_peer_ids();
+        assert_eq!(
+            state.release_candidates(true, &bootstrap, |_| false),
+            vec![(inbound, seed_peer)]
+        );
+        assert!(state
+            .release_candidates(true, &bootstrap, |peer| peer == seed_peer)
+            .is_empty());
+        assert_eq!(
+            state.release_candidates(false, &bootstrap, |_| false),
+            vec![(ordinary_id, ordinary)]
+        );
+
+        state.note_connection_closed(inbound);
+        state.clear_local_selection(seed_peer); // Last-transport close event.
+        assert!(state.connected_bootstrap_peer_ids().is_empty());
+        assert!(state
+            .release_candidates(true, &bootstrap, |_| false)
+            .is_empty());
+        assert!(state.is_locally_selected(ordinary));
+        assert_eq!(state.stable_non_bootstrap_peer_count(now), 1);
+    }
+
+    #[test]
+    fn overlapping_inbound_seed_is_releasable_after_stable_handoff() {
+        seed_retirement_after_inbound_replacement(false);
+    }
+
+    #[test]
+    fn gap_reconnected_inbound_seed_is_releasable_after_stable_handoff() {
+        seed_retirement_after_inbound_replacement(true);
+    }
+
+    #[test]
+    fn seed_retirement_does_not_duplicate_managed_paths_or_adopt_inbound_neighbours() {
+        let seed_peer = PeerId::random();
+        let seed: Multiaddr = "/dns4/seed.example/tcp/9500".parse().unwrap();
+        let outbound = libp2p::swarm::ConnectionId::new_unchecked(611);
+        let inbound = libp2p::swarm::ConnectionId::new_unchecked(612);
+        let mut state = AutomaticPeerState::new(PeerId::random());
+        state.register_bootstrap(seed.clone());
+        state
+            .pending
+            .insert(outbound, PendingAutomaticDial::Bootstrap(seed));
+        state.note_connection_established(outbound, seed_peer, true, None);
+        state.note_identified(outbound, seed_peer);
+        state.note_connection_established(inbound, seed_peer, false, None);
+        state.note_identified(inbound, seed_peer);
+        // One selected and one unsolicited incoming ordinary peer. Neither
+        // should be adopted by the narrowly scoped seed-retirement repair.
+        for (id, selected) in [(613, false), (614, true)] {
+            let peer = PeerId::random();
+            let id = libp2p::swarm::ConnectionId::new_unchecked(id);
+            state.note_connection_established(id, peer, false, None);
+            state.note_identified(id, peer);
+            if selected {
+                state.mark_local_selection(peer);
+            }
+        }
+        let bootstrap = state.bootstrap_peer_ids();
+        let candidates = state.release_candidates(true, &bootstrap, |_| false);
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(
+            candidates
+                .into_iter()
+                .collect::<std::collections::HashSet<_>>(),
+            std::collections::HashSet::from([(outbound, seed_peer), (inbound, seed_peer)])
+        );
+        assert!(state
+            .release_candidates(false, &bootstrap, |_| false)
+            .is_empty());
+        assert!(state
+            .release_candidates(true, &bootstrap, |peer| peer == seed_peer)
+            .is_empty());
+        state.note_connection_closed(outbound);
+        state.clear_local_selection(seed_peer);
+        assert!(state
+            .release_candidates(true, &bootstrap, |_| false)
+            .is_empty());
+    }
+
+    #[test]
+    fn inbound_seed_claim_or_unselected_candidate_cannot_restore_selection() {
+        let local = PeerId::random();
+        let peer = PeerId::random();
+        let seed: Multiaddr = "/ip4/8.8.8.8/tcp/9500".parse().unwrap();
+        let inbound = libp2p::swarm::ConnectionId::new_unchecked(183);
+        let mut state = AutomaticPeerState::new(local);
+        state.register_bootstrap(seed.clone());
+        state.add_peer_candidate(local, peer, [seed.clone()]);
+        // Merely advertising a configured endpoint through DHT/Identify is
+        // not a Noise-authenticated outbound binding to that endpoint.
+        state.note_connection_established(inbound, peer, false, Some(&seed));
+        state.note_identified(inbound, peer);
+        assert!(!state.is_locally_selected(peer));
+        assert!(!state.is_bootstrap_peer(peer));
+        assert_eq!(state.outbound_peer_count(), 0);
+    }
+
+    #[test]
+    fn forgotten_seed_identity_cannot_restore_selection_on_inbound_reconnect() {
+        let peer = PeerId::random();
+        let seed: Multiaddr = "/dns4/seed.example/tcp/9500".parse().unwrap();
+        let outbound = libp2p::swarm::ConnectionId::new_unchecked(184);
+        let retry = libp2p::swarm::ConnectionId::new_unchecked(185);
+        let inbound = libp2p::swarm::ConnectionId::new_unchecked(186);
+        let mut state = AutomaticPeerState::new(PeerId::random());
+        state.register_bootstrap(seed.clone());
+        state
+            .pending
+            .insert(outbound, PendingAutomaticDial::Bootstrap(seed.clone()));
+        state.note_connection_established(outbound, peer, true, None);
+        state.note_connection_closed(outbound);
+        state.clear_local_selection(peer);
+        state
+            .pending
+            .insert(retry, PendingAutomaticDial::Bootstrap(seed));
+        state.note_dial_failed(retry); // The normal DNS-rotation path forgets it.
+        assert!(!state.is_bootstrap_peer(peer));
+        state.note_connection_established(inbound, peer, false, None);
+        state.note_identified(inbound, peer);
+        assert!(!state.is_locally_selected(peer));
+        assert_eq!(state.outbound_peer_count(), 0);
     }
 
     #[test]

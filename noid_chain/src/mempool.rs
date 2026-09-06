@@ -689,6 +689,57 @@ mod tests {
     }
 
     #[test]
+    fn large_groups_keep_normal_fee_order_without_reserved_space() {
+        let mut pool = Mempool::new(260);
+        let large = paged_tx(30, 10_000, 30_000, 7);
+        let large_id = id(&large);
+        pool.admit(large, 0).unwrap();
+        for slot in 0..230 {
+            pool.admit(tx(slot * 2, slot * 2 + 1, 1_000, 8, [9; 32]), 0)
+                .unwrap();
+        }
+        let tail = tx(2_000, 2_001, 1, 9, [9; 32]);
+        let tail_id = id(&tail);
+        pool.admit(tail, 0).unwrap();
+
+        // Higher-fee small groups consume 230 positions first. The large group
+        // does not fit the remaining 25, but a later small group still does.
+        let selected = pool.select_for_block_at_anchor(255, &[9; 32]);
+        assert_eq!(selected.len(), 231);
+        assert!(selected
+            .iter()
+            .all(|entry| entry.spend.logical_txid != large_id));
+        assert_eq!(selected.last().unwrap().spend.logical_txid, tail_id);
+        assert!(pool.contains(&large_id));
+
+        // Once it fits, the large group enters in ordinary fee order, whole.
+        let first_id = selected[0].spend.logical_txid;
+        drop(selected);
+        pool.remove(&first_id);
+        for entry in pool.select_for_block_at_anchor(4, &[9; 32]) {
+            assert_ne!(entry.spend.logical_txid, large_id);
+        }
+        let remove: Vec<_> = pool
+            .select_for_block(4)
+            .iter()
+            .map(|entry| entry.spend.logical_txid)
+            .collect();
+        for hash in remove {
+            pool.remove(&hash);
+        }
+        let selected = pool.select_for_block_at_anchor(255, &[9; 32]);
+        assert_eq!(
+            selected
+                .iter()
+                .map(|entry| entry.pages.len())
+                .sum::<usize>(),
+            255
+        );
+        assert_eq!(selected.last().unwrap().spend.logical_txid, large_id);
+        assert_eq!(selected.last().unwrap().pages.len(), 30);
+    }
+
+    #[test]
     fn mempool_sync_clones_only_within_requested_byte_and_count_bounds() {
         let mut pool = Mempool::new(4);
         let a = tx(1, 2, 10, 1, [9u8; 32]);

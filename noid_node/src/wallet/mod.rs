@@ -2511,6 +2511,71 @@ mod tests {
     }
 
     #[test]
+    fn automatic_fee_tracks_local_relay_floor_and_its_reset() {
+        let (_dir, handle) = handle_with_utxos(&[1_000_000]);
+        for floor in [5_000, 25_000, 90_000, 5_000] {
+            let plan = handle.plan_send(100_000, None, 0, 24, floor).unwrap();
+            let expected = floor.max(9_000);
+            assert_eq!(plan.fee_micronoid, expected);
+            assert_eq!((plan.input_count, plan.output_count), (1, 2));
+            assert_eq!(plan.fee_breakdown.relay_floor, floor);
+            assert_eq!(plan.fee_breakdown.required_total, 9_000);
+            assert_eq!(plan.fee_breakdown.burned, 2_500);
+            assert_eq!(plan.fee_breakdown.miner_claimable, expected - 2_500);
+            assert_eq!(plan.total_spend_micronoid, 100_000 + expected);
+        }
+    }
+
+    #[test]
+    fn automatic_fee_keeps_state_pressure_after_relay_floor_resets() {
+        let (_dir, handle) = handle_with_utxos(&[1_000_000]);
+        let capacity = 1u64 << 24;
+        for (occupancy_bps, expected_fee) in [
+            (0, 9_000),
+            (5_000, 11_500),
+            (7_500, 16_500),
+            (9_000, 26_500),
+        ] {
+            let active = (capacity * occupancy_bps).div_ceil(10_000);
+            let plan = handle.plan_send(100_000, None, active, 24, 5_000).unwrap();
+            assert_eq!(plan.fee_micronoid, expected_fee);
+            assert_eq!(plan.fee_breakdown.burned, expected_fee - 6_500);
+        }
+    }
+
+    #[test]
+    fn automatic_fee_selects_enough_inputs_for_an_elevated_floor() {
+        let (_dir, handle) = handle_with_utxos(&[10_000; 32]);
+        let plan = handle.plan_send(10_000, None, 0, 24, 90_000).unwrap();
+        assert_eq!(plan.fee_micronoid, 90_000);
+        assert_eq!((plan.input_count, plan.output_count), (10, 1));
+        assert_eq!(plan.change_micronoid, 0);
+        assert_eq!(plan.fee_breakdown.burned, 0);
+    }
+
+    #[test]
+    fn manual_fee_below_live_relay_floor_is_rejected_without_override() {
+        let (_dir, handle) = handle_with_utxos(&[1_000_000]);
+        let error = handle
+            .plan_send(100_000, Some(9_000), 0, 24, 90_000)
+            .unwrap_err();
+        assert!(matches!(error, WalletSendPlanError::Other(message)
+            if message.contains("required 90000") && message.contains("got 9000")));
+    }
+
+    #[test]
+    fn consolidation_fee_tracks_the_live_relay_floor() {
+        let (_dir, handle) = handle_with_utxos(&[100_000; 4]);
+        for floor in [90_000, 5_000] {
+            let plan = handle
+                .plan_consolidation(WALLET_CONSOLIDATION_INPUT_LIMIT, 0, 24, floor)
+                .unwrap();
+            assert_eq!(plan.fee_micronoid, floor.max(6_100));
+            assert_eq!(plan.fee_breakdown.burned, 0);
+        }
+    }
+
+    #[test]
     fn plan_handles_no_change_boundary_without_oscillation() {
         let (_dir, handle) = handle_with_utxos(&[100_000]);
         let plan = handle.plan_send(91_000, None, 0, 24, 0).unwrap();

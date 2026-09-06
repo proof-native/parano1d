@@ -15,13 +15,13 @@ const EWMA_PREVIOUS_WEIGHT: f64 = 0.75;
 
 /// Miner-local capacity evidence for the two launch proof classes.
 ///
-/// Every process starts conservatively at B25. Before a real B255 sample
-/// exists, its cost is predicted from the `m22 -> m24` expansion. A
-/// real B255 EWMA then becomes authoritative. If that EWMA exceeds the block
-/// interval, the process stays at B25 until restart rather than oscillating
-/// between an already-known slow B255 sample and B25.
+/// Every session starts at B25. The first completed ordinary B25 preparation
+/// determines its capacity ceiling for that session, predicting B255 cost from
+/// the `m22 -> m24` expansion. Later timings remain telemetry only. Template
+/// construction independently caps this ceiling at B25 before activation.
 #[derive(Clone, Debug, Default)]
 pub struct AdaptiveProofCapacity {
+    b255_allowed: Option<bool>,
     b25_prepare_ms_ewma: Option<f64>,
     b255_prepare_ms_ewma: Option<f64>,
 }
@@ -39,14 +39,7 @@ impl AdaptiveProofCapacity {
         {
             return BlockProofClass::B255.page_capacity();
         }
-        let target_ms = target_prepare_ms();
-        let b255_fits = match self.b255_prepare_ms_ewma {
-            Some(measured_ms) => measured_ms <= target_ms,
-            None => self
-                .b25_prepare_ms_ewma
-                .is_some_and(|measured_ms| measured_ms * class_work_ratio() <= target_ms),
-        };
-        if b255_fits {
+        if self.b255_allowed == Some(true) {
             BlockProofClass::B255.page_capacity()
         } else {
             BlockProofClass::B25.page_capacity()
@@ -55,6 +48,13 @@ impl AdaptiveProofCapacity {
 
     /// Record one complete nonce-independent HistoryStep preparation.
     pub fn observe_preparation(&mut self, class: BlockProofClass, elapsed: Duration) {
+        if class == BlockProofClass::B25 && self.b255_allowed.is_none() {
+            self.b255_allowed = Some(
+                elapsed
+                    .checked_mul(class_work_ratio())
+                    .is_some_and(|predicted| predicted <= target_prepare_time()),
+            );
+        }
         let sample_ms = elapsed.as_secs_f64() * 1_000.0;
         let ewma = match class {
             BlockProofClass::B25 => &mut self.b25_prepare_ms_ewma,
@@ -78,14 +78,14 @@ impl AdaptiveProofCapacity {
 }
 
 #[inline]
-fn target_prepare_ms() -> f64 {
-    noid_chain::consensus::params::BLOCK_TIME as f64 * 1_000.0
+fn target_prepare_time() -> Duration {
+    Duration::from_secs(noid_chain::consensus::params::BLOCK_TIME)
 }
 
 #[inline]
-fn class_work_ratio() -> f64 {
+fn class_work_ratio() -> u32 {
     let delta = BlockProofClass::B255.outer_m() - BlockProofClass::B25.outer_m();
-    (1usize << delta) as f64
+    1u32 << delta
 }
 
 #[cfg(test)]
@@ -101,7 +101,8 @@ mod tests {
         let mut capacity = AdaptiveProofCapacity::default();
         assert_eq!(capacity.page_limit(), 25);
 
-        let predicted_b255_boundary = (target_prepare_ms() / class_work_ratio()).round() as u64;
+        let predicted_b255_boundary =
+            (target_prepare_time() / class_work_ratio()).as_millis() as u64;
         capacity.observe_preparation(BlockProofClass::B25, millis(predicted_b255_boundary + 1));
         assert_eq!(capacity.page_limit(), 25);
 
@@ -112,32 +113,60 @@ mod tests {
     }
 
     #[test]
-    fn fast_b25_predicts_b255_then_real_b255_becomes_authoritative() {
+    fn first_fast_b25_keeps_permission_despite_later_slow_samples() {
         let mut capacity = AdaptiveProofCapacity::default();
         capacity.observe_preparation(BlockProofClass::B25, millis(3_000));
         assert_eq!(capacity.page_limit(), 255);
 
-        capacity.observe_preparation(BlockProofClass::B255, millis(14_000));
+        capacity.observe_preparation(BlockProofClass::B255, millis(60_000));
         assert_eq!(capacity.page_limit(), 255);
 
-        // Later B25 occupancy does not erase direct B255 evidence.
+        // Neither class's telemetry changes the first-sample decision.
         capacity.observe_preparation(BlockProofClass::B25, millis(20_000));
         assert_eq!(capacity.page_limit(), 255);
+        assert_eq!(
+            capacity.prepare_ms_ewma(BlockProofClass::B255),
+            Some(60_000.0)
+        );
     }
 
     #[test]
-    fn slow_real_b255_falls_back_without_oscillation() {
+    fn first_slow_b25_keeps_small_ceiling_despite_later_fast_samples() {
         let mut capacity = AdaptiveProofCapacity::default();
-        capacity.observe_preparation(BlockProofClass::B25, millis(3_000));
-        assert_eq!(capacity.page_limit(), 255);
-
-        capacity.observe_preparation(
-            BlockProofClass::B255,
-            millis(target_prepare_ms() as u64 + 1),
-        );
+        capacity.observe_preparation(BlockProofClass::B25, millis(5_001));
         assert_eq!(capacity.page_limit(), 25);
 
+        capacity.observe_preparation(BlockProofClass::B255, millis(1_000));
         capacity.observe_preparation(BlockProofClass::B25, millis(1_000));
         assert_eq!(capacity.page_limit(), 25);
+    }
+
+    #[test]
+    fn only_completed_b25_observations_qualify_and_restart_forgets_them() {
+        let mut capacity = AdaptiveProofCapacity::default();
+        capacity.observe_preparation(BlockProofClass::B255, millis(1_000));
+        assert_eq!(capacity.page_limit(), 25);
+        assert_eq!(capacity.b255_allowed, None);
+
+        capacity.observe_preparation(BlockProofClass::B25, millis(4_999));
+        assert_eq!(capacity.page_limit(), 255);
+        assert_eq!(AdaptiveProofCapacity::default().page_limit(), 25);
+    }
+
+    #[test]
+    fn permission_boundary_uses_full_duration_without_rounding_or_overflow() {
+        assert_eq!(class_work_ratio(), 4);
+        assert_eq!(target_prepare_time(), Duration::from_secs(20));
+        let boundary = target_prepare_time() / class_work_ratio();
+        for (elapsed, allowed) in [
+            (boundary - Duration::from_nanos(1), true),
+            (boundary, true),
+            (boundary + Duration::from_nanos(1), false),
+            (Duration::MAX, false),
+        ] {
+            let mut capacity = AdaptiveProofCapacity::default();
+            capacity.observe_preparation(BlockProofClass::B25, elapsed);
+            assert_eq!(capacity.b255_allowed, Some(allowed), "{elapsed:?}");
+        }
     }
 }

@@ -444,14 +444,33 @@ impl TemplateBuilder {
 }
 
 fn user_page_limit_for_child(parent_height: u64, max_effective_pages: usize) -> Option<usize> {
+    user_page_limit_with_activation(
+        parent_height,
+        max_effective_pages,
+        noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT,
+    )
+}
+
+fn user_page_limit_with_activation(
+    parent_height: u64,
+    max_effective_pages: usize,
+    activation_height: Option<u64>,
+) -> Option<usize> {
     let child_height = parent_height.checked_add(1)?;
     let consensus_max = noid_chain::consensus::params::BLOCK_MAX_USER_PAGES;
+    // This is a producer-only ceiling. Keep the hardware observation independent
+    // of the candidate's activation gate so reorgs do not reset calibration.
+    let producer_max = if activation_height.is_some_and(|height| child_height >= height) {
+        consensus_max
+    } else {
+        noid_chain::consensus::paged_spend::BlockProofClass::B25.page_capacity()
+    };
     let system_positions = usize::from(
         noid_chain::consensus::development_allocation::development_payout_due(child_height),
     );
     Some(
         max_effective_pages
-            .min(consensus_max)
+            .min(producer_max)
             .saturating_sub(system_positions),
     )
 }
@@ -479,14 +498,87 @@ mod tests {
             Some(24)
         );
         assert_eq!(
-            user_page_limit_for_child(TARGET_BLOCKS_PER_DAY - 1, 255),
+            user_page_limit_with_activation(TARGET_BLOCKS_PER_DAY - 1, 255, Some(10)),
             Some(254)
+        );
+        assert_eq!(
+            user_page_limit_with_activation(TARGET_BLOCKS_PER_DAY - 1, 255, None),
+            Some(24)
         );
         assert_eq!(
             user_page_limit_for_child(DEVELOPMENT_ALLOCATION_END_HEIGHT, 25),
             Some(25)
         );
         assert_eq!(user_page_limit_for_child(u64::MAX, 25), None);
+    }
+
+    #[test]
+    fn activation_uses_candidate_height_and_unset_height_stays_small() {
+        assert_eq!(user_page_limit_with_activation(8, 255, Some(10)), Some(25));
+        assert_eq!(user_page_limit_with_activation(9, 255, Some(10)), Some(255));
+        assert_eq!(user_page_limit_with_activation(10, 25, Some(10)), Some(25));
+        assert_eq!(
+            user_page_limit_with_activation(10, usize::MAX, Some(10)),
+            Some(255)
+        );
+        assert_eq!(user_page_limit_with_activation(100, 255, None), Some(25));
+        assert_eq!(
+            user_page_limit_with_activation(u64::MAX, 255, Some(10)),
+            None
+        );
+        assert_eq!(
+            user_page_limit_for_child(9, 255),
+            user_page_limit_with_activation(
+                9,
+                255,
+                noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT,
+            )
+        );
+    }
+
+    #[test]
+    fn running_miner_keeps_first_sample_across_activation_and_reorgs() {
+        use crate::proof_capacity::AdaptiveProofCapacity;
+        use noid_chain::consensus::paged_spend::BlockProofClass;
+        use std::time::Duration;
+
+        for (sample_ms, post_activation_max) in [(5_000, 255), (5_001, 25)] {
+            let mut capacity = AdaptiveProofCapacity::default();
+            assert_eq!(
+                user_page_limit_with_activation(9, capacity.page_limit(), Some(10)),
+                Some(25),
+            );
+            capacity.observe_preparation(BlockProofClass::B25, Duration::from_millis(sample_ms));
+            for (parent, expected) in [
+                (8, 25),
+                (9, post_activation_max),
+                (10, post_activation_max),
+                (8, 25),
+                (9, post_activation_max),
+            ] {
+                assert_eq!(
+                    user_page_limit_with_activation(parent, capacity.page_limit(), Some(10)),
+                    Some(expected),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn actual_page_count_selects_proof_without_occupancy_threshold() {
+        use noid_chain::consensus::paged_spend::BlockProofClass;
+        for pages in [0, 1, 24, 25] {
+            assert_eq!(
+                BlockProofClass::for_page_count(pages),
+                Some(BlockProofClass::B25)
+            );
+        }
+        for pages in [26, 30, 70, 127, 128, 129, 254, 255] {
+            assert_eq!(
+                BlockProofClass::for_page_count(pages),
+                Some(BlockProofClass::B255)
+            );
+        }
     }
 
     #[test]

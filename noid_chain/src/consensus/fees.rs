@@ -226,6 +226,30 @@ mod tests {
     }
 
     #[test]
+    fn all_pressure_thresholds_and_capacity_expansion_use_exact_integer_boundaries() {
+        let log_slots = LOG_SLOTS_GENESIS;
+        let capacity = 1u64 << log_slots;
+        for (bps, before, at) in [(5_000, 1, 2), (7_500, 2, 4), (9_000, 4, 8)] {
+            let threshold = (capacity * bps).div_ceil(10_000);
+            assert_eq!(pressure_multiplier(threshold - 1, log_slots), before);
+            assert_eq!(pressure_multiplier(threshold, log_slots), at);
+            assert_eq!(
+                fee_breakdown(1, 2, threshold, log_slots).required_total,
+                6_500 + 2_500 * at
+            );
+            assert_eq!(
+                fee_breakdown(2, 2, threshold, log_slots).required_total,
+                6_600
+            );
+            assert_eq!(
+                fee_breakdown(8, 1, threshold, log_slots).required_total,
+                6_500
+            );
+            assert_eq!(pressure_multiplier(threshold, log_slots + 1), 1);
+        }
+    }
+
+    #[test]
     fn claimable_subtracts_deterministic_burn() {
         let mut body = body(1, 2, 1_000_000);
         body.fee = required_fee_for_tx_body(&body, 0, LOG_SLOTS_GENESIS);

@@ -936,11 +936,22 @@ struct WalletSubmissionRequest {
     to_address: [u8; 32],
     amount_micronoid: u64,
     fee_micronoid: u64,
+    /// Only an Auto payment may be replanned after a pre-admission fee error.
+    automatic_fee: bool,
     expected_input_count: usize,
     expected_output_count: usize,
     pending_history_amount_micronoid: u64,
     build: WalletSubmissionBuild,
     failure_label: &'static str,
+}
+
+fn is_wallet_fee_rejection(error: &noid_mempool::SubmitError) -> bool {
+    matches!(
+        error,
+        noid_mempool::SubmitError::Consensus(
+            noid_chain::consensus::ConsensusError::BelowMinFee { .. }
+        )
+    )
 }
 
 impl RpcHandler {
@@ -996,9 +1007,10 @@ impl RpcHandler {
         let WalletSubmissionRequest {
             to_address,
             amount_micronoid,
-            fee_micronoid,
-            expected_input_count,
-            expected_output_count,
+            mut fee_micronoid,
+            automatic_fee,
+            mut expected_input_count,
+            mut expected_output_count,
             pending_history_amount_micronoid,
             build,
             failure_label,
@@ -1008,9 +1020,33 @@ impl RpcHandler {
             .unwrap_or_default()
             .subsec_nanos() as u64;
         let mut last_error = String::new();
+        let mut attempts = 0;
+        let mut replan_fee = false;
         for attempt in 0..3u32 {
+            attempts = attempt + 1;
             if attempt > 0 {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            }
+            if replan_fee {
+                // The rejected attempt was never admitted or broadcast and its
+                // reservations have already been rolled back. Recompute real
+                // I/O after the retry delay; changing a fee requires a new proof.
+                let (active_slot_count, log_slots) = self.mempool.fee_context().await;
+                let floor = self.mempool.fee_floor().await;
+                let plan = self
+                    .wallet
+                    .plan_send(amount_micronoid, None, active_slot_count, log_slots, floor)
+                    .map_err(wallet_plan_error)?;
+                fee_micronoid = plan.fee_micronoid;
+                expected_input_count = plan.input_count;
+                expected_output_count = plan.output_count;
+                tracing::info!(
+                    attempt,
+                    fee_micronoid,
+                    expected_input_count,
+                    expected_output_count,
+                    "wallet Auto fee replanned after admission rejection"
+                );
             }
             let reserved_outputs = self.mempool.reserved_output_slots().await;
             let selection = {
@@ -1151,12 +1187,18 @@ impl RpcHandler {
                 Err(error) => {
                     drop(reservation);
                     last_error = error.to_string();
+                    replan_fee = is_wallet_fee_rejection(&error);
+                    if replan_fee && !automatic_fee {
+                        // An explicit fee or confirmed consolidation quote must
+                        // not be increased, nor proved again at the same price.
+                        break;
+                    }
                 }
             }
         }
 
         Err(rpc_err(format!(
-            "{failure_label} failed after 3 attempts: {last_error}"
+            "{failure_label} failed after {attempts} attempt(s): {last_error}"
         )))
     }
 
@@ -2677,6 +2719,7 @@ impl ParanoidApiServer for RpcHandler {
             to_address,
             amount_micronoid,
             fee_micronoid: plan.fee_micronoid,
+            automatic_fee: fee_micronoid == 0,
             expected_input_count: plan.input_count,
             expected_output_count: plan.output_count,
             pending_history_amount_micronoid: amount_micronoid,
@@ -2747,6 +2790,7 @@ impl ParanoidApiServer for RpcHandler {
                 to_address: active_address,
                 amount_micronoid: plan.output_value_micronoid,
                 fee_micronoid: plan.fee_micronoid,
+                automatic_fee: false,
                 expected_input_count: plan.input_count,
                 expected_output_count: 1,
                 pending_history_amount_micronoid: plan.fee_micronoid,
@@ -2893,6 +2937,26 @@ fn parse_address_param(s: &str) -> RpcResult<noid_poseidon2b::primitives::Addres
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wallet_fee_rejection_is_distinct_from_other_retry_errors() {
+        use noid_chain::consensus::ConsensusError;
+        use noid_mempool::SubmitError;
+        assert!(is_wallet_fee_rejection(&SubmitError::Consensus(
+            ConsensusError::BelowMinFee {
+                required: 90_000,
+                actual: 9_000
+            },
+        )));
+        for error in [
+            SubmitError::Consensus(ConsensusError::SlotConflict),
+            SubmitError::Consensus(ConsensusError::BadEpochAnchor),
+            SubmitError::Full { capacity: 1024 },
+            SubmitError::InvalidProof("fixture".into()),
+        ] {
+            assert!(!is_wallet_fee_rejection(&error));
+        }
+    }
 
     #[test]
     fn mined_block_identity_marks_exact_and_legacy_reorganizations() {
