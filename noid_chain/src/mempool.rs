@@ -430,12 +430,28 @@ impl Mempool {
         max_total_bytes: usize,
         max_tx_bytes: usize,
     ) -> Vec<Vec<u8>> {
+        self.intent_bytes_missing(&[], max_txs, max_total_bytes, max_tx_bytes)
+    }
+
+    /// Serve only missing logical transactions, with exactly the same payload
+    /// bounds as a legacy prefix. `known` is sorted and unique at the wire
+    /// boundary. No proof payload is cloned for an excluded transaction.
+    pub fn intent_bytes_missing(
+        &self,
+        known: &[[u8; 32]],
+        max_txs: usize,
+        max_total_bytes: usize,
+        max_tx_bytes: usize,
+    ) -> Vec<Vec<u8>> {
         let mut out = Vec::with_capacity(max_txs.min(self.entries.len()));
         let mut total_bytes = 0usize;
 
-        for entry in self.entries.values() {
+        for (txid, entry) in &self.entries {
             if out.len() == max_txs {
                 break;
+            }
+            if known.binary_search(txid.as_bytes()).is_ok() {
+                continue;
             }
             let bytes = entry.intent_bytes.as_ref();
             if bytes.is_empty() || bytes.len() > max_tx_bytes {
@@ -696,6 +712,46 @@ mod tests {
 
         let per_tx_rejected = pool.intent_bytes_prefix(4, usize::MAX, 3);
         assert!(per_tx_rejected.is_empty());
+    }
+
+    #[test]
+    fn missing_sync_drains_overlapping_pages_without_changing_caps() {
+        use std::collections::BTreeSet;
+        for count in [129, 256, 1024] {
+            let mut pool = Mempool::new(count);
+            for i in 0..count as u32 {
+                let transaction = tx(2 * i + 1, 2 * i + 2, 10, i.wrapping_add(1) as u8, [9u8; 32]);
+                let txid = id(&transaction);
+                pool.admit(transaction, 0).unwrap();
+                pool.set_intent_bytes(&txid, txid.0.to_vec());
+            }
+            let mut known = BTreeSet::new();
+            // Include entries learned from a second peer before requesting
+            // more from the first. Exclusion must not depend on map order.
+            for txid in pool.entries.keys().take(count / 3) {
+                known.insert(txid.0);
+            }
+            for _ in 0..count {
+                let ids: Vec<_> = known.iter().copied().collect();
+                let page = pool.intent_bytes_missing(&ids, 128, 128 * 32, 32);
+                assert!(page.len() <= 128);
+                if page.is_empty() {
+                    break;
+                }
+                for bytes in page {
+                    assert!(known.insert(bytes.try_into().unwrap()));
+                }
+            }
+            assert_eq!(known.len(), count);
+            assert!(pool
+                .intent_bytes_missing(
+                    &known.into_iter().collect::<Vec<_>>(),
+                    128,
+                    16 * 1024 * 1024,
+                    32,
+                )
+                .is_empty());
+        }
     }
 
     #[test]

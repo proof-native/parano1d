@@ -714,10 +714,36 @@ impl AsyncMempool {
         }
     }
 
+    /// Compact, consistent recovery inventory without waiting behind block
+    /// application or template selection. A busy pool defers background sync
+    /// to a later timer tick; the network event loop must remain available.
+    pub fn try_recovery_inventory(&self) -> Option<(MempoolUsageSnapshot, Vec<TxBodyHash>)> {
+        let state = self.state.try_lock().ok()?;
+        let usage = MempoolUsageSnapshot {
+            size: state.pool.len(),
+            capacity: self.config.capacity,
+            intent_bytes: state.pool.total_intent_bytes(),
+            max_intent_bytes: self.config.max_total_intent_bytes,
+            fee_floor: state.floor.current(),
+        };
+        let ids = state.pool.iter().map(|(hash, _)| *hash).collect();
+        Some((usage, ids))
+    }
+
     /// O(1) compact lookup without cloning the entry's retained byte payloads.
     pub async fn get_entry_metadata(&self, hash: &TxBodyHash) -> Option<MempoolEntryMetadata> {
         let st = self.state.lock().await;
         st.pool.get(hash).map(|entry| entry_metadata(*hash, entry))
+    }
+
+    /// Nonblocking relay-cache check. `None` means the pool is being updated;
+    /// callers must forfeit the shortcut, not stall the swarm or assume that
+    /// an old admission still survives a confirmation, eviction or reorg.
+    pub fn try_contains(&self, hash: &TxBodyHash) -> Option<bool> {
+        self.state
+            .try_lock()
+            .ok()
+            .map(|state| state.pool.contains(hash))
     }
 
     /// Clone at most one bounded mempool-sync response while holding one
@@ -731,6 +757,23 @@ impl AsyncMempool {
         let st = self.state.lock().await;
         st.pool
             .intent_bytes_prefix(max_txs, max_total_bytes, max_tx_bytes)
+    }
+
+    /// Bounded missing-only reconciliation. Retained proof bytes are cloned
+    /// only after exclusion and response-size checks under one pool lock.
+    pub async fn intent_bytes_missing(
+        &self,
+        known: &[[u8; 32]],
+        max_txs: usize,
+        max_total_bytes: usize,
+        max_tx_bytes: usize,
+    ) -> Vec<Vec<u8>> {
+        self.state.lock().await.pool.intent_bytes_missing(
+            known,
+            max_txs,
+            max_total_bytes,
+            max_tx_bytes,
+        )
     }
 
     /// Update the chain view without applying a new block.
@@ -1053,6 +1096,37 @@ mod tests {
         let mut bytes = vec![0; noid_tx::paged_spend_authorization_wire_offset(1).unwrap()];
         bytes.extend(std::iter::repeat_n(auth_byte, auth_len));
         bytes
+    }
+
+    #[tokio::test]
+    async fn relay_presence_is_nonblocking_and_tracks_reorg_removal() {
+        let state = ChainState::with_log_slots(6);
+        let pool = AsyncMempool::new(
+            ChainView::new(0, HashMap::new(), 0, state.state),
+            MempoolConfig::default().with_capacity(8),
+        );
+        let pages = user_pages([0x31; 32], 400, 1);
+        let txid = validate_paged_spend(&pages).unwrap().logical_txid;
+        assert_eq!(pool.try_contains(&txid), Some(false));
+        let (usage, ids) = pool.try_recovery_inventory().unwrap();
+        assert_eq!(usage.size, 0);
+        assert_eq!(usage.capacity, 8);
+        assert!(ids.is_empty());
+        {
+            let mut locked = pool.state.lock().await;
+            locked.pool.admit(pages, 0).unwrap();
+            assert_eq!(pool.try_contains(&txid), None);
+            assert!(pool.try_recovery_inventory().is_none());
+        }
+        assert_eq!(pool.try_contains(&txid), Some(true));
+        let (usage, ids) = pool.try_recovery_inventory().unwrap();
+        assert_eq!(usage.size, 1);
+        assert_eq!(ids, vec![txid]);
+        pool.readmit_after_reorg(vec![txid]).await;
+        assert_eq!(pool.try_contains(&txid), Some(false));
+        let (usage, ids) = pool.try_recovery_inventory().unwrap();
+        assert_eq!(usage.size, 0);
+        assert!(ids.is_empty());
     }
 
     #[tokio::test]

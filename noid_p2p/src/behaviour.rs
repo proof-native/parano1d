@@ -377,14 +377,20 @@ impl NodeBehaviour {
                 .with_max_concurrent_streams(8),
         );
 
-        // Mempool exchange v3 keeps the bounded pull used on peer connect and
-        // adds one length-delimited direct push for reliable transaction relay
-        // before a small network's gossipsub mesh has formed.
+        // Optional v4 adds bounded missing-only reconciliation. Retain v3
+        // negotiation and its exact Pull/Push bytes for unupgraded peers.
+        // Response caps, stream count and shared memory budgets are unchanged.
         let mempool_sync = request_response::Behaviour::new(
-            [(
-                StreamProtocol::try_from_owned(format!("{}/sync/mempool/3", protocol_id))?,
-                ProtocolSupport::Full,
-            )],
+            [
+                (
+                    StreamProtocol::try_from_owned(format!("{}/sync/mempool/4", protocol_id))?,
+                    ProtocolSupport::Full,
+                ),
+                (
+                    StreamProtocol::try_from_owned(format!("{}/sync/mempool/3", protocol_id))?,
+                    ProtocolSupport::Full,
+                ),
+            ],
             request_response::Config::default()
                 // A full bounded response is 16 MiB; permit ordinary
                 // residential links to complete without weakening byte caps.

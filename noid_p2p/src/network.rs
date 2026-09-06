@@ -39,6 +39,7 @@ use crate::behaviour::{NodeBehaviour, NodeBehaviourEvent};
 use crate::command_dispatch::{self, NetworkCommandReceiver, NetworkCommandSender};
 use crate::event_dispatch::{self, RequiredEventReceiver, RequiredEventSender};
 use crate::header_protocol::{HeaderAnnouncement, HeaderInventoryRecord, ProviderFlags};
+use crate::mempool_recovery::MempoolRecovery;
 use crate::network_profile::{NetworkProfile, NetworkProfileRequest, NetworkProfileResponse};
 use crate::object_protocol::{
     DataResponseStatus, GetObjectsRequest, GetObjectsResponse, ObjectId, ObjectPayload,
@@ -53,6 +54,7 @@ use crate::protocol::{
     SnapshotManifestPageObjectId, VerifiedStateManifest,
 };
 use crate::resource_profile::BackgroundCapacity;
+use crate::tx_delivery::{TxDeliveries, TxDelivery};
 
 struct PendingStateSegmentResponse {
     peer: PeerId,
@@ -337,6 +339,7 @@ where
     let txs = load().await;
     Ok(GetMempoolResponse {
         txs,
+        supports_missing: false,
         inbound_memory_permit: None,
         outbound_memory_permit: Some(outbound_memory_permit),
     })
@@ -2277,27 +2280,6 @@ impl From<&request_response::OutboundFailure> for RequestFailureKind {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct MempoolSyncRetry {
-    failures: u8,
-    next_attempt: Instant,
-}
-
-const MAX_MEMPOOL_SYNC_FAILURES: u8 = 7;
-const MEMPOOL_SYNC_RETRY_INFLIGHT: Duration = Duration::from_secs(35);
-
-fn mempool_sync_retry_jitter(local: PeerId, remote: PeerId) -> Duration {
-    // Every client requesting the same busy peer must get a different retry
-    // phase. Hashing only `remote` synchronizes the entire fan-in on one tick.
-    // FNV-1a is sufficient here: this is load spreading, not authentication.
-    let mut hash = 0xcbf2_9ce4_8422_2325u64;
-    for byte in local.to_bytes().iter().chain(remote.to_bytes().iter()) {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    Duration::from_millis(hash % 4_000)
-}
-
 fn data_plane_busy_retry_ms(local: PeerId, remote: PeerId) -> u16 {
     // Spread clients that hit the same full anchor across distinct retry
     // phases. This is operational load shedding, not cryptographic entropy.
@@ -2308,28 +2290,6 @@ fn data_plane_busy_retry_ms(local: PeerId, remote: PeerId) -> u16 {
     }
     let span = u64::from(MAX_BUSY_RETRY_MS.min(1_500) - MIN_BUSY_RETRY_MS);
     MIN_BUSY_RETRY_MS + u16::try_from(hash % (span + 1)).expect("bounded retry jitter")
-}
-
-fn schedule_mempool_sync_retry(
-    retries: &mut std::collections::HashMap<PeerId, MempoolSyncRetry>,
-    local: PeerId,
-    peer: PeerId,
-) -> Option<MempoolSyncRetry> {
-    let previous_failures = retries.get(&peer).map_or(0, |retry| retry.failures);
-    if previous_failures >= MAX_MEMPOOL_SYNC_FAILURES {
-        retries.remove(&peer);
-        return None;
-    }
-    let failures = previous_failures + 1;
-    let exponential_secs = 1u64 << failures.saturating_sub(1).min(5);
-    let retry = MempoolSyncRetry {
-        failures,
-        next_attempt: Instant::now()
-            + Duration::from_secs(exponential_secs)
-            + mempool_sync_retry_jitter(local, peer),
-    };
-    retries.insert(peer, retry);
-    Some(retry)
 }
 
 /// A fixed-capacity request correlation table. Request IDs are local transport
@@ -3094,7 +3054,11 @@ pub enum NetworkCommand {
     /// transport metadata, never consensus authority.
     AnnounceAvailability { announcement: HeaderAnnouncement },
     /// Broadcast a new TxIntent to all peers.
-    BroadcastTx { intent_bytes: Arc<[u8]> },
+    BroadcastTx {
+        intent_bytes: Arc<[u8]>,
+        /// Present for the node's authoritative mempool admission event.
+        tx_hash: Option<[u8; 32]>,
+    },
     /// Resolve manual GossipSub validation after node-side mempool admission.
     ResolveTxGossip {
         message_id: gossipsub::MessageId,
@@ -3181,6 +3145,13 @@ pub enum NetworkCommand {
     /// Triggered on peer connect so late-joining nodes receive existing TXs.
     /// Emits `NetworkEvent::MempoolSyncResponse` when the response arrives.
     RequestMempoolSync { peer: PeerId },
+    /// Correlated local completion after all intents and the inbound byte
+    /// permit have been consumed. Never sent over P2P.
+    MempoolSyncConsumed {
+        peer: PeerId,
+        request_id: request_response::OutboundRequestId,
+        observed_txids: Vec<[u8; 32]>,
+    },
 }
 
 /// Events emitted by the P2P layer to the node.
@@ -3221,9 +3192,9 @@ pub enum NetworkEvent {
     NewTx {
         from: PeerId,
         intent_bytes: Vec<u8>,
-        /// Present only for GossipSub delivery. The node resolves this after
-        /// authoritative mempool admission.
-        gossip_message_id: Option<gossipsub::MessageId>,
+        /// Exact-payload admission completion, shared by direct and gossip
+        /// delivery. No queue slot is needed to resolve it.
+        delivery: TxDelivery,
         /// Direct-push requests reserve their decoded bytes process-globally
         /// until node-side admission finishes. Gossip messages carry `None`.
         inbound_memory_permit: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
@@ -3332,6 +3303,7 @@ pub enum NetworkEvent {
     /// Received after sending `RequestMempoolSync` on peer connect.
     MempoolSyncResponse {
         from: PeerId,
+        request_id: request_response::OutboundRequestId,
         /// Raw TxIntent bytes, one per pending transaction.
         txs: Vec<Vec<u8>>,
         /// Holds the process-global inbound mempool byte budget until node-side
@@ -3562,6 +3534,7 @@ impl P2PNetwork {
             .cmd_tx
             .send(NetworkCommand::BroadcastTx {
                 intent_bytes: intent_bytes.into(),
+                tx_hash: None,
             })
             .await;
     }
@@ -3795,11 +3768,14 @@ async fn run_swarm(
         std::collections::HashMap::new();
     let mut tx_gossip_rate: std::collections::HashMap<PeerId, (u32, Instant)> =
         std::collections::HashMap::new();
+    // Raw gossip and unique direct/gossip admission have separate counters.
+    // Exact duplicates may skip admission, never the ingress traffic guard.
+    let mut tx_gossip_ingress_rate: std::collections::HashMap<PeerId, (u32, Instant)> =
+        std::collections::HashMap::new();
     let mut gossip_accept_bytes = GossipByteWindow::new();
-    let mut mempool_sync_last_request: std::collections::HashMap<PeerId, Instant> =
-        std::collections::HashMap::new();
-    let mut mempool_sync_retries: std::collections::HashMap<PeerId, MempoolSyncRetry> =
-        std::collections::HashMap::new();
+    let mut mempool_recovery = MempoolRecovery::new(local_peer_id);
+    let mut tx_deliveries = TxDeliveries::default();
+    let tx_delivery_notify = tx_deliveries.notifier();
     let mut snapshot_segment_rate: std::collections::HashMap<PeerId, (u32, Instant)> =
         std::collections::HashMap::new();
     let mut pending_network_profile_requests =
@@ -3911,8 +3887,8 @@ async fn run_swarm(
                 &mut swarm,
                 cmd,
                 &topics,
-                &mut mempool_sync_last_request,
-                &mut mempool_sync_retries,
+                &mut mempool_recovery,
+                &mut tx_deliveries,
                 &required_event_tx,
                 &mut pending_object_requests,
                 &mut pending_header_requests,
@@ -3961,9 +3937,10 @@ async fn run_swarm(
                     &mut snapshot_export_disconnect_grace,
                     &mut block_event_rate,
                     &mut tx_gossip_rate,
+                    &mut tx_gossip_ingress_rate,
                     &mut gossip_accept_bytes,
-                    &mut mempool_sync_last_request,
-                    &mut mempool_sync_retries,
+                    &mut mempool_recovery,
+                    &mut tx_deliveries,
                     &mut snapshot_segment_rate,
                     &mut pending_network_profile_requests,
                     &mut pending_object_requests,
@@ -4408,8 +4385,8 @@ async fn run_swarm(
                         &mut swarm,
                         cmd,
                         &topics,
-                        &mut mempool_sync_last_request,
-                        &mut mempool_sync_retries,
+                        &mut mempool_recovery,
+                        &mut tx_deliveries,
                         &required_event_tx,
                         &mut pending_object_requests,
                         &mut pending_header_requests,
@@ -4769,33 +4746,47 @@ async fn run_swarm(
                 });
             }
 
-            // Recover a mempool exchange rejected during a busy simultaneous
-            // multi-peer handshake. State is bounded by connected PeerIds,
-            // attempts are finite, and local+remote jitter spreads clients
-            // requesting the same server across timer ticks.
+            // A coalesced wakeup, not a bounded command that can be lost under
+            // backpressure. Successful node admission wakes relay immediately.
+            _ = tx_delivery_notify.notified() => {
+                for (id, peer, acceptance) in tx_deliveries.drain(Instant::now()) {
+                    report_gossip_validation(&mut swarm, &id, &peer, acceptance);
+                }
+            }
+
+            // One bounded recovery lane. The next payload waits for node-side
+            // admission of the previous one; missing IDs avoid overlapping
+            // peer prefixes. Never fetch this background data in a burst.
             _ = mempool_retry_timer.tick() => {
                 let mempool_now = Instant::now();
-                let retry_peers: Vec<_> = mempool_sync_retries
-                    .iter()
-                    .filter(|(peer, retry)| {
-                        mempool_now >= retry.next_attempt
-                            && sync_paths.is_dispatchable(**peer)
-                    })
-                    .map(|(peer, retry)| (*peer, retry.failures))
-                    .collect();
-                mempool_sync_retries.retain(|peer, _| swarm.is_connected(peer));
-                for (peer, failures) in retry_peers {
-                    let _ = swarm
-                        .behaviour_mut()
-                        .mempool_sync
-                        .send_request(&peer, MempoolRequest::Pull);
-                    mempool_sync_last_request.insert(peer, mempool_now);
-                    if let Some(retry) = mempool_sync_retries.get_mut(&peer) {
-                        // Do not issue a duplicate while the request-response
-                        // timeout is still in flight.
-                        retry.next_attempt = mempool_now + MEMPOOL_SYNC_RETRY_INFLIGHT;
+                for (id, peer, acceptance) in tx_deliveries.drain(mempool_now) {
+                    report_gossip_validation(&mut swarm, &id, &peer, acceptance);
+                }
+                let queues = required_event_tx.queue_depths();
+                if queues.live != 0 || queues.historical != 0
+                    || pending_state_segment_requests.len() != 0
+                    || pending_object_requests.len() != 0 {
+                    // Recovery yields to authoritative live/snapshot payloads.
+                    // Their planners, limits and retry rules are unchanged.
+                    continue;
+                }
+                if let Some(peer) = mempool_recovery.next_peer(mempool_now, |peer| sync_paths.is_dispatchable(peer)) {
+                    let Some((usage, local_ids)) = mempool.try_recovery_inventory() else {
+                        continue;
+                    };
+                    if usage.size >= usage.capacity || usage.intent_bytes >= usage.max_intent_bytes {
+                        mempool_recovery.stop_full_pool(peer);
+                        continue;
                     }
-                    tracing::debug!(peer = %peer, failures, "retrying mempool sync");
+                    if let Some(known_txids) = mempool_recovery.known(peer, local_ids.into_iter().map(|id| id.0)) {
+                        let known = known_txids.len();
+                        let request_id = swarm
+                            .behaviour_mut()
+                            .mempool_sync
+                            .send_request(&peer, MempoolRequest::missing(known_txids));
+                        mempool_recovery.issued(peer, request_id, mempool_now);
+                        tracing::debug!(peer = %peer, known, "requesting missing mempool transactions");
+                    }
                 }
             }
         }
@@ -5022,6 +5013,21 @@ fn prune_snapshot_exports(
     }
 }
 
+fn forget_departed_tx(
+    cache: &mut TxDeliveries,
+    mempool: &AsyncMempool,
+    key: &crate::tx_delivery::PayloadKey,
+) -> Option<crate::tx_delivery::Resolution> {
+    let txid = cache.admitted_id(key)?;
+    if mempool.try_contains(&noid_poseidon2b::primitives::TxBodyHash(txid)) != Some(true) {
+        // An old relay admission cannot suppress a transaction that has left
+        // the pool. A busy pool also forfeits this cache hit without blocking
+        // the swarm. Fresh admission still goes through the normal worker.
+        return cache.forget_admitted(key);
+    }
+    None
+}
+
 fn allow_peer_rate(
     rates: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
     peer: PeerId,
@@ -5070,6 +5076,21 @@ impl GossipByteWindow {
         self.bytes = next;
         true
     }
+}
+
+fn admit_tx_gossip_ingress(
+    rates: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
+    bytes: &mut GossipByteWindow,
+    peer: PeerId,
+    len: usize,
+) -> bool {
+    // Preserve the historical per-peer isolation of the shared gossip byte
+    // window, which also serves block announcements. Check this before any
+    // payload hashing or duplicate lookup: cached deliveries must not let one
+    // peer spend the global budget after its own ingress quota is exhausted.
+    len <= MAX_TX_INTENT_BYTES_GLOBAL
+        && allow_peer_rate(rates, peer, TX_RELAY_RATE_MAX, TX_RELAY_RATE_WINDOW)
+        && bytes.admit(len, GOSSIP_ACCEPT_BYTES_PER_WINDOW, GOSSIP_ACCEPT_WINDOW)
 }
 
 fn report_gossip_validation(
@@ -5599,8 +5620,8 @@ async fn handle_network_command(
     swarm: &mut libp2p::Swarm<NodeBehaviour>,
     cmd: NetworkCommand,
     topics: &NetworkTopics,
-    mempool_sync_last_request: &mut std::collections::HashMap<PeerId, Instant>,
-    mempool_sync_retries: &mut std::collections::HashMap<PeerId, MempoolSyncRetry>,
+    mempool_recovery: &mut MempoolRecovery<request_response::OutboundRequestId>,
+    tx_deliveries: &mut TxDeliveries,
     required_event_tx: &RequiredEventSender,
     pending_object_requests: &mut BoundedPendingRequests<
         request_response::OutboundRequestId,
@@ -5686,7 +5707,16 @@ async fn handle_network_command(
                 "cascaded exact block availability to mesh peers"
             );
         }
-        NetworkCommand::BroadcastTx { intent_bytes } => {
+        NetworkCommand::BroadcastTx {
+            intent_bytes,
+            tx_hash,
+        } => {
+            if let Some(tx_hash) = tx_hash {
+                tx_deliveries.admitted(TxDeliveries::key(&intent_bytes), tx_hash, Instant::now());
+            }
+            for (id, peer, acceptance) in tx_deliveries.drain(Instant::now()) {
+                report_gossip_validation(swarm, &id, &peer, acceptance);
+            }
             let topic = gossipsub::IdentTopic::new(topics.txs.clone());
             let gossip_result = swarm
                 .behaviour_mut()
@@ -6200,26 +6230,14 @@ async fn handle_network_command(
             debug_assert!(inserted, "fresh snapshot header request ID must be unique");
         }
         NetworkCommand::RequestMempoolSync { peer } => {
-            if !sync_paths.is_dispatchable(peer) {
-                let local = *swarm.local_peer_id();
-                let _ = schedule_mempool_sync_retry(mempool_sync_retries, local, peer);
-                return;
-            }
-            const MEMPOOL_SYNC_REQUEST_COOLDOWN: Duration = Duration::from_secs(30);
-            let now = Instant::now();
-            if let Some(last) = mempool_sync_last_request.get(&peer) {
-                if now.duration_since(*last) < MEMPOOL_SYNC_REQUEST_COOLDOWN {
-                    tracing::debug!(peer = %peer, "mempool sync request suppressed by cooldown");
-                    return;
-                }
-            }
-            mempool_sync_last_request.insert(peer, now);
-            mempool_sync_retries.remove(&peer);
-            let _ = swarm
-                .behaviour_mut()
-                .mempool_sync
-                .send_request(&peer, MempoolRequest::Pull);
-            tracing::debug!(peer = %peer, "requesting mempool sync");
+            mempool_recovery.register(peer, Instant::now(), swarm.is_connected(&peer));
+        }
+        NetworkCommand::MempoolSyncConsumed {
+            peer,
+            request_id,
+            observed_txids,
+        } => {
+            mempool_recovery.consumed(peer, request_id, &observed_txids, Instant::now());
         }
     }
 }
@@ -6253,9 +6271,10 @@ async fn handle_swarm_event(
     snapshot_export_disconnect_grace: &mut SnapshotExportDisconnectGrace,
     block_event_rate: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
     tx_gossip_rate: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
+    tx_gossip_ingress_rate: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
     gossip_accept_bytes: &mut GossipByteWindow,
-    mempool_sync_last_request: &mut std::collections::HashMap<PeerId, Instant>,
-    mempool_sync_retries: &mut std::collections::HashMap<PeerId, MempoolSyncRetry>,
+    mempool_recovery: &mut MempoolRecovery<request_response::OutboundRequestId>,
+    tx_deliveries: &mut TxDeliveries,
     snapshot_segment_rate: &mut std::collections::HashMap<PeerId, (u32, Instant)>,
     pending_network_profile_requests: &mut BoundedPendingRequests<
         request_response::OutboundRequestId,
@@ -6411,6 +6430,34 @@ async fn handle_swarm_event(
                     );
                     tracing::warn!(peer = %propagation_source, len = message.data.len(), "tx gossip too large — dropped");
                 } else {
+                    if !admit_tx_gossip_ingress(
+                        tx_gossip_ingress_rate,
+                        gossip_accept_bytes,
+                        propagation_source,
+                        message.data.len(),
+                    ) {
+                        report_gossip_validation(
+                            swarm,
+                            &message_id,
+                            &propagation_source,
+                            gossipsub::MessageAcceptance::Ignore,
+                        );
+                        tracing::debug!(peer = %propagation_source, "tx gossip ingress limit exceeded — dropped before propagation");
+                        return;
+                    }
+                    let key = TxDeliveries::key(&message.data);
+                    if let Some((id, peer, acceptance)) =
+                        forget_departed_tx(tx_deliveries, mempool, &key)
+                    {
+                        report_gossip_validation(swarm, &id, &peer, acceptance);
+                    }
+                    if tx_deliveries.duplicate(&key, Some((message_id.clone(), propagation_source)))
+                    {
+                        for (id, peer, acceptance) in tx_deliveries.drain(Instant::now()) {
+                            report_gossip_validation(swarm, &id, &peer, acceptance);
+                        }
+                        return;
+                    }
                     if !allow_peer_rate(
                         tx_gossip_rate,
                         propagation_source,
@@ -6426,25 +6473,22 @@ async fn handle_swarm_event(
                         tracing::debug!(peer = %propagation_source, "tx gossip rate limit exceeded — dropped before propagation");
                         return;
                     }
-                    if !gossip_accept_bytes.admit(
-                        message.data.len(),
-                        GOSSIP_ACCEPT_BYTES_PER_WINDOW,
-                        GOSSIP_ACCEPT_WINDOW,
-                    ) {
+                    let Some(delivery) =
+                        tx_deliveries.start(key, Some((message_id.clone(), propagation_source)))
+                    else {
                         report_gossip_validation(
                             swarm,
                             &message_id,
                             &propagation_source,
                             gossipsub::MessageAcceptance::Ignore,
                         );
-                        tracing::debug!(peer = %propagation_source, bytes = message.data.len(), "global gossip byte budget exhausted — transaction dropped before propagation");
                         return;
-                    }
+                    };
                     if gossip_event_tx
                         .send(NetworkEvent::NewTx {
                             from: propagation_source,
                             intent_bytes: message.data,
-                            gossip_message_id: Some(message_id.clone()),
+                            delivery,
                             inbound_memory_permit: None,
                         })
                         .is_err()
@@ -8600,7 +8644,14 @@ async fn handle_swarm_event(
                 ..
             },
         )) => match request {
-            MempoolRequest::Pull => {
+            request @ (MempoolRequest::Pull | MempoolRequest::PullMissing { .. }) => {
+                let (known, metadata_permit) = match request {
+                    MempoolRequest::PullMissing {
+                        known_txids,
+                        inbound_memory_permit,
+                    } => (known_txids, inbound_memory_permit),
+                    _ => (Vec::new(), None),
+                };
                 let Ok(preparation_permit) =
                     Arc::clone(mempool_response_prepare_semaphore).try_acquire_owned()
                 else {
@@ -8614,13 +8665,15 @@ async fn handle_swarm_event(
                 let mempool = mempool.clone();
                 let completion = mempool_response_tx.clone();
                 tokio::spawn(async move {
+                    let _metadata_permit = metadata_permit;
                     // Reserve the maximum legal response before taking the
                     // mempool lock or cloning the first retained intent.
                     let response = match prepare_mempool_response_after_admission(
                         budget,
                         || async {
                             mempool
-                                .intent_bytes_prefix(
+                                .intent_bytes_missing(
+                                    &known,
                                     MAX_MEMPOOL_SYNC_TXS,
                                     MAX_MEMPOOL_SYNC_BYTES,
                                     MAX_TX_INTENT_BYTES_GLOBAL,
@@ -8655,6 +8708,7 @@ async fn handle_swarm_event(
             } => {
                 let response = GetMempoolResponse {
                     txs: Vec::new(),
+                    supports_missing: false,
                     inbound_memory_permit: None,
                     outbound_memory_permit: None,
                 };
@@ -8662,6 +8716,16 @@ async fn handle_swarm_event(
                     .behaviour_mut()
                     .mempool_sync
                     .send_response(channel, response);
+                let key = TxDeliveries::key(&intent_bytes);
+                if let Some((id, peer, acceptance)) =
+                    forget_departed_tx(tx_deliveries, mempool, &key)
+                {
+                    report_gossip_validation(swarm, &id, &peer, acceptance);
+                }
+                if tx_deliveries.duplicate(&key, None) {
+                    tracing::trace!(peer = %peer, "coalesced duplicate direct transaction relay");
+                    return;
+                }
                 if !allow_peer_rate(
                     tx_gossip_rate,
                     peer,
@@ -8672,10 +8736,14 @@ async fn handle_swarm_event(
                     return;
                 }
                 let len = intent_bytes.len();
+                let Some(delivery) = tx_deliveries.start(key, None) else {
+                    tracing::debug!(peer = %peer, "direct transaction admission tracker full");
+                    return;
+                };
                 if let Err(error) = required_event_tx.try_send(NetworkEvent::NewTx {
                     from: peer,
                     intent_bytes,
-                    gossip_message_id: None,
+                    delivery,
                     inbound_memory_permit,
                 }) {
                     tracing::debug!(
@@ -8693,20 +8761,36 @@ async fn handle_swarm_event(
         // --- Mempool sync: client side (response to our request) ---
         SwarmEvent::Behaviour(NodeBehaviourEvent::MempoolSync(
             request_response::Event::Message {
-                message: request_response::Message::Response { response, .. },
+                message:
+                    request_response::Message::Response {
+                        response,
+                        request_id,
+                    },
                 peer,
                 ..
             },
         )) => {
-            mempool_sync_retries.remove(&peer);
             let GetMempoolResponse {
                 txs,
                 inbound_memory_permit,
                 outbound_memory_permit: _,
+                supports_missing,
             } = response;
+            if !mempool_recovery.response(
+                peer,
+                request_id,
+                supports_missing,
+                !txs.is_empty(),
+                Instant::now(),
+            ) {
+                // Includes empty Push acknowledgements. Neither these nor
+                // stale replies may reset another request's retry state.
+                return;
+            }
             tracing::debug!(
                 from = %peer,
                 tx_count = txs.len(),
+                supports_missing,
                 "mempool sync response complete"
             );
             if !txs.is_empty() {
@@ -8720,9 +8804,11 @@ async fn handle_swarm_event(
                 // sync events currently occupy the bounded node queue.
                 if let Err(error) = required_event_tx.try_send(NetworkEvent::MempoolSyncResponse {
                     from: peer,
+                    request_id,
                     txs,
                     inbound_memory_permit,
                 }) {
+                    mempool_recovery.response_dropped(peer, request_id, Instant::now());
                     tracing::debug!(peer = %peer, err = %error, "mempool sync response dropped under node backpressure");
                 }
             }
@@ -8730,27 +8816,27 @@ async fn handle_swarm_event(
 
         // --- Mempool sync: outbound failure ---
         SwarmEvent::Behaviour(NodeBehaviourEvent::MempoolSync(
-            request_response::Event::OutboundFailure { peer, error, .. },
+            request_response::Event::OutboundFailure {
+                peer,
+                request_id,
+                error,
+                ..
+            },
         )) => {
             // A simultaneous handshake or a busy bounded response worker is
             // transient. Keep the one-stream memory discipline and retry with
             // bounded exponential backoff plus per-peer jitter.
-            mempool_sync_last_request.remove(&peer);
-            let local = *swarm.local_peer_id();
-            if let Some(retry) = schedule_mempool_sync_retry(mempool_sync_retries, local, peer) {
+            if mempool_recovery.failed(peer, request_id, Instant::now()) {
                 tracing::debug!(
                     peer = %peer,
                     err = %error,
-                    failures = retry.failures,
-                    retry_ms = retry.next_attempt.saturating_duration_since(Instant::now()).as_millis(),
-                    "mempool sync request failed — retry scheduled"
+                    "mempool pull failed — bounded recovery updated"
                 );
             } else {
                 tracing::debug!(
                     peer = %peer,
                     err = %error,
-                    failures = MAX_MEMPOOL_SYNC_FAILURES,
-                    "mempool sync request failed — retry limit reached"
+                    "direct or retired mempool exchange failed — no pull scheduled"
                 );
             }
         }
@@ -8965,8 +9051,8 @@ async fn handle_swarm_event(
                 pending_network_profile_requests.take_where(|pending| pending.peer == peer_id);
                 block_event_rate.remove(&peer_id);
                 tx_gossip_rate.remove(&peer_id);
-                mempool_sync_last_request.remove(&peer_id);
-                mempool_sync_retries.remove(&peer_id);
+                tx_gossip_ingress_rate.remove(&peer_id);
+                mempool_recovery.disconnect(peer_id);
                 snapshot_segment_rate.remove(&peer_id);
                 detach_snapshot_export_lease(
                     snapshot_export_leases,
@@ -9906,6 +9992,108 @@ mod tests {
         budget.started_at = Instant::now() - Duration::from_secs(11);
         assert!(budget.admit(64, 64, Duration::from_secs(10)));
         assert_eq!(budget.bytes, 64);
+    }
+
+    #[test]
+    fn over_quota_gossip_cannot_spend_other_peers_or_headers_byte_budget() {
+        let peer = PeerId::random();
+        let mut rates = std::collections::HashMap::new();
+        let mut budget = GossipByteWindow::new();
+        for index in 0..1_000 {
+            assert_eq!(
+                admit_tx_gossip_ingress(&mut rates, &mut budget, peer, MAX_TX_INTENT_BYTES_GLOBAL),
+                index < TX_RELAY_RATE_MAX,
+            );
+        }
+        assert_eq!(
+            budget.bytes,
+            TX_RELAY_RATE_MAX as usize * MAX_TX_INTENT_BYTES_GLOBAL
+        );
+        // The very same byte window is used by block announcements. A peer
+        // rejected by ingress cannot exhaust it before a header is considered.
+        assert!(budget.admit(1_024, GOSSIP_ACCEPT_BYTES_PER_WINDOW, GOSSIP_ACCEPT_WINDOW));
+        assert!(admit_tx_gossip_ingress(
+            &mut rates,
+            &mut budget,
+            PeerId::random(),
+            MAX_TX_INTENT_BYTES_GLOBAL
+        ));
+        let before = budget.bytes;
+        assert!(!admit_tx_gossip_ingress(&mut rates, &mut budget, peer, 1));
+        assert_eq!(budget.bytes, before);
+        rates.get_mut(&peer).unwrap().1 = Instant::now() - Duration::from_secs(11);
+        assert!(admit_tx_gossip_ingress(&mut rates, &mut budget, peer, 1));
+    }
+
+    #[test]
+    fn gossip_ingress_preserves_aggregate_and_oversize_limits() {
+        let mut rates = std::collections::HashMap::new();
+        let mut budget = GossipByteWindow::new();
+        assert!(!admit_tx_gossip_ingress(
+            &mut rates,
+            &mut budget,
+            PeerId::random(),
+            MAX_TX_INTENT_BYTES_GLOBAL + 1
+        ));
+        assert_eq!(budget.bytes, 0);
+        assert!(rates.is_empty());
+        budget.bytes = GOSSIP_ACCEPT_BYTES_PER_WINDOW - 1;
+        assert!(admit_tx_gossip_ingress(
+            &mut rates,
+            &mut budget,
+            PeerId::random(),
+            1
+        ));
+        assert!(!admit_tx_gossip_ingress(
+            &mut rates,
+            &mut budget,
+            PeerId::random(),
+            1
+        ));
+        assert_eq!(budget.bytes, GOSSIP_ACCEPT_BYTES_PER_WINDOW);
+    }
+
+    #[test]
+    fn direct_gossip_coalescing_spares_admission_but_never_ingress_quota() {
+        for direct_first in [true, false] {
+            let peer = PeerId::random();
+            let mut ingress = std::collections::HashMap::new();
+            let mut admission = std::collections::HashMap::new();
+            let mut budget = GossipByteWindow::new();
+            let mut cache = TxDeliveries::default();
+            for index in 0..TX_RELAY_RATE_MAX {
+                let payload = index.to_le_bytes();
+                let key = TxDeliveries::key(&payload);
+                for is_direct in [direct_first, !direct_first] {
+                    if !is_direct {
+                        assert!(admit_tx_gossip_ingress(
+                            &mut ingress,
+                            &mut budget,
+                            peer,
+                            payload.len()
+                        ));
+                    }
+                    if !cache.duplicate(&key, None) {
+                        assert!(allow_peer_rate(
+                            &mut admission,
+                            peer,
+                            TX_RELAY_RATE_MAX,
+                            TX_RELAY_RATE_WINDOW
+                        ));
+                        let worker = cache.start(key, None).unwrap();
+                        worker.admitted(key);
+                        cache.drain(Instant::now());
+                    }
+                }
+            }
+            assert_eq!(ingress[&peer].0, TX_RELAY_RATE_MAX);
+            assert_eq!(admission[&peer].0, TX_RELAY_RATE_MAX);
+            assert_eq!(budget.bytes, TX_RELAY_RATE_MAX as usize * 4);
+            // Even a cached payload must pass the ingress guard first.
+            let before = budget.bytes;
+            assert!(!admit_tx_gossip_ingress(&mut ingress, &mut budget, peer, 4));
+            assert_eq!(budget.bytes, before);
+        }
     }
 
     #[test]
@@ -11259,7 +11447,9 @@ mod tests {
                 .send(NetworkEvent::NewTx {
                     from: peer,
                     intent_bytes: vec![byte],
-                    gossip_message_id: None,
+                    delivery: TxDeliveries::default()
+                        .start(TxDeliveries::key(&[byte]), None)
+                        .unwrap(),
                     inbound_memory_permit: None,
                 })
                 .unwrap();
@@ -11305,34 +11495,5 @@ mod tests {
         assert_eq!(budget.available_bytes(), 0);
         drop(response);
         assert_eq!(budget.available_bytes(), MAX_MEMPOOL_SYNC_BYTES);
-    }
-
-    #[test]
-    fn mempool_retry_is_per_peer_bounded_and_exponential() {
-        let local = libp2p::identity::Keypair::generate_ed25519()
-            .public()
-            .to_peer_id();
-        let peer = libp2p::identity::Keypair::generate_ed25519()
-            .public()
-            .to_peer_id();
-        let mut retries = std::collections::HashMap::new();
-        let before = Instant::now();
-        schedule_mempool_sync_retry(&mut retries, local, peer).unwrap();
-        let first = retries[&peer];
-        assert_eq!(first.failures, 1);
-        assert!(first.next_attempt >= before + Duration::from_secs(1));
-        assert!(first.next_attempt <= before + Duration::from_secs(5));
-
-        schedule_mempool_sync_retry(&mut retries, local, peer).unwrap();
-        let second = retries[&peer];
-        assert_eq!(second.failures, 2);
-        assert!(second.next_attempt > first.next_attempt);
-        for expected_failures in 3..=MAX_MEMPOOL_SYNC_FAILURES {
-            let retry = schedule_mempool_sync_retry(&mut retries, local, peer).unwrap();
-            assert_eq!(retry.failures, expected_failures);
-        }
-        assert!(schedule_mempool_sync_retry(&mut retries, local, peer).is_none());
-        assert!(retries.is_empty());
-        assert!(mempool_sync_retry_jitter(local, peer) < Duration::from_secs(4));
     }
 }

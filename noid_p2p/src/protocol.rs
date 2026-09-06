@@ -722,6 +722,14 @@ pub struct GetStateSegmentResponse {
 #[derive(Debug, Clone)]
 pub enum MempoolRequest {
     Pull,
+    /// Optional v4 reconciliation. Old peers negotiate v3 and receive the
+    /// unchanged empty Pull. IDs are sorted, unique and bounded by pool size.
+    PullMissing {
+        known_txids: Vec<[u8; 32]>,
+        /// Count request metadata in the same process-wide inbound byte
+        /// domain until the serving worker has finished using it.
+        inbound_memory_permit: Option<std::sync::Arc<tokio::sync::OwnedSemaphorePermit>>,
+    },
     Push {
         intent_bytes: Vec<u8>,
         /// Process-wide inbound byte admission retained until node-side
@@ -729,6 +737,15 @@ pub enum MempoolRequest {
         /// state; never serialized.
         inbound_memory_permit: Option<std::sync::Arc<tokio::sync::OwnedSemaphorePermit>>,
     },
+}
+
+impl MempoolRequest {
+    pub(crate) fn missing(known_txids: Vec<[u8; 32]>) -> Self {
+        Self::PullMissing {
+            known_txids,
+            inbound_memory_permit: None,
+        }
+    }
 }
 
 /// Response: raw TxIntent bytes for every pending transaction.
@@ -740,6 +757,9 @@ pub struct GetMempoolResponse {
     /// Raw `TxIntent` bytes, one per pending transaction.
     /// Empty when the peer's mempool is empty or the node is just starting.
     pub txs: Vec<Vec<u8>>,
+    /// Local negotiated transport capability, never trusted peer metadata.
+    #[serde(skip)]
+    pub(crate) supports_missing: bool,
     /// Process-wide inbound byte admission retained until node-side mempool
     /// submission has consumed every decoded intent. Local flow-control state;
     /// never serialized.

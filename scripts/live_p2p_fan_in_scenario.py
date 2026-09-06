@@ -29,6 +29,7 @@ BASE = Path(
 )
 BASE_PORT = int(os.environ.get("NOID_LIVE_P2P_FAN_IN_BASE_PORT", "21000"))
 PEER_COUNT = int(os.environ.get("NOID_LIVE_P2P_FAN_IN_PEERS", "96"))
+IDLE_WATCH_SECONDS = int(os.environ.get("NOID_LIVE_P2P_FAN_IN_IDLE_SECONDS", "135"))
 
 live.BASE = BASE
 live.BASE_PORT = BASE_PORT
@@ -59,6 +60,14 @@ def rss_kib(node):
     return int(match.group(1)) if match else 0
 
 
+def pull_requests(text):
+    return sum(text.count(marker) for marker in (
+        "requesting mempool sync",
+        "requesting missing mempool transactions",
+        "retrying mempool sync",
+    ))
+
+
 def exchanges_complete(hub_label, spoke_labels):
     hub = log_text(hub_label)
     hub_id = logged_peer_id(hub)
@@ -67,13 +76,7 @@ def exchanges_complete(hub_label, spoke_labels):
         text = log_text(label)
         peer_id = logged_peer_id(text)
         spoke_ids[label] = peer_id
-        if not all(
-            marker in text
-            for marker in (
-                "requesting mempool sync",
-                "mempool sync response complete",
-            )
-        ):
+        if not pull_requests(text) or "mempool sync response complete" not in text:
             return False
         if not any(
             hub_id in line and "mempool sync response complete" in line
@@ -125,6 +128,7 @@ def main():
         "single-group fan-in peers must be between 1 and the 96-peer diversity cap",
     )
     require(not BASE.exists(), f"run directory already exists: {BASE}")
+    require(IDLE_WATCH_SECONDS >= 0, "idle observation duration must be nonnegative")
 
     hub = Node("hub", BASE_PORT, BASE_PORT + 1)
     spokes = [
@@ -184,12 +188,32 @@ def main():
             interval=0.5,
         )
         peer_ids = live.wait_value(
-            "all symmetric mempool exchanges finish under fan-in",
+            "all client-to-hub mempool exchanges finish under fan-in",
             lambda: exchanges_complete(hub_label, spoke_labels),
             timeout=240,
             interval=0.5,
         )
         require(len(set(peer_ids.values())) == PEER_COUNT + 1, "PeerId collision in fan-in")
+
+        # A completed empty scan is not a subscription to a retained seed.
+        # Observe longer than the former 120-second idle-refresh regression.
+        completed_requests = {label: pull_requests(log_text(label)) for label in spoke_labels}
+        require(pull_requests(log_text(hub_label)) == 0, "hub reciprocated inbound mempool bootstrap")
+        idle_started = time.monotonic()
+        max_rpc_ms = 0.0
+        while time.monotonic() - idle_started < IDLE_WATCH_SECONDS:
+            before = time.monotonic()
+            rpc(hub.rpc_port, "getPeerCount", timeout=5)
+            max_rpc_ms = max(max_rpc_ms, (time.monotonic() - before) * 1000)
+            for label, count in completed_requests.items():
+                require(pull_requests(log_text(label)) == count,
+                        f"{label} resumed polling after its empty response")
+            require(pull_requests(log_text(hub_label)) == 0, "hub started reverse mempool polling")
+            time.sleep(1)
+        summary["idle_observation_s"] = IDLE_WATCH_SECONDS
+        summary["idle_extra_pull_requests"] = 0
+        summary["hub_reverse_pull_requests"] = 0
+        summary["max_sampled_hub_rpc_ms"] = round(max_rpc_ms, 3)
 
         # Let late swarm events settle before judging retry exhaustion or
         # connection churn, then capture process memory while all remain live.
@@ -222,6 +246,7 @@ def main():
             assert_clean(label, text)
         retry_lines = sum(
             text.count("mempool sync request failed — retry scheduled")
+            + text.count("mempool pull failed — bounded recovery updated")
             for text in all_logs.values()
         )
         summary["scheduled_retries"] = retry_lines

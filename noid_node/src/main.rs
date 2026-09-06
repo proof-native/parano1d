@@ -2291,9 +2291,9 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             match mp_events.recv().await {
-                Ok(noid_mempool::MempoolEvent::TxAdmitted { intent_bytes, .. }) => {
+                Ok(noid_mempool::MempoolEvent::TxAdmitted { hash, intent_bytes, .. }) => {
                     let _ = p2p_tx_relay
-                        .send(noid_p2p::NetworkCommand::BroadcastTx { intent_bytes })
+                        .send(noid_p2p::NetworkCommand::BroadcastTx { intent_bytes, tx_hash: Some(hash.0) })
                         .await;
                 }
                 Ok(_) => {}
@@ -8009,24 +8009,6 @@ mod tests {
     }
 }
 
-fn resolve_tx_gossip(
-    p2p_cmd: &noid_p2p::NetworkCommandSender,
-    propagation_source: libp2p::PeerId,
-    message_id: Option<libp2p::gossipsub::MessageId>,
-    acceptance: libp2p::gossipsub::MessageAcceptance,
-) {
-    let Some(message_id) = message_id else {
-        return;
-    };
-    if let Err(error) = p2p_cmd.try_send(noid_p2p::NetworkCommand::ResolveTxGossip {
-        message_id,
-        propagation_source,
-        acceptance,
-    }) {
-        tracing::debug!(peer = %propagation_source, %error, "tx gossip validation result could not be queued");
-    }
-}
-
 async fn handle_p2p_events(
     mut rx: noid_p2p::NetworkEventReceiver,
     chain: Arc<RwLock<MdbxChainContext>>,
@@ -10403,6 +10385,7 @@ async fn handle_p2p_events(
             }
             Ok(NetworkEvent::MempoolSyncResponse {
                 from,
+                request_id,
                 txs,
                 inbound_memory_permit,
             }) => {
@@ -10412,20 +10395,22 @@ async fn handle_p2p_events(
                     "mempool sync: received pending TXs from peer"
                 );
                 let mempool_task = mempool.clone();
+                let completion = p2p_cmd.clone();
                 let mut initial_sync_ready_task = initial_sync_ready.subscribe();
                 let chain_task = Arc::clone(&chain);
-                tokio::spawn(async move {
+                let admission = tokio::spawn(async move {
                     {
                         let h = chain_task.read().await.tip_height();
                         if h == 0 && !*initial_sync_ready_task.borrow() {
                             tracing::debug!("mempool sync: waiting for state sync before admitting TXs");
                             if initial_sync_ready_task.changed().await.is_err() {
                                 tracing::debug!("mempool sync: readiness channel closed — dropping deferred TXs");
-                                return;
+                                return Vec::new();
                             }
                             tracing::debug!("mempool sync: state ready, submitting {} TXs", txs.len());
                         }
                     }
+                    let mut observed_txids = Vec::with_capacity(txs.len());
                     for intent_bytes in txs {
                         if intent_bytes.len() > MAX_TX_INTENT_BYTES_GLOBAL {
                             tracing::debug!(
@@ -10436,6 +10421,10 @@ async fn handle_p2p_events(
                             continue;
                         }
                         if let Ok(intent) = noid_tx::PagedSpendIntent::from_bytes(&intent_bytes) {
+                            // Scan-local exclusion, not an acceptance cache.
+                            // A stale/invalid intent must not pin a later page
+                            // behind the same prefix. New scans start fresh.
+                            observed_txids.push(intent.logical_txid().0);
                             match mempool_task.submit(intent, intent_bytes).await {
                                 Ok(hash) => {
                                     tracing::debug!(hash = ?hash, "mempool sync: tx admitted");
@@ -10447,16 +10436,30 @@ async fn handle_p2p_events(
                             }
                         }
                     }
+                    observed_txids
+                });
+                tokio::spawn(async move {
+                    // Keep the lane and byte permit until the worker really
+                    // exits, including a panic/cancellation. A lost completion
+                    // must not strand recovery or admit overlapping payloads.
+                    let observed_txids = match admission.await {
+                        Ok(ids) => ids,
+                        Err(error) => {
+                            tracing::error!(peer = %from, %error, "mempool recovery admission worker failed");
+                            Vec::new()
+                        }
+                    };
                     // The decoded response owns one process-global inbound
                     // reservation. Release it only after every intent has been
                     // submitted or rejected by the local admission pipeline.
                     drop(inbound_memory_permit);
+                    completion.complete_mempool_sync(from, request_id, observed_txids).await;
                 });
             }
             Ok(NetworkEvent::NewTx {
                 from,
                 intent_bytes,
-                gossip_message_id,
+                delivery,
                 inbound_memory_permit,
             }) => {
                 // Hard cap: reject oversized payloads before any processing.
@@ -10467,12 +10470,7 @@ async fn handle_p2p_events(
                         max = MAX_TX_INTENT_BYTES_GLOBAL,
                         "tx dropped: exceeds global TxIntent wire size limit"
                     );
-                    resolve_tx_gossip(
-                        &p2p_cmd,
-                        from,
-                        gossip_message_id,
-                        libp2p::gossipsub::MessageAcceptance::Reject,
-                    );
+                    delivery.complete(libp2p::gossipsub::MessageAcceptance::Reject);
                     continue;
                 }
 
@@ -10488,12 +10486,7 @@ async fn handle_p2p_events(
                         *entry = (1, now);
                     } else if entry.0 >= TX_RATE_MAX {
                         tracing::debug!(peer = %from, "tx rate limit exceeded, dropping");
-                        resolve_tx_gossip(
-                            &p2p_cmd,
-                            from,
-                            gossip_message_id,
-                            libp2p::gossipsub::MessageAcceptance::Ignore,
-                        );
+                        delivery.complete(libp2p::gossipsub::MessageAcceptance::Ignore);
                         continue;
                     } else {
                         entry.0 += 1;
@@ -10518,12 +10511,12 @@ async fn handle_p2p_events(
                 // access is safe. P2P relay of admitted txs is handled by the dedicated
                 // relay task spawned in main() — no extra work needed here.
                 let mempool_task = mempool.clone();
-                let p2p_cmd_task = p2p_cmd.clone();
                 tokio::spawn(async move {
                     let acceptance = match noid_tx::PagedSpendIntent::from_bytes(&intent_bytes) {
                         Ok(intent) => match mempool_task.submit(intent, intent_bytes).await {
                             Ok(hash) => {
                                 tracing::debug!(hash = ?hash, "P2P tx admitted");
+                                delivery.admitted(hash.0);
                                 libp2p::gossipsub::MessageAcceptance::Accept
                             }
                             Err(e) if e.is_soft() => {
@@ -10543,12 +10536,7 @@ async fn handle_p2p_events(
                             libp2p::gossipsub::MessageAcceptance::Reject
                         }
                     };
-                    resolve_tx_gossip(
-                        &p2p_cmd_task,
-                        from,
-                        gossip_message_id,
-                        acceptance,
-                    );
+                    delivery.complete(acceptance);
                     // A direct relay owns one process-global inbound byte
                     // reservation. Gossip messages carry `None`.
                     drop(inbound_memory_permit);
@@ -10637,8 +10625,8 @@ async fn handle_p2p_events(
                 }
 
                 // Mempool payloads can be much larger than the complete cold
-                // snapshot. Pull once from at most four maintained outbound
-                // neighbours, never from every inbound connection.
+                // snapshot. Start one finite recovery scan from at most four
+                // maintained outbound neighbours, never every inbound peer.
                 if request_mempool
                     && !mempool_sync_requested_peers.contains(&peer)
                     && p2p_cmd

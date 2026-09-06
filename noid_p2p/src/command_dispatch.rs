@@ -84,6 +84,26 @@ pub(crate) fn channel() -> (NetworkCommandSender, NetworkCommandReceiver) {
 }
 
 impl NetworkCommandSender {
+    /// Only the bounded mempool-admission worker uses this reliable completion
+    /// path, after releasing its payload permit. Unlike event-loop `send`, it
+    /// may wait for data-lane space; dropping this acknowledgement would stall
+    /// recovery forever. It never occupies the reserved control/header lanes.
+    pub async fn complete_mempool_sync(
+        &self,
+        peer: libp2p::PeerId,
+        request_id: libp2p::request_response::OutboundRequestId,
+        observed_txids: Vec<[u8; 32]>,
+    ) {
+        let _ = self
+            .data
+            .send(MempoolSyncConsumed {
+                peer,
+                request_id,
+                observed_txids,
+            })
+            .await;
+    }
+
     /// Compatibility surface for existing async callers. Dispatch is always
     /// immediate: the sole node event loop must never await swarm capacity.
     /// A full lane is returned to the caller so its owning planner can leave
@@ -207,7 +227,8 @@ fn classify(command: &NetworkCommand) -> CommandClass {
         | RequestStateManifest { .. }
         | RequestStateSegment { .. }
         | RequestHistoryStepTerminal { .. }
-        | RequestMempoolSync { .. } => CommandClass::Data,
+        | RequestMempoolSync { .. }
+        | MempoolSyncConsumed { .. } => CommandClass::Data,
     }
 }
 
@@ -241,6 +262,55 @@ mod tests {
             count: 1,
         })
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn mempool_completion_waits_off_reactor_without_using_reserved_lanes() {
+        use libp2p::{request_response, StreamProtocol};
+        let peer = PeerId::random();
+        let mut transport =
+            request_response::Behaviour::<crate::mempool_sync_codec::MempoolSyncCodec>::new(
+                [(
+                    StreamProtocol::new("/noid/test/sync/mempool/3"),
+                    request_response::ProtocolSupport::Full,
+                )],
+                request_response::Config::default(),
+            );
+        let request_id = transport.send_request(&peer, crate::protocol::MempoolRequest::Pull);
+        let (tx, mut rx) = channel();
+        for _ in 0..DATA_CAPACITY {
+            tx.try_send(data_command()).unwrap();
+        }
+        let worker_tx = tx.clone();
+        let worker = tokio::spawn(async move {
+            worker_tx
+                .complete_mempool_sync(peer, request_id, vec![[1; 32]])
+                .await;
+        });
+        tokio::task::yield_now().await;
+        assert!(!worker.is_finished());
+        let (reply, _) = tokio::sync::oneshot::channel();
+        tx.try_send(PeerCount { reply }).unwrap();
+        assert!(matches!(rx.try_recv().unwrap(), PeerCount { .. }));
+        assert!(matches!(rx.try_recv().unwrap(), RequestMempoolSync { .. }));
+        tokio::time::timeout(std::time::Duration::from_secs(1), worker)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut completions = 0;
+        while let Ok(command) = rx.try_recv() {
+            if let MempoolSyncConsumed {
+                peer: actual,
+                request_id: actual_id,
+                observed_txids,
+            } = command
+            {
+                assert_eq!((actual, actual_id), (peer, request_id));
+                assert_eq!(observed_txids, vec![[1; 32]]);
+                completions += 1;
+            }
+        }
+        assert_eq!(completions, 1);
     }
 
     #[tokio::test]

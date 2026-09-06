@@ -19,6 +19,7 @@ mod identity_store;
 mod inbound_budget;
 pub mod manifest_page_codec;
 pub mod mempool_sync_codec;
+mod mempool_recovery;
 pub mod network;
 pub mod network_profile;
 pub mod object_codec;
@@ -28,6 +29,8 @@ mod peer_diversity;
 pub mod peer_store;
 pub mod protocol;
 mod resource_profile;
+mod tx_delivery;
+pub use tx_delivery::TxDelivery;
 pub mod state_manifest_codec;
 pub mod state_segment_codec;
 

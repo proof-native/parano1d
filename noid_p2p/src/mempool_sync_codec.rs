@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use libp2p::{request_response, swarm::StreamProtocol};
 use noid_chain::consensus::wire_limits::{
-    MAX_MEMPOOL_SYNC_BYTES, MAX_MEMPOOL_SYNC_TXS, MAX_TX_INTENT_BYTES_GLOBAL,
+    MAX_MEMPOOL_SYNC_BYTES, MAX_MEMPOOL_SYNC_TXS, MAX_MEMPOOL_TXS, MAX_TX_INTENT_BYTES_GLOBAL,
 };
 
 use crate::{
@@ -28,9 +28,23 @@ const RESPONSE_MAGIC: [u8; 4] = *b"NMS3";
 const REQUEST_PREFIX_BYTES: usize = 12;
 const REQUEST_KIND_PULL: u8 = 0;
 const REQUEST_KIND_PUSH: u8 = 1;
+const REQUEST_KIND_MISSING: u8 = 2;
 const RESPONSE_PREFIX_BYTES: usize = 8;
 const LENGTH_BYTES: usize = 4;
 const MAX_LENGTH_TABLE_BYTES: usize = MAX_MEMPOOL_SYNC_TXS * LENGTH_BYTES;
+
+fn supports_missing(protocol: &StreamProtocol) -> bool {
+    protocol.as_ref().ends_with("/sync/mempool/4")
+}
+
+fn validate_known(known: &[[u8; 32]]) -> io::Result<()> {
+    if known.len() > MAX_MEMPOOL_TXS || known.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(invalid_data(
+            "mempool known IDs exceed cap or are not sorted and unique",
+        ));
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone)]
 pub struct MempoolSyncCodec {
@@ -83,7 +97,7 @@ impl request_response::Codec for MempoolSyncCodec {
 
     async fn read_request<T>(
         &mut self,
-        _protocol: &Self::Protocol,
+        protocol: &Self::Protocol,
         io: &mut T,
     ) -> io::Result<Self::Request>
     where
@@ -103,6 +117,26 @@ impl request_response::Codec for MempoolSyncCodec {
             REQUEST_KIND_PULL if payload_len == 0 => MempoolRequest::Pull,
             REQUEST_KIND_PULL => {
                 return Err(invalid_data("mempool pull request carries a payload"));
+            }
+            REQUEST_KIND_MISSING if supports_missing(protocol) => {
+                if payload_len > MAX_MEMPOOL_TXS * 32 || !payload_len.is_multiple_of(32) {
+                    return Err(invalid_data("mempool known-ID length is outside bounds"));
+                }
+                // Stream limits are per connection. Request metadata must
+                // therefore also enter the process-wide byte domain before
+                // allocation, rather than scaling unchecked with peer count.
+                let inbound_memory_permit = self.acquire_inbound(payload_len).await?;
+                let mut known_txids = Vec::with_capacity(payload_len / 32);
+                for _ in 0..payload_len / 32 {
+                    let mut txid = [0; 32];
+                    io.read_exact(&mut txid).await?;
+                    known_txids.push(txid);
+                }
+                validate_known(&known_txids)?;
+                MempoolRequest::PullMissing {
+                    known_txids,
+                    inbound_memory_permit,
+                }
             }
             REQUEST_KIND_PUSH => {
                 validate_intent_length(payload_len)?;
@@ -129,7 +163,7 @@ impl request_response::Codec for MempoolSyncCodec {
 
     async fn read_response<T>(
         &mut self,
-        _protocol: &Self::Protocol,
+        protocol: &Self::Protocol,
         io: &mut T,
     ) -> io::Result<Self::Response>
     where
@@ -171,6 +205,7 @@ impl request_response::Codec for MempoolSyncCodec {
 
         Ok(GetMempoolResponse {
             txs,
+            supports_missing: supports_missing(protocol),
             inbound_memory_permit,
             outbound_memory_permit: None,
         })
@@ -178,7 +213,7 @@ impl request_response::Codec for MempoolSyncCodec {
 
     async fn write_request<T>(
         &mut self,
-        _protocol: &Self::Protocol,
+        protocol: &Self::Protocol,
         io: &mut T,
         request: Self::Request,
     ) -> io::Result<()>
@@ -187,6 +222,21 @@ impl request_response::Codec for MempoolSyncCodec {
     {
         let (kind, intent_bytes) = match request {
             MempoolRequest::Pull => (REQUEST_KIND_PULL, None),
+            MempoolRequest::PullMissing {
+                known_txids,
+                inbound_memory_permit,
+            } => {
+                drop(inbound_memory_permit);
+                validate_known(&known_txids)?;
+                if supports_missing(protocol) {
+                    let payload = known_txids.into_iter().flatten().collect();
+                    (REQUEST_KIND_MISSING, Some(payload))
+                } else {
+                    // Negotiation with an unupgraded peer preserves the exact
+                    // v3 request. Its response will disable continuation.
+                    (REQUEST_KIND_PULL, None)
+                }
+            }
             MempoolRequest::Push {
                 intent_bytes,
                 inbound_memory_permit,
@@ -223,6 +273,7 @@ impl request_response::Codec for MempoolSyncCodec {
             txs,
             inbound_memory_permit,
             outbound_memory_permit,
+            supports_missing: _,
         } = response;
         let (lengths, total_bytes) = validate_outbound(&txs)?;
         // Production serving acquires the maximum reservation before cloning
@@ -373,6 +424,7 @@ mod tests {
     fn response(txs: Vec<Vec<u8>>) -> GetMempoolResponse {
         GetMempoolResponse {
             txs,
+            supports_missing: false,
             inbound_memory_permit: None,
             outbound_memory_permit: None,
         }
@@ -563,6 +615,150 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn missing_request_negotiates_without_changing_legacy_bytes() {
+        let v4 = StreamProtocol::new("/noid/test/sync/mempool/4");
+        let v3 = protocol();
+        let known_txids = vec![[1; 32], [2; 32]];
+        let mut wire = Cursor::new(Vec::new());
+        let mut codec = MempoolSyncCodec::default();
+        codec
+            .write_request(
+                &v4,
+                &mut wire,
+                MempoolRequest::PullMissing {
+                    known_txids: known_txids.clone(),
+                    inbound_memory_permit: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(wire.get_ref().len(), REQUEST_PREFIX_BYTES + 64);
+        wire.set_position(0);
+        let MempoolRequest::PullMissing {
+            known_txids: restored,
+            ..
+        } = codec.read_request(&v4, &mut wire).await.unwrap()
+        else {
+            panic!("not missing")
+        };
+        assert_eq!(restored, known_txids);
+        wire.set_position(0);
+        assert!(codec.read_request(&v3, &mut wire).await.is_err());
+
+        let mut fallback = Cursor::new(Vec::new());
+        codec
+            .write_request(&v3, &mut fallback, MempoolRequest::missing(known_txids))
+            .await
+            .unwrap();
+        let mut legacy = Cursor::new(Vec::new());
+        codec
+            .write_request(&v3, &mut legacy, MempoolRequest::Pull)
+            .await
+            .unwrap();
+        assert_eq!(fallback.get_ref(), legacy.get_ref());
+
+        let bytes = response_wire(&[], &[]);
+        assert!(
+            codec
+                .read_response(&v4, &mut Cursor::new(&bytes))
+                .await
+                .unwrap()
+                .supports_missing
+        );
+        assert!(
+            !codec
+                .read_response(&v3, &mut Cursor::new(&bytes))
+                .await
+                .unwrap()
+                .supports_missing
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_metadata_is_bounded_and_canonical_before_payload_work() {
+        let v4 = StreamProtocol::new("/noid/test/sync/mempool/4");
+        let mut codec = MempoolSyncCodec::default();
+        for len in [1usize, MAX_MEMPOOL_TXS * 32 + 32, u32::MAX as usize] {
+            let mut wire = vec![0; REQUEST_PREFIX_BYTES];
+            wire[..4].copy_from_slice(&REQUEST_MAGIC);
+            wire[4] = REQUEST_KIND_MISSING;
+            wire[8..12].copy_from_slice(&(len as u32).to_le_bytes());
+            assert_eq!(
+                codec
+                    .read_request(&v4, &mut Cursor::new(wire))
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                io::ErrorKind::InvalidData
+            );
+        }
+        for known in [
+            vec![[1; 32], [1; 32]],
+            vec![[2; 32], [1; 32]],
+            vec![[0; 32]; MAX_MEMPOOL_TXS + 1],
+        ] {
+            assert!(codec
+                .write_request(
+                    &v4,
+                    &mut Cursor::new(Vec::new()),
+                    MempoolRequest::missing(known)
+                )
+                .await
+                .is_err());
+        }
+        // A valid maximum request remains metadata-only but its allocation
+        // must still be charged to the shared 64 MiB inbound domain.
+        let known_txids: Vec<_> = (0..MAX_MEMPOOL_TXS as u64)
+            .map(|i| {
+                let mut id = [0; 32];
+                id[..8].copy_from_slice(&i.to_be_bytes());
+                id
+            })
+            .collect();
+        let mut wire = Cursor::new(Vec::new());
+        codec
+            .write_request(&v4, &mut wire, MempoolRequest::missing(known_txids))
+            .await
+            .unwrap();
+        wire.set_position(0);
+        assert!(codec.read_request(&v4, &mut wire).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn missing_request_metadata_holds_shared_budget_until_serving_finishes() {
+        let v4 = StreamProtocol::new("/noid/test/sync/mempool/4");
+        let mut codec =
+            MempoolSyncCodec::with_budgets(32, OutboundResponseBudget::with_capacity(32));
+        let mut wire = Cursor::new(Vec::new());
+        codec
+            .write_request(&v4, &mut wire, MempoolRequest::missing(vec![[1; 32]]))
+            .await
+            .unwrap();
+        let bytes = wire.into_inner();
+        let first = codec
+            .read_request(&v4, &mut Cursor::new(&bytes))
+            .await
+            .unwrap();
+        assert_eq!(codec.inbound_budget.available_permits(), 0);
+        let mut next_codec = codec.clone();
+        let next =
+            tokio::spawn(
+                async move { next_codec.read_request(&v4, &mut Cursor::new(bytes)).await },
+            );
+        tokio::task::yield_now().await;
+        assert!(!next.is_finished());
+        drop(first);
+        let second = tokio::time::timeout(std::time::Duration::from_secs(1), next)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(codec.inbound_budget.available_permits(), 0);
+        drop(second);
+        assert_eq!(codec.inbound_budget.available_permits(), 32);
+    }
+
+    #[tokio::test]
     async fn second_inbound_response_blocks_until_node_releases_first() {
         let budget = 8;
         let codec =
@@ -604,6 +800,7 @@ mod tests {
         let permit = budget.acquire(8).await.unwrap().unwrap();
         let response = GetMempoolResponse {
             txs: vec![vec![0x44; 8]],
+            supports_missing: false,
             inbound_memory_permit: None,
             outbound_memory_permit: Some(permit),
         };
