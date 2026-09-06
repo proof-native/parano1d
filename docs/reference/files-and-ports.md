@@ -9,6 +9,7 @@
 | `~/.parano1d/data/` | Default Core and GUI node data | Consensus data |
 | `DATA_DIR/wallet.key` | 256-bit wallet master secret | Spending authority |
 | `DATA_DIR/wallet.receipts` | Saved outgoing receipts | Local payment evidence |
+| `DATA_DIR/wallet.labels` | Persistent address labels | Local display only |
 | `DATA_DIR/wallet.history` | Local wallet history | Local presentation |
 | `DATA_DIR/p2p_identity.key` | Stable libp2p Ed25519 identity | Network identity only |
 | `DATA_DIR/peers.json` | Successful public outbound peers | Discovery hint |
@@ -34,10 +35,9 @@ original files are preserved as `wallet.receipts.legacy` and
 `wallet.history.legacy`. These are pre-migration recovery copies, not current
 backups. A conflicting existing recovery copy is never overwritten.
 
-Older binaries cannot read the new journal format. Keep the current artifacts
-when changing versions, and export individual receipts when interoperating
-with older wallets. Stop the node before copying wallet artifact files for a
-consistent backup. A master-secret backup alone does not restore old receipts.
+A JSON-only reader cannot read the journal format. Individual exported receipts
+remain independent of this storage encoding. A master-secret backup alone does
+not restore old receipts.
 
 On startup, complete frames must pass checksum and schema checks. A partial
 final append is reported and ignored without discarding earlier committed
@@ -71,7 +71,7 @@ transport. A bearer token authenticates requests but does not encrypt them.
 | Data | Window |
 |---|---:|
 | Headers | Permanent |
-| Canonical block bodies | 18 |
+| Canonical block bodies | 42 |
 | Reorganizable suffix | 18 |
 | Maximum reorganization | 17 |
 | Undo records | 36 |
@@ -89,7 +89,7 @@ Receipts preserve payment-specific inclusion evidence outside body retention.
 | Orphan accepted bundles | 36 / 128 MiB |
 | Peer-store entries | 500 |
 | Addresses per stored peer | 8 |
-| Automatic outbound peer target | 12 identities |
+| Automatic topology target | 8 ordinary peer identities |
 | Established inbound transports | 128 |
 | Established outbound transports | 64 |
 | Pending inbound / outbound transports | 64 / 32 |

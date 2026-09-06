@@ -84,8 +84,26 @@ pages and individually authenticated segments rather than as one unbounded
 message. One immutable plan may obtain different exact objects from different
 peers; losing a source does not discard already verified progress.
 
-When a peer connects, nodes can reconcile recent mempool contents. Every
-received intent still passes ordinary local admission.
+Mempool reconciliation requests at most 128 intents and 16 MiB per response.
+A partial response can continue through one consumption-paced recovery lane,
+using at most four selected sources. Requests to the same source are at least
+30 seconds apart; timeouts, failed attempts and scan work are bounded.
+Recovery stops at local capacity and does not poll idle seeds periodically.
+An incoming connection cannot start arbitrary new recovery, but a previously
+authorized recovery may continue over a surviving authenticated connection.
+Peers without the optional continuation protocol use the legacy exchange.
+
+Byte-identical gossip and direct deliveries are coalesced before consuming
+duplicate ingress allowance. This is not a validity cache: ordinary local
+admission remains required, and previously accepted entries absent from the
+mempool can be reconsidered. Normal forwarding still follows successful
+admission. Dead or disconnected sources do not hold the recovery lane forever.
+
+Bootstrap selection is tied to the authenticated configured seed identity,
+not just one socket. A reconnect or simultaneous cross-dial can preserve that
+selection; replacement retires the remaining seed transport only after the
+ordinary-peer handoff is stable. It does not let an arbitrary inbound peer
+declare itself selected.
 
 ## Resource boundaries
 

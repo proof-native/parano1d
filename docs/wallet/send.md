@@ -31,6 +31,14 @@ The fee quote includes base, input, output and any State-growth component.
 Creating one net-new UTXO costs more as State occupancy rises. A voluntary fee
 above minimum is miner-claimable.
 
+Auto includes the current local relay floor as well as the consensus minimum.
+A fee rejection before local admission can trigger a fresh Auto calculation
+and proof within the existing three-attempt submission limit. Explicit fees
+are not silently raised. The final panel reports the submitted fee.
+
+See [Fees](../protocol/economics.md#fees) for State-occupancy multipliers and
+the local mempool pressure policy.
+
 ## Forge and submit
 
 Choose **Proof & Send**. The dialog locks and displays the forging animation

@@ -9,7 +9,7 @@ recent suffix. Neither path trusts a peer's claim about State.
 
 ## Short gaps
 
-Every full node retains the latest 18 canonical block bodies. If a joining
+Every full node retains the latest 42 canonical block bodies. If a joining
 node is no more than 18 blocks behind, it authenticates the linked headers,
 downloads the corresponding bodies and obtains one `HistoryStep` terminal for
 the suffix tip. The terminal is verified before any suffix body is committed.
@@ -89,6 +89,15 @@ An online node can continue serving its installed State while a newer snapshot
 is staged. Network telemetry separates header validation, terminal checking,
 State transfer and suffix application so operators can see whether progress is
 CPU-, disk- or peer-bound.
+
+Initial synchronization completes after the exact selected tip has been
+verified and committed. Readiness does not depend on a redundant probe of
+that same tip. New announcements continue through normal online processing.
+Disconnected snapshot candidates are retired while verified exact-object
+progress remains reusable through another source.
+
+The 42-block local serving window is operational headroom, not a larger
+authenticated suffix or a different snapshot boundary.
 
 ## Reorganizations
 

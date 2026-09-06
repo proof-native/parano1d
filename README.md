@@ -156,7 +156,7 @@ terminal inside the same relation. Proof size and verification work do not
 increase with block height.
 
 An active node keeps the exact live state, compact headers for cumulative work,
-and the latest 18 canonical block bodies for competing miners and reorgs. A
+an 18-block authenticated suffix and a 42-block local body-serving window. A
 joining node authenticates a finalized current state with its matching
 terminal, then verifies one recursive terminal at the recent suffix tip before
 applying the linked bodies.
@@ -269,14 +269,15 @@ cannot alter the transactions or state root.
 | Recent block / reorg suffix | 18 blocks |
 | State domain | `2^24` to `2^32` slots |
 
-B25 is the laptop-class mining floor, not the protocol ceiling. The production
-capacity selector measures complete preparation on each host and uses B255 only
-when that host sustains the larger class within the block cadence. Every node
-verifies both classes.
+B25 is the laptop-class mining floor, not the protocol ceiling. The miner
+uses its first completed B25 preparation to estimate whether B255 fits the
+20-second target. It then selects the proof class from the eligible pages
+chosen in fee order. B255 holds up to 255 single-page transactions, giving a
+capacity of 12.75 TPS at the target interval.
 
 ## Development Allocation
 
-Parano1d has no premine. For blocks 1 through 6,307,200 — exactly three
+Parano1d has no premine. For blocks 1 through 4,730,400 — exactly three
 365-day target-time years — each block reward is divided by consensus:
 
 - 90% to the miner;
@@ -284,7 +285,7 @@ Parano1d has no premine. For blocks 1 through 6,307,200 — exactly three
 - 5% to Parano1d Lab.
 
 Transaction fees remain entirely miner-claimable after the existing
-state-growth burn. Beginning with block 6,307,201, the development allocation
+state-growth burn. Beginning with block 4,730,401, the development allocation
 ends and 100% of every new block reward goes to miners.
 
 The O(1) Network Fund finances operation, maintenance, security and adoption
@@ -304,7 +305,7 @@ flood attacks without adding a consensus round.
 Finalized state transfer is authenticated by `HistoryStep`; short gaps use
 ordinary recent-block sync. Finalized transaction bodies are not required by
 active consensus. Exportable Merkle receipts preserve proof of inclusion after
-a body leaves the recent suffix.
+a body is pruned.
 
 ## Running Parano1d
 

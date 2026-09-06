@@ -1260,8 +1260,13 @@ mod tests {
         ChainView,
         Vec<noid_poseidon2b::primitives::TxBodyHash>,
     ) {
-        let genesis = genesis_header();
-        let anchor = noid_chain::consensus::pow::block_id(&genesis);
+        // Fee-policy fixtures must belong to the candidate's actual epoch,
+        // including production activation heights well beyond genesis.
+        let anchor_height = noid_chain::consensus::tx_epoch_anchor_height_for_child(tip_height + 1);
+        let mut epoch_header = genesis_header();
+        epoch_header.height = anchor_height;
+        epoch_header.timestamp += anchor_height * noid_chain::consensus::params::BLOCK_TIME;
+        let anchor = noid_chain::consensus::pow::block_id(&epoch_header);
         let mut state = ChainState::with_log_slots(6);
         let groups: Vec<_> = fees
             .iter()
@@ -1285,7 +1290,7 @@ mod tests {
         }
         let view = ChainView::new(
             tip_height,
-            HashMap::from([(0, genesis)]),
+            HashMap::from([(anchor_height, epoch_header)]),
             fees.len() as u64,
             state.state,
         );
@@ -1296,7 +1301,7 @@ mod tests {
             for pages in groups {
                 let facts = validate_paged_spend(&pages).unwrap();
                 ids.push(facts.logical_txid);
-                st.pool.admit(pages, 0).unwrap();
+                st.pool.admit(pages, tip_height).unwrap();
                 if retained_bytes_per_entry > 0 {
                     // Synthetic retained bytes test counter accounting only.
                     st.pool.set_intent_bytes(
@@ -1314,10 +1319,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn fee_policy_fixtures_preserve_current_epoch_at_large_heights() {
+        for tip in [0, 143, 144, 95_124, 1_000_000] {
+            let (pool, view, _) =
+                fee_test_pool_at(&[9_000; 2], tip, MempoolConfig::default(), 0).await;
+            assert_ne!(view.user_epoch_anchor_id, [0; 32]);
+            pool.on_new_block(&[], tip, view).await;
+            assert_eq!(pool.len().await, 2, "current-epoch fixtures at tip={tip}");
+        }
+    }
+
+    #[tokio::test]
     async fn configured_activation_uses_next_child_and_reorg_restores_legacy_policy() {
         use noid_chain::consensus::params::{MIN_FEE_BASE, V1_1_ACTIVATION_HEIGHT};
-        // Run the same scenario in the normal profile (None, no switch) and
-        // with noid_chain/isolated-v1-1-testnet (the actual shared H5 gate).
+        // Run the same scenario at the configured mainnet height and with
+        // noid_chain/isolated-v1-1-testnet (the shared H5 test gate).
         let activation = V1_1_ACTIVATION_HEIGHT.unwrap_or(5);
         let (pool, mut view, _) = fee_test_pool_at(
             &[100_000; 6],

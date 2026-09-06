@@ -9,14 +9,14 @@ Parano1d 使用三层测试：crate 级不变量、跨 crate 发布测试，以�
 
 ```sh
 cargo fmt --all -- --check
-cargo check --locked --workspace --all-targets
-cargo test --locked -p CHANGED_CRATE
+cargo check --release --locked --workspace --all-targets
+cargo test --release --locked -p CHANGED_CRATE
 ```
 
 协议代码还应包含直接依赖者。交易改动通常至少需要：
 
 ```sh
-cargo test --locked \
+cargo test --release --locked \
   -p noid_tx \
   -p noid_chain \
   -p noid_mempool \
@@ -115,7 +115,11 @@ python3 scripts/live_two_miner_fork_reorg_scenario.py
 - 占用率 9/9 和 10/8 的已达最终性扩展窗口；
 - 使用完整 36 区块头扩展回看窗口的重启；
 - 奖励分配边界和最终分配高度；
-- 从一个 `log_slots` 层级扩展到下一个。
+- 从一个 `log_slots` 层级扩展到下一个；
+- 共享路径终端往返编码、畸形输入与解码上限；
+- 内存池数量和字节占用在 50% 与 80% 的边界、清空重置和 Auto 重试；
+- 部分内存池恢复、重复递送和断开的来源；
+- B25/B255 选择与系统铸币预留槽位，包括全部软预留时的回退。
 
 测试应使用隔离数据目录。并发运行时可以使用不同端口，但不得修改测试样例
 或生产数据。

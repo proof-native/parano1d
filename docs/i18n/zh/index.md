@@ -54,7 +54,7 @@ Parano1d 的设计目标就是消除这项要求。
 
 每个 `HistoryStep` 证明当前区块关系，并在同一个关系中验证前一个终端证明。证明大小与验证工作量不会随区块高度增长。
 
-在线节点保存精确的 Live State、用于[累计工作量](reference/glossary.md#cumulative-work)的紧凑区块头，以及供竞争矿工和[链重组](reference/glossary.md#reorganization)使用的最近 18 个规范区块体。新加入节点用匹配的终端证明认证已达最终性的 State，再验证近期后缀链尖上的一个递归终端证明，最后应用相互链接的区块体。
+在线节点保存精确的 Live State、用于[累计工作量](reference/glossary.md#cumulative-work)的紧凑区块头，以及供竞争矿工和[链重组](reference/glossary.md#reorganization)使用的最近 42 个规范区块体。新加入节点用匹配的终端证明认证已达最终性的 State，再验证近期后缀链尖上的一个递归终端证明，最后应用相互链接的区块体。
 
 Parano1d 消除的是对历史执行的依赖，并非不保存 State。Live State 传输量仍随其中的 UTXO 数量增长；不再随链龄增长的，是证明“该 State 为何有效”所需的执行量。
 

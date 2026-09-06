@@ -143,7 +143,7 @@ parano1d-cli slot 9700063
 parano1d-cli utxos-of o1...
 ```
 
-`block` returns data only inside the 18-block body-retention window. `header`
+`block` returns data only inside the 42-block body-retention window. `header`
 and `block-header` remain available for every canonical height.
 
 ### Network and mining

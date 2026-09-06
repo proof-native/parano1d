@@ -89,6 +89,6 @@ files from `snapshot-staging` into the canonical database.
 
 ## Database and finality
 
-Undo data is retained for 36 blocks and complete block bodies for 18. These
+Undo data is retained for 36 blocks and complete block bodies for 42. These
 windows are managed automatically. Increasing local disk retention does not
 change the 18-block consensus finality rule.

@@ -1,6 +1,6 @@
 # Consensus parameters
 
-This page groups the launch consensus constants. Values are integers unless
+This page groups the production consensus constants. Values are integers unless
 stated otherwise.
 
 ## Time and finality
@@ -16,7 +16,8 @@ stated otherwise.
 | Transaction epoch | 144 blocks |
 | Hard-finality depth | 18 blocks |
 | Maximum accepted reorganization | 17 blocks |
-| Recent block-body retention | 18 blocks |
+| Authenticated recent suffix | 18 blocks |
+| Local block-body retention | 42 blocks |
 | Undo retention | 36 blocks |
 
 ## Block limits
@@ -31,6 +32,9 @@ stated otherwise.
 | Live user actions | 1,530 |
 | Distinct State segments touched | 256 |
 | Transaction-tree leaves | 256 |
+| Serialized terminal cap, shared-path encoding | 1,100,000 bytes |
+| Expanded terminal decode bound | 1,100,000 bytes |
+| Canonical block bytes, excluding terminal | 82,905 bytes |
 
 ## Transaction limits
 
@@ -78,8 +82,9 @@ development payout counts as one position.
 | Fee per live input | 100 μNOID |
 | Fee per live output | 700 μNOID |
 | Base growth fee per net-new slot | 2,500 μNOID |
-| Development allocation period | 6,307,200 blocks |
-| Development payout interval | 5,760 blocks |
+| Development allocation period | 4,730,400 blocks |
+| Development payout interval | 4,320 blocks |
+| Each fund payout at the initial subsidy | 10,800 NOID |
 
 ## Storage and network
 

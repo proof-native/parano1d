@@ -20,9 +20,13 @@ pub const HALFLIFE: u64 = EPOCH_LENGTH * BLOCK_TIME; // 120s at BLOCK_TIME=20
 ///
 /// `None` keeps every v1.1 rule disabled. The release activation height is set
 /// once for the complete upgrade; individual v1.1 changes must not introduce
-/// independent activation clocks. This fork preserves the existing recursive
+/// independent activation clocks. This upgrade preserves the existing recursive
 /// construction and matrix artifacts.
-pub const V1_1_ACTIVATION_HEIGHT: Option<u64> = if ISOLATED_V1_1_TESTNET { Some(5) } else { None };
+pub const V1_1_ACTIVATION_HEIGHT: Option<u64> = if ISOLATED_V1_1_TESTNET {
+    Some(5)
+} else {
+    Some(95_125)
+};
 
 /// Deliberately incompatible local test profile, never a release default.
 /// The daemon refuses this profile outside a loopback-only network namespace.

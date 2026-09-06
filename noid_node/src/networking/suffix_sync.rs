@@ -1181,7 +1181,8 @@ mod tests {
         );
         assert!(sync
             .schedule(
-                EXACT_OBJECT_HEDGE_NO_PROGRESS_MS + TERMINAL_HEDGE_ROTATE_AFTER_MS.saturating_mul(2)
+                EXACT_OBJECT_HEDGE_NO_PROGRESS_MS
+                    + TERMINAL_HEDGE_ROTATE_AFTER_MS.saturating_mul(2)
             )
             .is_empty());
     }
@@ -1292,9 +1293,9 @@ mod tests {
         let mut offer = offer(&[1], 1);
         let body_bytes = vec![0x5A; 73];
         let body = match offer.objects()[0] {
-            ObjectId::BlockBody(body) => ObjectId::BlockBody(
-                BlockBodyObjectId::from_bytes(body.claim, &body_bytes).unwrap(),
-            ),
+            ObjectId::BlockBody(body) => {
+                ObjectId::BlockBody(BlockBodyObjectId::from_bytes(body.claim, &body_bytes).unwrap())
+            }
             _ => panic!("suffix offer must begin with a body"),
         };
         offer.objects[0] = body;

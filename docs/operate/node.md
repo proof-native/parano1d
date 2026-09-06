@@ -22,7 +22,7 @@ should remain bound to `127.0.0.1:9601`.
 
 The dominant mutable storage follows the live UTXO set. Compact 212-byte
 headers remain permanent, while complete block bodies are retained only for
-the latest 18 blocks.
+the latest 42 blocks.
 
 Read [Hardware and capacity](hardware.md) before ordering a virtual machine or
 choosing disk and memory limits.

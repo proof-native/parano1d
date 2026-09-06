@@ -992,7 +992,7 @@ mod tests {
         };
         use crate::consensus::emission::block_reward;
 
-        // 5,760 is simultaneously the first payout height and an exact
+        // 4,320 is simultaneously the first payout height and an exact
         // 144-block transaction-epoch boundary. The system mint still anchors
         // directly to the selected parent, while its current share uses the
         // newly expanded child depth.

@@ -58,9 +58,10 @@ parano1d-cli mining
 ```
 
 The process prepares its embedded B25 and B255 proof matrices and selects the
-best available CPU backend. Every process starts block production with B25;
-larger B255 templates are used only when measured complete preparation timing
-supports them.
+best available CPU backend. Each mining session starts with B25. Its first
+completed preparation permits B255 if `prepare_time_B25 × 4 ≤ 20 seconds`.
+Eligible page count then determines whether a template needs the larger class.
+See [Mining architecture](../architecture/mining.md).
 
 ## CPU planning
 

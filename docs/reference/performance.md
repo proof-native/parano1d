@@ -9,12 +9,16 @@ The measurements below use Parano1d revision
 authenticated B25/B255 matrix pack. The table contains isolated production
 benchmarks only.
 
-| Host | Class | `HistoryStep` construction | Statistic | Terminal |
+| Host | Class | `HistoryStep` construction | Statistic | Expanded terminal |
 |---|---|---:|---|---:|
 | Low-cost AVX2 laptop, 12 threads | B25 | **10.734 s** | p50 of 3 samples | 971,732 B |
 | Low-cost AVX2 laptop, 12 threads | B255 | **34.938 s** | 1 isolated sample | 1,081,108 B |
 | AVX-512 PC, 24 threads | B25 | **6.905 s** | p50 of 3 samples | 971,732 B |
 | AVX-512 PC, 24 threads | B255 | **21.053 s** | p50 of 3 samples | 1,081,108 B |
+
+The terminal sizes are for expanded authentication paths. Shared-path encoding
+reduces stored and transmitted bytes; its exact size depends on the openings.
+These measurements do not include shared-path codec overhead.
 
 PoW nonce search is not included in the table. ASERT targets the complete
 elapsed interval between accepted blocks. It does not assign a separate
@@ -80,6 +84,8 @@ select intents
 ```
 
 Nonce search and network propagation vary independently from proof
-construction. B25 and B255 qualification must use the complete production path
-on the final host. Official binaries keep a portable baseline and select the
+construction. End-to-end comparisons must use the complete production path on the final host.
+The miner's automatic B255 permission uses only the first completed B25
+preparation and a four-times timing estimate, as described in
+[Mining architecture](../architecture/mining.md). Official binaries keep a portable baseline and select the
 `pclmul`, `avx2+vpclmul`, `avx512bw+vpclmul` or `neon+pmull` backend at runtime.

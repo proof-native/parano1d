@@ -88,13 +88,26 @@ collide with a user allocation identifier.
 The primary reward may claim only the current miner subsidy and miner-claimable
 fees. It cannot reclaim the burned State-growth component.
 
+## Terminal representation
+
+The terminal uses a canonical shared-path encoding. Merkle authentication
+nodes shared by several openings are transmitted and stored once. Decoding
+reconstructs the complete paths consumed by the recursive verifier; the
+mathematical proof, query count and authenticated matrices are unchanged.
+
+Consensus limits the serialized terminal to 1,100,000 bytes, counting the
+compressed representation and its terminal metadata. Expansion is independently
+bounded to 1,100,000 bytes. The block bytes have a separate 82,905-byte maximum;
+block bodies and bundle framing do not consume the terminal limit. Malformed
+or non-canonical encodings are rejected before expensive verification.
+
 ## Accepted bundle
 
 The terminal includes metadata binding its version, height, semantic-header
 hash and proof class. Bundle decoding checks lengths before allocating and
 rejects trailing bytes, mismatched metadata or a terminal for another header.
 
-Canonical block bodies are retained for 18 blocks. A directly admitted block
+Canonical block bodies are retained for 42 blocks. A directly admitted block
 stores its complete bundle. During authenticated catch-up, one verified
 terminal at the suffix tip authorizes the exact linked intermediate bodies;
 the tip stores the complete bundle, while intermediate rows keep compact local

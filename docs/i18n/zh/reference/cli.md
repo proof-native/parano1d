@@ -137,7 +137,7 @@ parano1d-cli slot 9700063
 parano1d-cli utxos-of o1...
 ```
 
-`block` 只在 18 区块体保留窗口内返回数据。每个规范高度的 `header` 和
+`block` 只在 42 区块体保留窗口内返回数据。每个规范高度的 `header` 和
 `block-header` 都永久可用。
 
 ### 网络与挖矿

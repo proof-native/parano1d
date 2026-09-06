@@ -2291,9 +2291,14 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             match mp_events.recv().await {
-                Ok(noid_mempool::MempoolEvent::TxAdmitted { hash, intent_bytes, .. }) => {
+                Ok(noid_mempool::MempoolEvent::TxAdmitted {
+                    hash, intent_bytes, ..
+                }) => {
                     let _ = p2p_tx_relay
-                        .send(noid_p2p::NetworkCommand::BroadcastTx { intent_bytes, tx_hash: Some(hash.0) })
+                        .send(noid_p2p::NetworkCommand::BroadcastTx {
+                            intent_bytes,
+                            tx_hash: Some(hash.0),
+                        })
                         .await;
                 }
                 Ok(_) => {}
@@ -2730,7 +2735,10 @@ fn remember_terminal_capability(
     pinned: Option<ManifestTerminalCapability>,
 ) {
     let active_exact_inventory_is_pinned = pinned.is_some_and(|pinned| {
-        observed != pinned && capabilities.get(&peer).is_some_and(|known| *known == pinned)
+        observed != pinned
+            && capabilities
+                .get(&peer)
+                .is_some_and(|known| *known == pinned)
     });
     if !active_exact_inventory_is_pinned {
         capabilities.insert(peer, observed);
@@ -5809,10 +5817,7 @@ mod tests {
 
     #[test]
     fn retained_inventory_advertises_an_older_selected_snapshot_terminal() {
-        use noid_p2p::{
-            header_protocol::HeaderInventoryRecord,
-            object_protocol::ObjectId,
-        };
+        use noid_p2p::{header_protocol::HeaderInventoryRecord, object_protocol::ObjectId};
 
         let offer = test_exact_suffix_offer(&[1], &[1]);
         let header = offer.plan().headers()[0].header;

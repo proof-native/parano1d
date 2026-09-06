@@ -105,7 +105,7 @@ storage contains:
 
 - permanent compact headers;
 - the exact current sparse UTXO State and owner index;
-- the latest 18 canonical block bodies;
+- the latest 42 canonical block bodies;
 - 36 blocks of State undo data;
 - peer identity and peer store;
 - proof cache and temporary snapshot staging;

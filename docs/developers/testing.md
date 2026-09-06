@@ -9,15 +9,15 @@ Run before a focused change:
 
 ```sh
 cargo fmt --all -- --check
-cargo check --locked --workspace --all-targets
-cargo test --locked -p CHANGED_CRATE
+cargo check --release --locked --workspace --all-targets
+cargo test --release --locked -p CHANGED_CRATE
 ```
 
 For protocol code, include direct dependants. A transaction change commonly
 requires at least:
 
 ```sh
-cargo test --locked \
+cargo test --release --locked \
   -p noid_tx \
   -p noid_chain \
   -p noid_mempool \
@@ -118,7 +118,11 @@ vectors, not only a long-running happy path. Cover:
 - finalized expansion windows with 9/9 and 10/8 occupancy;
 - restart with the complete 36-header expansion lookback;
 - payout boundaries and the final allocation height;
-- State expansion from one `log_slots` tier to the next.
+- State expansion from one `log_slots` tier to the next;
+- shared-path terminal round trips, malformed encodings and decode caps;
+- mempool count/byte pressure at 50% and 80%, empty-pool reset and Auto retries;
+- partial mempool recovery, duplicate deliveries and disconnected sources;
+- B25/B255 selection and reserved system-mint slots, including all-reserved fallback.
 
 Tests should use isolated data directories. They may use different ports to run
 concurrently, but must not mutate fixtures or production data.

@@ -21,7 +21,7 @@ hosted explorer.
 ## Blocks
 
 The canonical block table lists height, age, block ID, proof class and data
-availability. **Full** means the body remains inside the 18-block retention
+availability. **Full** means the body remains inside the 42-block retention
 window. **Header** means the permanent header is available but the old body has
 been pruned.
 

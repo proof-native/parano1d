@@ -49,7 +49,7 @@ Parano1d 把每一项证明责任放在相应[见证数据](../reference/glossar
 
 [槽位](../reference/glossary.md#slot)位于每个包含 `2^16` 条记录的 [State 分段](../reference/glossary.md#state-segment)中。空分段是虚拟的；清除最后一个占用槽位会删除该分段；分配输出时会先复用空槽位，再扩展 State。新的 [`creation_id`](../reference/glossary.md#creation-id) 可防止旧引用在同一索引复用后重新生效。
 
-节点保留用于[累计工作量](../reference/glossary.md#cumulative-work)比较的紧凑区块头，以及用于常规同步和浅层[链重组](../reference/glossary.md#reorganization)的最近 18 个规范区块体。更早的交易体不是当前共识验证所需数据。付款收据可以在[区块体保留窗口](../reference/glossary.md#body-retention-window)结束后，继续提供可独立验证的包含证据。
+节点保留用于[累计工作量](../reference/glossary.md#cumulative-work)比较的紧凑区块头，以及用于常规同步和浅层[链重组](../reference/glossary.md#reorganization)的最近 42 个规范区块体。更早的交易体不是当前共识验证所需数据。付款收据可以在[区块体保留窗口](../reference/glossary.md#body-retention-window)结束后，继续提供可独立验证的包含证据。
 
 ## 加入网络
 

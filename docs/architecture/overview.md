@@ -72,7 +72,7 @@ last occupied slot removes a segment, while allocating an output reuses an
 empty slot before extending State. A fresh `creation_id` prevents an old
 reference from becoming valid when the same index is reused.
 
-Nodes retain compact headers for cumulative-work comparison and the latest 18
+Nodes retain compact headers for cumulative-work comparison and the latest 42
 canonical block bodies for ordinary synchronization and shallow reorgs. Older
 transaction bodies are not required by active consensus. Payment receipts
 preserve independently verifiable inclusion evidence after a body leaves that

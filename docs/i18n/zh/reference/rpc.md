@@ -28,7 +28,7 @@ curl --silent --show-error \
 - 目标值（target）与 nonce 字节使用各自规范的小端编码。
 - 地址默认使用规范 bech32m `o1…`，除非字段明确要求 hex。
 - 未知的永久对象通常返回 `null`。
-- 超出 18 区块保留窗口的旧区块体返回 `null`，其区块头仍可查询。
+- 超出 42 区块保留窗口的旧区块体返回 `null`，其区块头仍可查询。
 - 可能超出 JSON number 精确范围的聚合值使用 decimal string。
 - `*_noid` 浮点字段只为展示方便；记账代码应使用对应的
   `*_micronoid` 整数字段。
@@ -175,12 +175,20 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 
 ## 钱包方法
 
+`walletUtxoSnapshot` 未提供版本标识或标识过期时返回完整 `utxos` 数组。
+`known_revision` 匹配时返回 `utxos: null`，客户端保留已有数组。
+`revision: null` 表示实现始终返回完整数组。版本标识不透明，会随预留和
+所有者缓存替换而改变，不能跨钱包或节点重启复用。`walletListUtxos` 仍返回
+完整列表。条件快照方法不可用时 GUI 使用该方法，operator 权限范围不会扩大。
+
+
 | 方法后缀 | 位置参数 | 结果 |
 |---|---|---|
 | `walletStatus` | `[]` | `WalletStatus` |
 | `walletGetAddress` | `[index: u32]` | 地址字符串 |
 | `walletGetBalance` | `[]` | `WalletBalance` |
 | `walletListUtxos` | `[]` | `WalletUtxoInfo[]` |
+| `walletUtxoSnapshot` | `[known_revision?: string]` | `{ revision, utxos }` |
 | `walletHistory` | `[]` | `WalletHistoryEntry[]`，最旧在前 |
 | `walletReceipts` | `[page: u32, page_size: u32]` | `WalletReceiptsPage` |
 | `walletMinedBlocks` | `[page: u32, page_size: u32]` | `WalletMinedBlocksPage` |

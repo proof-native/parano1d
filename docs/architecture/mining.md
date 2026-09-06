@@ -28,6 +28,12 @@ segment and proof-class limits. It then:
 - builds the `HistoryStep` public input;
 - proves the new terminal.
 
+System-mint slot selection prefers not to occupy outputs reserved by other
+pending transactions. This is a bounded local preference, not a veto. If no
+alternative is found, the previous valid choice is used. Selected transactions
+remain strictly protected; fund recipients, payout amounts and schedules do
+not change.
+
 Everything except the header nonce is now immutable.
 
 ## B25 and B255
@@ -39,10 +45,16 @@ The proof stack ships two authenticated matrix classes:
 | B25 | `m=22` | Up to 25 |
 | B255 | `m=24` | Up to 255 |
 
-Every miner begins with B25. The node may use B255 when complete proof
-preparation timing shows that the larger relation is appropriate for the
-20-second block target. The decision uses measured end-to-end preparation, not
-only one internal proving phase.
+Every mining session starts with B25, without a startup benchmark. The first
+completed B25 proof preparation supplies the timing sample. B255 is permitted
+for that session only if `prepare_time_B25 × 4 ≤ 20 seconds`. This is a
+prediction, not a measured B255 time, and does not wait for a successful PoW
+nonce. Later samples do not change the session's permission.
+
+The producer selects eligible transactions in fee order within its permitted
+capacity. A selection of at most 25 pages uses B25; a larger selection uses
+B255. A due fund payout occupies one page, leaving up to 24 or 254 user pages
+respectively. Transactions remain atomic during selection.
 
 ASERT applies that target to the complete interval between accepted blocks.
 Proof preparation, nonce search and propagation share the same interval.
@@ -81,7 +93,9 @@ payout address can be controlled through Core or the GUI.
 
 Mining starts only when the node is synchronized and has at least one
 authenticated peer. A locally found block is sealed, committed and announced
-through the same acceptance path used for a peer block.
+under the same consensus rules as a received block. Its commit path reuses the
+exact locally proved State transition instead of verifying the same proof
+again. Received blocks still undergo proof verification.
 
 ## External miner
 

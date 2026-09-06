@@ -39,13 +39,18 @@ For the first three target-time years, each block subsidy is divided:
 - 5% to the O(1) Network Fund;
 - 5% to Parano1d Lab.
 
-There is no premine. After height 6,307,200, the complete block subsidy goes to
+There is no premine. After height 4,730,400, the complete block subsidy goes to
 the miner.
 
 To avoid creating two extra live UTXOs in every block, the two development
-shares are paid in one mandatory two-output system record every 5,760 target
+shares are paid in one mandatory two-output system record every 4,320 target
 blocks. The amount uses the reward tier active at that payout boundary. If the
 State expands during the interval, the resulting difference remains unissued.
+
+At the initial 50 NOID subsidy, the miner receives 45 NOID plus claimable fees,
+and each fund receives 10,800 NOID per 4,320-block payout interval. There are
+1,095 scheduled payouts through height 4,730,400 inclusive. The schedule is
+height-based, not a wall-clock payment guarantee.
 
 The payout schedule, recipients and amounts are derived statelessly from height
 and `log_slots` and are proved inside `HistoryStep`. A miner cannot omit,
@@ -77,10 +82,24 @@ pays no growth burn.
 
 ## Dynamic relay floor
 
-The default mempool relays a transaction only when its fee satisfies both
-consensus minimum and current relay policy. The dynamic floor is the greater
-of 5,000 μNOID and 90% of the median fee among the last 50 transactions
-admitted to that node's mempool.
+Consensus fees and local relay policy are separate. The local dynamic floor
+uses the greater of 5,000 μNOID and 90% of the median fee among the last 50
+transactions admitted to that node's mempool, not a network-wide fee estimate.
 
-This relay floor is local policy. Consensus fee accounting remains
-deterministic from the transaction shape and parent-State occupancy.
+A raised floor applies only under pressure.
+Reaching 80% of either the transaction-count limit or retained-byte limit
+enables it. Falling strictly below 50% of both limits, or emptying the mempool,
+resets it to the default. Between those thresholds the current pressure state
+is retained. The existing limits remain 1,024 transactions and 384 MiB.
+
+A local relay-floor increase does not by itself evict already admitted
+transactions. A higher consensus fee caused by parent-State occupancy is
+different: normal block cleanup removes transactions that no longer meet that
+minimum and releases their local reservations.
+
+Wallet Auto fees use the actual transaction shape, current parent-State
+occupancy and the local relay floor. A local fee rejection before admission
+can trigger an Auto replan within the existing three-attempt submission
+budget. Manual fees and already confirmed consolidation quotes are not
+silently increased. There is no extra peer-fee polling, and Auto does not
+promise confirmation under every other node's policy.

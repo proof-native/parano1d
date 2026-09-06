@@ -28,7 +28,7 @@ curl --silent --show-error \
 - Targets and nonce bytes use their canonical little-endian encoding.
 - Addresses use canonical bech32m `o1…` unless a field explicitly says hex.
 - Unknown permanent objects generally return `null`.
-- Old block bodies return `null` after the 18-block retention window; their
+- Old block bodies return `null` after the 42-block retention window; their
   headers remain queryable.
 - Decimal strings carry aggregates that may exceed exact JSON-number range.
 - `*_noid` floating-point fields are display conveniences. Accounting code
@@ -213,7 +213,8 @@ A matching revision returns `utxos: null`, meaning the client should retain
 its existing vector. `revision: null` means the implementation always returns
 the full vector. Revisions are opaque, change on reservations and owner-cache
 replacement, and cannot be reused after a wallet/node restart. The original
-`walletListUtxos` method remains unchanged.
+`walletListUtxos` method remains unchanged. The GUI falls back to that method
+when conditional snapshots are unavailable. Operator scope is not broadened.
 
 Receipt and mined-block pages start at one and accept sizes 1–50.
 `walletDiscoverAddresses` accepts 1–20 and stops at the first empty derived

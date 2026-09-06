@@ -530,14 +530,44 @@ mod tests {
 
     #[test]
     #[cfg(not(feature = "isolated-v1-1-testnet"))]
-    fn disabled_activation_preserves_the_current_mainnet_target() {
-        assert_eq!(V1_1_ACTIVATION_HEIGHT, None);
+    fn scheduled_activation_preserves_the_historical_mainnet_target() {
+        assert_eq!(V1_1_ACTIVATION_HEIGHT, Some(95_125));
         let target = next_target(0, 0, &GENESIS_TARGET, 6, 6 * BLOCK_TIME - 1);
         let mut legacy = [0u8; 32];
         legacy[27] = 0x20;
         legacy[28] = 0x12;
         legacy[29] = 0x36;
         assert_eq!(target, legacy);
+    }
+
+    #[test]
+    #[cfg(not(feature = "isolated-v1-1-testnet"))]
+    fn mainnet_activation_switches_rules_at_the_same_height() {
+        let activation = V1_1_ACTIVATION_HEIGHT.expect("mainnet activation is scheduled");
+        for height in [activation - 1, activation, activation + 1] {
+            let active = height >= activation;
+            let timestamp = height * BLOCK_TIME - 1;
+            assert_eq!(crate::consensus::params::v1_1_active(height), active);
+            assert_eq!(
+                next_target(0, 0, &GENESIS_TARGET, height, timestamp),
+                next_target_with_activation(
+                    0,
+                    0,
+                    &GENESIS_TARGET,
+                    height,
+                    timestamp,
+                    if active { Some(0) } else { None },
+                )
+            );
+            assert_eq!(
+                crate::history_step::history_step_terminal_wire_version(height),
+                if active { 5 } else { 4 }
+            );
+            assert_eq!(
+                crate::consensus::wire_limits::history_step_terminal_bytes_limit(height),
+                if active { 1_100_000 } else { 1_048_576 }
+            );
+        }
     }
 
     #[test]

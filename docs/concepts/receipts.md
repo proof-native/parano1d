@@ -60,7 +60,7 @@ the node scan or identify the wallet's other possible addresses.
 
 ## Retention timing
 
-Nodes retain the latest 18 complete blocks. A confirmed outgoing payment must
+Nodes retain the latest 42 complete blocks. A confirmed outgoing payment must
 be recovered into the local receipt store while its body remains available.
 The wallet scanner performs that recovery during ordinary operation and after
 restart.

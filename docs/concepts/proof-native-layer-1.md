@@ -46,7 +46,7 @@ A current full node keeps:
 - the exact Live State;
 - permanent compact headers;
 - the current `HistoryStep` terminal;
-- the latest 18 canonical block bodies;
+- the latest 42 canonical block bodies;
 - bounded undo data for shallow reorganization.
 
 Older transaction bodies are not part of the active validation requirement.

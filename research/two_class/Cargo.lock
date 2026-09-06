@@ -275,7 +275,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "noid-ivc-core"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bincode",
  "noid_core",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "noid-ivc-prover"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bincode",
  "noid-ivc-core",
@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "noid_chain"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bincode",
  "libmdbx",
@@ -313,7 +313,7 @@ dependencies = [
 
 [[package]]
 name = "noid_core"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "rand",
  "rayon",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "noid_fri"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "noid_core",
  "noid_poseidon2b",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "noid_fri_binius"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "noid_core",
  "noid_fri",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "noid_gkr"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bincode",
  "noid_core",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "noid_poseidon2b"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bech32",
  "hex",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "noid_recursive"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "bincode",
  "noid-ivc-core",
@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "noid_tx"
-version = "0.0.2"
+version = "1.1.0"
 dependencies = [
  "noid_core",
  "noid_poseidon2b",

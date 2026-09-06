@@ -78,7 +78,8 @@ only its nonce.
 
 ## Body retention
 
-The 18-block window in which complete block transaction data is served.
+The 42-block local serving window for complete block transaction data. This is
+separate from the 18-block authenticated suffix and finality boundary.
 Headers are permanent.
 
 ## Canonical chain and canonical tip

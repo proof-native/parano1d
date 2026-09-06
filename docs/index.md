@@ -92,7 +92,7 @@ terminal inside the same relation. Proof size and verification work do not
 increase with block height.
 
 An active node keeps the exact Live State, compact headers for cumulative work
-and the latest 18 canonical block bodies for competing miners and reorgs. A
+and the latest 42 canonical block bodies for competing miners and reorgs. A
 joining node authenticates a finalized State with its matching terminal, then
 verifies one recursive terminal at the recent suffix tip before applying the
 linked bodies.
