@@ -5,7 +5,9 @@
 [Website](https://parano1d.org) ·
 [Documentation](https://docs.parano1d.org) ·
 [Research](https://lab.parano1d.org) ·
-[Releases](https://github.com/ignotusnemo/parano1d/releases)
+[Releases](https://git.parano1d.org/ignotusnemo/parano1d/releases)
+
+**Source code:** [Forgejo](https://git.parano1d.org/ignotusnemo/parano1d) (canonical) → [GitHub](https://github.com/proof-native/parano1d) (mirror) · [GitLab](https://gitlab.com/ignotusnemo/parano1d) (mirror)
 
 Blockchains have a fundamental architectural flaw: the present does not prove
 itself. Its validity is inherited from accumulated history. Bitcoin reconstructs
@@ -72,7 +74,7 @@ validation removes redundant execution.
 | NIST Post-Quantum Cryptography Category | **Category 1** |
 | Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
 | Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348213215253** |
+| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
 
 The wallet Johnson refinement tightens the local query bound to `5^-65`,
 corresponding to a local exponent of `150.925326167679` bits. It changes only
@@ -110,13 +112,16 @@ evaluates the NIST Post-Quantum Cryptography Category 1 reference at every
 specified `MAXDEPTH` point.
 
 The fixed Poseidon2b production corollary requires
-`Delta_P2b^C1 < 0.450669651786784747` and the coherent response-cost premise
-stated by the resource theorem. Under these premises, the theorem gives
-provable end-to-end post-quantum soundness for state validation from genesis at
-NIST PQC Category 1: every adversary inside the Category 1 resource envelope
-has success probability below one half in the from-genesis invalid-State game.
-The complete theorem is in the
-[end-to-end QROM and Category 1 derivation](noid_soundness/docs/category-one.md).
+`Delta_P2b^C1 < 0.450669651771636316` and the batch gate-depth price and scalar
+gate-charge premises stated by the resource theorem. Under these premises, the
+theorem gives provable end-to-end post-quantum soundness for state validation
+from genesis at NIST PQC Category 1: every adversary inside the Category 1
+resource envelope has success probability below one half in the from-genesis
+invalid-State game. Complete coherent-response constructions now include field
+reduction, representation changes, output copy and cleanup; the separately
+proved scalar target-touch lower bound is a circuit count, not a security-bit
+claim. See the [response accounting](noid_soundness/docs/response-accounting.md)
+and the [end-to-end QROM and Category 1 derivation](noid_soundness/docs/category-one.md).
 
 ## How It Works
 
@@ -390,7 +395,7 @@ matrix bytes supplied by the project. Keep the pack outside the repository's
 disposable `target/` tree:
 
 ```sh
-git clone https://github.com/ignotusnemo/parano1d.git
+git clone https://gitlab.com/ignotusnemo/parano1d.git
 cd parano1d
 
 mkdir -p ../parano1d-artifacts

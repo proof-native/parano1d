@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Depth-aware coherent resource accounting for the Category 1 assessment.
+//! Conditional depth-aware resource accounting. This module evaluates the
+//! declared batch gate-depth prices and scalar gate charge. Construction
+//! inventories and universal circuit lower bounds are audited separately.
 
 use num_bigint::BigUint;
 use num_rational::Ratio;
@@ -21,9 +23,11 @@ pub const NIST_CATEGORY_ONE_MAX_DEPTH_BITS: [u32; 3] = [40, 64, 96];
 pub const PARALLEL_TRANSITION_CONSTANT: u32 = 10;
 pub const HALF_SUCCESS_RESOURCE_DENOMINATOR: u32 = 20;
 
-/// Conservative reversible multiplier schedule used by the accounting model.
-pub const F128_MULTIPLIER_LOGICAL_GATES: u64 = 49_023;
-pub const F128_MULTIPLIER_LOGICAL_DEPTH: u64 = 43;
+/// Historical polynomial-multiplier subtotal, excluding field reduction.
+/// Retained solely to reproduce the declared resource premise, not as a
+/// complete construction or a proved minimum. See `response_audit`.
+pub const POLYNOMIAL_MULTIPLIER_LOGICAL_GATES: u64 = 49_023;
+pub const POLYNOMIAL_MULTIPLIER_LOGICAL_DEPTH: u64 = 43;
 
 /// Rational upper bound used instead of a floating-point value of Euler's e.
 pub const E_UPPER_NUMERATOR: u64 = 2_719;
@@ -31,7 +35,11 @@ pub const E_UPPER_DENOMINATOR: u64 = 1_000;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CoherentResponseCost {
+    /// Reference factor. For the scalar type this is also the declared
+    /// minimum gate charge used to bound the total number of responses.
     pub logical_gates: BigUint,
+    /// Reference factor in the gate-depth price, NOT a minimum depth that
+    /// every implementation must attain separately.
     pub logical_depth: BigUint,
 }
 
@@ -133,6 +141,9 @@ fn resource_event(
     }
 }
 
+/// Declared lower-cost premise, not an audited complete response schedule.
+/// The independent scalar target-touch lower bound is only gates>=128,
+/// depth>=1 and does not establish these values or vector-query charging.
 pub fn poseidon2b_response_cost(parameters: &ProductionParameters) -> CoherentResponseCost {
     let full_sboxes = parameters.poseidon_full_rounds * parameters.poseidon_state_width;
     let partial_sboxes = parameters.poseidon_partial_rounds;
@@ -144,13 +155,14 @@ pub fn poseidon2b_response_cost(parameters: &ProductionParameters) -> CoherentRe
     let rounds = parameters.poseidon_full_rounds + parameters.poseidon_partial_rounds;
     CoherentResponseCost {
         logical_gates: BigUint::from(sboxes * multiplications_per_sbox)
-            * F128_MULTIPLIER_LOGICAL_GATES,
+            * POLYNOMIAL_MULTIPLIER_LOGICAL_GATES,
         logical_depth: BigUint::from(rounds * multiplications_per_round_depth)
-            * F128_MULTIPLIER_LOGICAL_DEPTH,
+            * POLYNOMIAL_MULTIPLIER_LOGICAL_DEPTH,
     }
 }
 
-fn global_collision_upper(
+#[cfg(test)]
+fn legacy_global_collision_upper(
     parameters: &ProductionParameters,
     scalar_cost: &CoherentResponseCost,
     max_depth_bits: u32,
@@ -201,6 +213,40 @@ fn ceil_square_root(value: &BigUint) -> BigUint {
         }
         estimate = next;
     }
+}
+
+/// Collision bound under the batch gate-depth charging premise.
+///
+/// For each query batch s of k_s scalar responses, assume actual gate/depth
+/// charges A_s, delta_s satisfy A_s * delta_s >= k_s * c0, with sum A_s <= G
+/// and sum delta_s <= D. Also assume the total count N <= floor(G / g_min).
+/// This DOES NOT assume every implementation has depth >= a reference d0.
+///
+/// Weighted Cauchy gives sum sqrt(k_s) <= sqrt(GD/c0). The CFHL collision
+/// transition amplitude is at most 2e sqrt(10 N GD/(c0 M)); add sqrt(2/M)
+/// for the output/database comparison. Any required verification queries
+/// must already be counted in the budget. Circuit hardness and the all-root
+/// specialization are separate from this algebraic resource lemma.
+pub fn collision_upper_from_batch_charges(
+    parameters: &ProductionParameters,
+    scalar_reference: &CoherentResponseCost,
+    max_depth_bits: u32,
+) -> ExactProbability {
+    assert!(max_depth_bits < NIST_CATEGORY_ONE_GD_BITS);
+    let gate_cap = BigUint::one() << (NIST_CATEGORY_ONE_GD_BITS - max_depth_bits);
+    let total_queries = gate_cap / &scalar_reference.logical_gates;
+    let gate_depth_cap = BigUint::one() << NIST_CATEGORY_ONE_GD_BITS;
+    let charge = scalar_reference.gate_depth_product();
+    let weighted_queries = total_queries * gate_depth_cap;
+    let root_numerator = BigUint::from(20u32) * &weighted_queries;
+    let root_ceiling = ceil_square_root(&((&root_numerator + &charge - 1u32) / &charge));
+    let e_num = BigUint::from(E_UPPER_NUMERATOR);
+    let e_den = BigUint::from(E_UPPER_DENOMINATOR);
+    let numerator = BigUint::from(40u32) * e_num.pow(2) * weighted_queries
+        + BigUint::from(4u32) * &e_num * &e_den * &root_ceiling * &charge
+        + BigUint::from(2u32) * e_den.pow(2) * &charge;
+    let denominator = e_den.pow(2) * charge * (BigUint::one() << parameters.digest_bits);
+    ExactProbability::new(numerator, denominator)
 }
 
 fn typed_finite_upper(
@@ -311,8 +357,11 @@ pub fn certificate(parameters: &ProductionParameters) -> CategoryOneCertificate 
             .map(|max_depth_bits| {
                 let typed_finite =
                     typed_finite_upper(parameters, &poseidon_response_cost, max_depth_bits);
-                let global_collision_term =
-                    global_collision_upper(parameters, &poseidon_response_cost, max_depth_bits);
+                let global_collision_term = collision_upper_from_batch_charges(
+                    parameters,
+                    &poseidon_response_cost,
+                    max_depth_bits,
+                );
                 let ideal_envelope = category_one_main_term
                     .add(&typed_finite.total)
                     .add(&global_collision_term);
@@ -352,7 +401,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn coherent_poseidon_schedule_matches_the_selected_accounting() {
+    fn declared_response_premise_reproduces_the_historical_subtotal() {
         let parameters = ProductionParameters::load().unwrap();
         let cost = poseidon2b_response_cost(&parameters);
         assert_eq!(cost.logical_gates, BigUint::from(17_648_280u64));
@@ -386,7 +435,7 @@ mod tests {
         );
         assert_eq!(
             result.global_collision_term.decimal_prefix(15),
-            "0.001471367157310"
+            "0.001471367172458"
         );
     }
 
@@ -397,7 +446,11 @@ mod tests {
         let envelope = |depth_bits| {
             typed_finite_upper(&parameters, &cost, depth_bits)
                 .total
-                .add(&global_collision_upper(&parameters, &cost, depth_bits))
+                .add(&collision_upper_from_batch_charges(
+                    &parameters,
+                    &cost,
+                    depth_bits,
+                ))
         };
         assert!(envelope(40) > envelope(64));
         assert!(envelope(64) > envelope(96));
@@ -412,6 +465,48 @@ mod tests {
             if !ceiling.is_zero() {
                 assert!((&ceiling - 1u32).pow(2) < value);
             }
+        }
+    }
+
+    #[test]
+    fn batch_charge_lemma_does_not_need_a_universal_response_depth_minimum() {
+        let parameters = ProductionParameters::load().unwrap();
+        let reference = poseidon2b_response_cost(&parameters);
+        let historical = certificate(&parameters);
+        for depth_bits in NIST_CATEGORY_ONE_MAX_DEPTH_BITS {
+            let corrected = collision_upper_from_batch_charges(&parameters, &reference, depth_bits);
+            assert!(
+                corrected >= legacy_global_collision_upper(&parameters, &reference, depth_bits)
+            );
+            let envelope = historical
+                .category_one_main_term
+                .add(&typed_finite_upper(&parameters, &reference, depth_bits).total)
+                .add(&corrected);
+            assert!(envelope < ExactProbability::new(1u32, 2u32));
+            println!(
+                "batch-charge MAXDEPTH=2^{depth_bits}: collision <= {}, conditional envelope <= {}",
+                corrected.decimal_ceiling(18),
+                envelope.decimal_ceiling(18)
+            );
+        }
+    }
+
+    #[test]
+    fn removing_reference_depth_floor_rounding_is_exactly_directed() {
+        let parameters = ProductionParameters::load().unwrap();
+        // With unit prices, no floor was lost, so the squared leading terms
+        // coincide; rounding the whole cross term can only tighten it.
+        let reference = CoherentResponseCost {
+            logical_gates: BigUint::one(),
+            logical_depth: BigUint::one(),
+        };
+        for depth_bits in NIST_CATEGORY_ONE_MAX_DEPTH_BITS {
+            // sqrt(20*N*GD) = N*sqrt(20*D) before directed rounding; the new
+            // expression rounds the whole cross term and is at least as tight.
+            assert!(
+                collision_upper_from_batch_charges(&parameters, &reference, depth_bits)
+                    <= legacy_global_collision_upper(&parameters, &reference, depth_bits)
+            );
         }
     }
 }

@@ -42,7 +42,7 @@ libp2p 使用的 Ed25519 身份位于这条边界之外。它只标识网络对�
 
 实际部署配置在 128 位目标下，Block–Tiwari FS-FRI 的可证明值和猜想值均为
 127 位。另一项端到端 QROM 定理把钱包授权纳入从创世开始的无效 State 可靠性游戏，
-并在固定 Poseidon2b 偏差上界与相干响应成本前提下，证明网络当前状态自创世块起的
+并在固定 Poseidon2b 偏差上界、批量门数-深度计价与标量响应门数前提下，证明网络当前状态自创世块起的
 端到端后量子可靠性达到 NIST PQC Category 1 水平。构造见[证明栈](../architecture/proof-stack.md)，精确命题见
 [安全模型](../protocol/security-model.md)。
 

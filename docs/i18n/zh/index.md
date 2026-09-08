@@ -94,7 +94,7 @@ State 是一个精确的、带索引的稀疏 UTXO 向量。支出会清空槽�
 | NIST 后量子密码学类别 | **Category 1** |
 | Category 1 门数与深度乘积的主导下界 | **173.391078499301 位** |
 | 相对 NIST `2^170` 参考值的余量 | **3.391078499301 位** |
-| Category 1 资源边界上的理想模型完整上界 | **0.049330348213215253** |
+| Category 1 资源边界上的理想模型完整上界 | **0.049330348228363684** |
 
 [Block 和 Tiwari](https://eprint.iacr.org/2024/1161)把具体 FS-FRI 安全性定义为：
 在所有正整数查询预算中，期望经典随机预言机查询工作量的最小值。对实际部署的
@@ -104,9 +104,10 @@ B25 与 B255 配置应用其定义和整数位表示后，可证明值与基于�
 
 另一项端到端可靠性游戏考察单个能够跨查询保留状态的量子对手能否使实际部署的
 验证器接受一个递归证明链始于创世区块的无效终端 State。在定理明确给出的固定
-Poseidon2b 偏差上界与相干响应成本前提下，网络当前状态自创世块起的端到端后量子可靠性，已证明达到
-NIST PQC Category 1 水平。完整推导见
-[QROM 与 Category 1 推导](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)，命题边界见
+Poseidon2b 偏差上界、批量门数-深度计价与标量响应门数前提下，网络当前状态自创世块起的端到端后量子可靠性，已证明达到
+NIST PQC Category 1 水平。单独的响应审计给出了完整构造和限定模型下的标量下界。
+详见 [QROM 与 Category 1 推导](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)、
+[响应资源核算](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)以及
 [安全模型](protocol/security-model.md)。
 
 ## 协议概况

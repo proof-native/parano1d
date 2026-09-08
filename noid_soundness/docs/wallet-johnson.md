@@ -228,7 +228,12 @@ The end-to-end effect is substantially smaller:
 | Sequential ideal-QROM boundary bits | 64.707407428576 | 64.707407428576 |
 | Limiting Category 1 event | wallet.query | history.query |
 | Main-term gate-depth bits | 173.273866314232 | 173.391078499301 |
-| Complete ideal Category 1 envelope, upper bound | 0.053364140323608411 | 0.049330348213215253 |
+| Complete ideal Category 1 envelope, upper bound | 0.053364140338756842 | 0.049330348228363684 |
+
+Both columns use the current batch-cost resource calculation, so this
+comparison isolates the wallet analysis rather than changing the resource
+model between columns. Frozen published evidence retains the exact numbers
+of the certificate revision it reproduces.
 
 History already determines the sequential bound and becomes the limiting
 resource event. The main-term resource floor rises by approximately

@@ -73,7 +73,7 @@ FROST-GKR 把批量 Poseidon2b 执行与 Merkle 路径表示为共享布尔超�
 
 Block–Tiwari 数值衡量经典随机预言机模型中的 FS-FRI 期望工作量。Category 1
 结果属于另一项从创世开始的端到端无效 State 可靠性游戏，并以定理明确声明的
-固定 Poseidon2b 偏差上界与相干响应成本为前提。实际部署常量、归约和精确计算见
+固定 Poseidon2b 偏差上界、批量门数-深度计价与标量响应门数为前提。实际部署常量、归约和精确计算见
 [`noid_soundness`](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)。
 
 声明边界与证明系统之外的假设见[安全模型](../protocol/security-model.md)，实现 crate 见[工作区结构](../developers/workspace.md)。

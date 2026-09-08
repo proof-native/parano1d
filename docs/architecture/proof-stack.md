@@ -92,9 +92,9 @@ queries. Its current security results are:
 
 The Block–Tiwari values measure classical random-oracle FS-FRI expected work.
 The Category 1 result concerns the separate end-to-end from-genesis
-invalid-State game and is conditional on the fixed Poseidon2b delta and
-coherent response-cost premises stated in the theorem. Production constants,
-reductions and exact calculations are in
+invalid-State game and is conditional on the fixed Poseidon2b delta, batch
+gate-depth price and scalar gate-charge premises stated in the theorem.
+Production constants, reductions and exact calculations are in
 [`noid_soundness`](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness).
 
 For claim boundaries and non-proof assumptions, see

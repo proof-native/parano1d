@@ -36,7 +36,7 @@ quantum adversary.
 | NIST Post-Quantum Cryptography Category | **Category 1** |
 | Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
 | Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348213215253** |
+| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
 
 ### Wallet analysis refinement
 
@@ -91,22 +91,26 @@ The depth-aware theorem evaluates all NIST Post-Quantum Cryptography Category 1
 `MAXDEPTH` points against the AES-128 gate-depth reference `2^170`. The base-two
 logarithm of its dominant half-success gate-depth floor is
 `173.391078499301` bits, and its complete ideal success bound at the Category 1
-envelope is at most `0.049330348213215253`.
+envelope is at most `0.049330348228363684`.
 
 The fixed Poseidon2b production corollary requires
-`Delta_P2b^C1 < 0.450669651786784747`. It also assumes the minimum coherent
-response cost stated by the resource theorem. Under these premises, the theorem
-gives provable end-to-end post-quantum soundness for state validation from
-genesis at NIST PQC Category 1: every adversary inside the Category 1 resource
-envelope has success probability below one half in the from-genesis
-invalid-State game.
+`Delta_P2b^C1 < 0.450669651771636316`. It also assumes the batch gate-depth
+price and minimum scalar gate charge stated by the resource theorem. Faster
+circuits may use more gates, so the reference-depth factor is not asserted as
+a universal minimum depth. Under these premises, the theorem gives provable
+end-to-end post-quantum soundness for state validation from genesis at NIST PQC
+Category 1: every adversary inside the Category 1 resource envelope has success
+probability below one half in the from-genesis invalid-State game.
 
 The [end-to-end QROM derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)
-states the game, reductions, finite terms and assumptions. The
-[`noid_soundness` certificate](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness) imports the
-production constants and evaluates every normative inequality with exact
-integer or rational arithmetic. This is a cryptographic Category 1 resource
-assessment, not a claim of NIST review or certification.
+states the game, reductions, finite terms and assumptions. The separate
+[response accounting](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
+gives complete field and scalar constructions plus a scoped scalar lower bound;
+construction upper bounds are not substituted for declared resource prices.
+The [`noid_soundness` certificate](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)
+imports the production constants and evaluates every normative inequality with
+exact integer or rational arithmetic. This is a cryptographic Category 1
+resource assessment, not a claim of NIST review or certification.
 
 ## Trust boundaries
 

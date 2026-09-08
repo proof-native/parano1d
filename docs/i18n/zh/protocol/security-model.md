@@ -31,7 +31,7 @@ Parano1d 组合[工作量证明](../reference/glossary.md#proof-of-work)、[递�
 | NIST 后量子密码学类别 | **Category 1** |
 | Category 1 门数与深度乘积的主导下界 | **173.391078499301 位** |
 | 相对 NIST `2^170` 参考值的余量 | **3.391078499301 位** |
-| Category 1 资源边界上的理想模型完整上界 | **0.049330348213215253** |
+| Category 1 资源边界上的理想模型完整上界 | **0.049330348228363684** |
 
 ### 钱包分析的改进
 
@@ -77,16 +77,18 @@ History 查询、256 位交互记录摘要，并从 `GF(2^256)` 中基数为 `2^
 NIST 后量子密码学 Category 1 的全部 `MAXDEPTH` 点。成功概率为二分之一时，
 门数与深度乘积主导下界的二进制对数为 `173.391078499301` 位，Category 1
 资源边界上的理想模型完整成功概率上界
-不超过 `0.049330348213215253`。
+不超过 `0.049330348228363684`。
 
 固定 Poseidon2b 实际部署推论要求
-`Delta_P2b^C1 < 0.450669651786784747`，并采用资源定理声明的最小相干响应成本
-前提。在这些前提下，Category 1 资源边界内任意对手在从创世开始的无效 State
+`Delta_P2b^C1 < 0.450669651771636316`，并采用资源定理声明的批量门数-深度计价
+与标量响应门数前提。在这些前提下，Category 1 资源边界内任意对手在从创世开始的无效 State
 可靠性游戏中，成功概率均小于二分之一。因此，网络当前状态自创世块起的端到端后量子
 可靠性，已证明达到 NIST PQC Category 1 水平。
 
 [端到端 QROM 推导](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)给出可靠性游戏、
-归约、有限规模修正项和全部前提。[`noid_soundness` 证书](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)
+归约、有限规模修正项和全部前提。单独的[响应资源核算](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
+给出完整的域运算与标量构造，以及限定模型下的标量下界；构造上界不会替代声明的资源价格。
+[`noid_soundness` 证书](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)
 从实际部署代码导入常量，并用精确整数或有理数算术计算所有用于结论判定的不等式。这是
 Category 1 的密码学资源评估，不代表 NIST 审查或认证了 Parano1d。
 

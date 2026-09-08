@@ -10,6 +10,8 @@ pub mod parameters;
 pub mod poseidon2b_cryptanalysis;
 pub mod qrom;
 pub mod resource;
+pub mod response_audit;
+pub mod reversible_multiplier;
 
 use block_tiwari::BlockTiwariCertificate;
 use parameters::ProductionParameters;
@@ -24,6 +26,7 @@ pub struct SoundnessCertificate {
     pub poseidon2b_cryptanalysis: Poseidon2bCryptanalysisAudit,
     pub ideal_qrom: IdealQromCertificate,
     pub category_one: CategoryOneCertificate,
+    pub response_audit: response_audit::ResponseAudit,
 }
 
 pub fn calculate() -> Result<SoundnessCertificate, String> {
@@ -32,12 +35,14 @@ pub fn calculate() -> Result<SoundnessCertificate, String> {
     let poseidon2b_cryptanalysis = poseidon2b_cryptanalysis::audit(&parameters)?;
     let ideal_qrom = qrom::certificate(&parameters);
     let category_one = resource::certificate(&parameters);
+    let response_audit = response_audit::audit(&parameters)?;
     Ok(SoundnessCertificate {
         parameters,
         block_tiwari,
         poseidon2b_cryptanalysis,
         ideal_qrom,
         category_one,
+        response_audit,
     })
 }
 
@@ -93,11 +98,11 @@ mod tests {
         );
         assert_eq!(
             previous_resource.ideal_envelope.decimal_ceiling(18),
-            "0.053364140323608411"
+            "0.053364140338756842"
         );
         assert_eq!(
             current.category_one.ideal_envelope.decimal_ceiling(18),
-            "0.049330348213215253"
+            "0.049330348228363684"
         );
     }
 }

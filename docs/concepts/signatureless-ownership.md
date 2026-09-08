@@ -67,8 +67,8 @@ The production profile has 127 provable and 127 conjectured Block–Tiwari
 FS-FRI bits against a 128-bit target. The separate end-to-end QROM theorem
 includes wallet authorization in the from-genesis invalid-State game and
 gives provable end-to-end post-quantum soundness for state validation from
-genesis at NIST PQC Category 1 under its fixed Poseidon2b delta and coherent
-response-cost premises. See the
+genesis at NIST PQC Category 1 under its fixed Poseidon2b delta, batch
+gate-depth price and scalar gate-charge premises. See the
 [Proof stack](../architecture/proof-stack.md) for the construction and the
 [Security model](../protocol/security-model.md) for the exact statements.
 

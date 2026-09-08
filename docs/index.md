@@ -161,7 +161,7 @@ systems joined afterward.
 | NIST Post-Quantum Cryptography Category | **Category 1** |
 | Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
 | Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348213215253** |
+| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
 
 [Block and Tiwari](https://eprint.iacr.org/2024/1161) define concrete FS-FRI
 security as the minimum expected classical random-oracle query work over every
@@ -172,10 +172,13 @@ profiles. The complete calculation and published-system comparison are in the
 
 The separate end-to-end game asks whether one stateful quantum adversary can
 make the production verifier accept an invalid terminal State whose recursive
-ancestry starts at genesis. Under the fixed Poseidon2b delta and coherent
-response-cost premises stated in the theorem, the result is provable end-to-end
-post-quantum soundness for state validation from genesis at NIST PQC Category 1. See the
-complete [QROM and Category 1 derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)
+ancestry starts at genesis. Under the fixed Poseidon2b delta, batch gate-depth
+price and scalar gate-charge premises stated in the theorem, the result is
+provable end-to-end post-quantum soundness for state validation from genesis at
+NIST PQC Category 1. The response audit separately supplies complete
+constructions and a scoped scalar lower bound. See the complete
+[QROM and Category 1 derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md),
+[response accounting](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
 and the [security model](protocol/security-model.md).
 
 ## Protocol profile

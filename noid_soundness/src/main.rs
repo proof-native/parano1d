@@ -318,6 +318,41 @@ fn main() -> Result<(), String> {
         );
     }
 
+    let response = &certificate.response_audit;
+    let multiplier = &response.field_multiplier;
+    let construction = &response.scalar_construction_upper;
+    println!("COHERENT RESPONSE ACCOUNTING AUDIT");
+    println!(
+        "polynomial subtotal, reduction excluded: gates={} reference-depth={}",
+        response.polynomial_subtotal.logical_gates, response.polynomial_subtotal.logical_depth,
+    );
+    println!(
+        "GCM reduction component: {} CNOTs",
+        response.reduction_component_cnots
+    );
+    println!(
+        "complete forward field multiplier with retained workspace: gates={} depth={}",
+        multiplier.forward_field_gates, multiplier.forward_field_depth,
+    );
+    println!(
+        "clean field XOR response: gates={} depth={} wires={}",
+        multiplier.clean_xor_gates, multiplier.clean_xor_depth, multiplier.total_wires,
+    );
+    println!(
+        "complete scalar construction upper: gates<={} depth<={} gate-depth<={} wires<={}",
+        construction.logical_gates,
+        construction.logical_depth,
+        construction.gate_depth,
+        construction.total_wires,
+    );
+    println!(
+        "proved scalar target-touch lower: gates>={} depth>={} (exact fixed-register unitary model)",
+        response.scalar_target_touch_gate_lower, response.scalar_target_touch_depth_lower,
+    );
+    println!(
+        "construction upper and proved lower are distinct from the declared Category 1 prices\n"
+    );
+
     println!("NIST POST-QUANTUM CRYPTOGRAPHY CATEGORY 1 RESOURCE ASSESSMENT");
     println!("security game: invalid terminal State accepted from genesis");
     println!("limiting typed event: {}", category_one.limiting_event);
@@ -326,7 +361,7 @@ fn main() -> Result<(), String> {
         category_one.history.certificate.multiplicity
     );
     println!(
-        "coherent Poseidon2b response: gates={} depth={} gate-depth={}",
+        "declared scalar price: minimum-gates={} reference-depth={} gate-depth={}",
         category_one.poseidon_response_cost.logical_gates,
         category_one.poseidon_response_cost.logical_depth,
         category_one.poseidon_response_cost.gate_depth_product()

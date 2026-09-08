@@ -15,7 +15,7 @@ For the current W65/H133 production profile, the executable theorem gives:
 | Ideal success bound at `T=2^64` | **at most 0.187528937938435742** |
 | Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
 | Margin over `2^170` | **3.391078499301 bits** |
-| Complete ideal Category 1 envelope | **at most 0.049330348213215253** |
+| Complete ideal Category 1 envelope | **at most 0.049330348228363684** |
 
 The fixed Poseidon2b corollaries hold under the sufficient conditions
 
@@ -29,7 +29,7 @@ and
 
 \[
 \Delta_{\rm P2b}^{\rm C1}
-<0.450669651786784747.
+<0.450669651771636316.
 \tag{2}
 \]
 
@@ -463,125 +463,132 @@ evaluates all three rather than selecting the most favorable point.
 
 ## Typed parallel-QROM resource theorem
 
-For each typed bad-response event `j`, let:
-
-```text
-kappa_j  local bad-response density
-g_j      logical gates needed for one coherent response
-d_j      logical depth needed for one coherent response
-```
-
-The parallel compressed-oracle transition bound of Chung, Fehr, Huang and Liao
-has constant 10. Specializing it to the typed all-root event and combining
-query types by Cauchy–Schwarz gives
+For a type-\(j\) bad response, let \(\kappa_j\) be its local bad-response
+density and \(c_j>0\) its declared gate-depth price. For batch \(s\), let
+\(k_{s,j}\) count its type-\(j\) responses, \(A_s\) its actual gate charge,
+and \(\delta_s\) its actual depth charge. The resource premises are
 
 \[
-\Pr[\mathsf{BadState}]_{\rm main}
-\le 10GD\max_j\frac{\kappa_j}{g_jd_j}.
-\tag{16}
-\]
-
-To see the resource step, let `k_sj` be the number of type-`j` queries in
-parallel query round `s`, and let
-
-\[
-\delta_s=\max\{d_j:k_{s,j}>0\}
+\sum_s A_s\le G,\qquad \sum_s\delta_s\le D,
+\qquad \sum_j k_{s,j}c_j\le A_s\delta_s.
 \tag{17}
 \]
 
-be the response depth of that round. The resource constraints are
+The last inequality is a **batch** price premise. It must cover sharing and
+amortization within the batch; a bound for one isolated implementation is
+not substituted for it. It allows a faster circuit to spend more gates.
+There is no separate minimum-depth restriction on every implementation.
+
+Write
 
 \[
-\sum_{s,j}g_jk_{s,j}\le G,
-\qquad
-\sum_s\delta_s\le D.
+\rho=\max_j\frac{\kappa_j}{c_j}.
 \tag{18}
 \]
 
-The compressed-oracle transition amplitude is at most
+Using the typed parallel compressed-oracle transition estimate for the same
+all-root event, the accumulated main-event amplitude is bounded by
 
 \[
 \begin{aligned}
-\sqrt{10}\sum_s\sqrt{\sum_j\kappa_jk_{s,j}}.
+\sum_s\sqrt{10\sum_j\kappa_j k_{s,j}}
+&\le\sqrt{10\rho}\sum_s\sqrt{\sum_j c_j k_{s,j}}\\
+&\le\sqrt{10\rho}\sum_s\sqrt{A_s\delta_s}\\
+&\le\sqrt{10\rho GD}.
 \end{aligned}
 \tag{19}
 \]
 
-Weighted Cauchy–Schwarz, followed by `delta_s >= d_j` for every active type in
-round `s`, gives
+The final inequality is Cauchy–Schwarz. Squaring gives
 
 \[
-\begin{aligned}
-\Pr[\mathsf{BadState}]_{\rm main}
-&\le10\left(\sum_s\delta_s\right)
-\left(\sum_s\frac{\sum_j\kappa_jk_{s,j}}{\delta_s}\right)\\
-&\le10D\sum_{s,j}\frac{\kappa_jk_{s,j}}{d_j}\\
-&\le10D\max_j\frac{\kappa_j}{g_jd_j}
-\sum_{s,j}g_jk_{s,j}\\
-&\le10GD\max_j\frac{\kappa_j}{g_jd_j}.
-\end{aligned}
+\boxed{\Pr[\mathsf{BadState}]_{\rm main}
+\le 10GD\max_j\frac{\kappa_j}{c_j}.}
+\tag{16}
+\]
+
+This handles different query types and different circuit implementations in
+one batch. Adaptive statements and recursive roots remain in the same
+database-wide event.
+
+For comparison, separate per-response gate and depth assumptions
+\(g_j,d_j\), with \(A_s\ge\sum_jg_jk_{s,j}\) and
+\(\delta_s\ge\max_{j:k_{s,j}>0}d_j\), imply
+
+\[
+A_s\delta_s\ge\sum_jg_jd_jk_{s,j}.
 \tag{20}
 \]
 
-This proves equation (16) even when one parallel round contains several
-response types. Adaptively selected statements and recursive roots remain
-inside the same all-root event and do not add a separate union factor.
+Thus setting \(c_j=g_jd_j\) recovers the earlier resource translation.
+The batch formulation weakens that resource hypothesis; it does not claim
+that a chosen construction establishes a universal circuit minimum.
 
 ## Coherent response cost
 
-The resource model uses the following reversible `GF(2^128)` Karatsuba
-multiplier schedule:
-
-| Resource | Count |
-|---|---:|
-| CNOT | 29,340 |
-| one-qubit Clifford | 4,374 |
-| T | 15,309 |
-| total logical gates | 49,023 |
-| logical depth | 43 |
-
-The fixed Poseidon2b permutation has 90 S-boxes:
+The scalar reference factors retained for the declared price are
 
 \[
-4\cdot8+58=90.
+g_{\rm ref}=17\,648\,280,\qquad d_{\rm ref}=11\,352.
 \tag{21}
 \]
 
-For `x^7`, squaring is linear and the nonlinear schedule uses two sequential
-field multiplications. Coherent computation and uncomputation therefore use
-four multiplications per S-box. Full-round S-boxes execute in parallel, so one
-coherent permutation response has
+They reproduce the historical nonlinear subtotal
 
 \[
-g_0=90\cdot4\cdot49\,023=17\,648\,280
+g_{\rm ref}=90\cdot4\cdot49\,023,\qquad
+d_{\rm ref}=66\cdot4\cdot43,
 \tag{22}
 \]
 
-logical gates and
+where there are \(4\cdot8+58=90\) S-boxes and 66 sequential rounds.
+The multiplier count 49,023 excludes field reduction. These factors are
+therefore **reference prices, not a complete response construction**.
+In particular \(d_{\rm ref}\) is not asserted to be a universal standalone
+depth minimum.
+
+For scalar, wallet-query and History-query responses, respectively, the
+declared prices are
 
 \[
-d_0=(8+58)\cdot4\cdot43=11\,352
+c_0=g_{\rm ref}d_{\rm ref}=200\,343\,274\,560,\qquad
+c_W=4^2c_0,\qquad c_H=12^2c_0.
 \tag{23}
 \]
 
-logical depth. Thus
+The wallet squeezes seven lanes through a rate-two duplex; the History query
+vector uses twelve permutations. The certificate retains those prices rather
+than increasing them using newly counted implementation work.
+
+In addition to the batch premise in equation (17), the response-cost
+assumption charges at least \(g_{\min}=g_{\rm ref}\) gates per counted
+response in the total budget. Hence
 
 \[
-g_0d_0=200\,343\,274\,560.
+N\le\left\lfloor G/g_{\min}\right\rfloor .
 \tag{24}
 \]
 
-A wallet query response squeezes seven 128-bit lanes through a rate-two
-duplex, requiring four sequential permutations. A History query response
-needs twelve. Scalar responses use one permutation.
+The complete declared cost condition is equation (17) together with (24).
+It remains an explicit resource premise of the production Category 1
+corollary. The construction and independently proved lower bound are separate
+mathematical objects:
 
-The Category 1 theorem assumes that an adversary obtaining the corresponding
-coherent production response must pay at least these logical gate and depth
-costs. Equations (22) and (23) are a concrete reversible schedule with positive
-linear, routing and control work omitted. This omission is conservative for
-that schedule, but a concrete construction alone is not a universal circuit
-lower bound. The minimum coherent response-cost statement is therefore an
-explicit premise of the production Category 1 conclusion.
+| Audited object | Logical gates | Logical depth |
+|---|---:|---:|
+| Polynomial multiplication, no reduction | 49,023 | at most 43; generated schedule 42 |
+| Full field multiplication, workspace retained | 49,531 | 49 |
+| Clean field-multiplication XOR response | 99,190 | 99 |
+| Complete clean scalar Poseidon2b response construction | at most 100,233,080 | at most 20,037 |
+| Universal scalar target-touch lower bound in the stated unitary model | at least 128 | at least 1 |
+
+The full scalar construction has gate-depth at most 2,008,370,223,960.
+It includes field reduction, squaring, both matrix layers, public constants,
+basis conversion, fanout, response copy and complete uncomputation.
+The [construction and lower-bound proofs](response-accounting.md) specify the
+fixed-register unitary gate model and every charged component.
+Neither the construction upper bound nor the weak target-touch lower bound
+is substituted for the stronger declared Category 1 price.
 
 ## Category 1 calculation
 
@@ -602,7 +609,7 @@ equation (16) is `history.query`. Solving the main term for half success gives
 
 \[
 GD_{1/2}^{\rm main}
-=\frac{1}{20\max_j(\kappa_j/(g_jd_j))}.
+=\frac{1}{20\max_j(\kappa_j/c_j)}.
 \tag{25}
 \]
 
@@ -631,9 +638,9 @@ For each NIST depth point `D=2^d`, set
 \[
 G=2^{170-d},
 \qquad
-N=\left\lfloor\frac{G}{g_0}\right\rfloor,
+N=\left\lfloor\frac{G}{g_{\min}}\right\rfloor,
 \qquad
-R=\left\lfloor\frac{D}{d_0}\right\rfloor.
+c_0=200\,343\,274\,560.
 \tag{28}
 \]
 
@@ -648,22 +655,33 @@ Its two bad densities are `(N+1)/2^255` for extraction instability and
 \tag{29}
 \]
 
-For the one global 256-bit binding-collision event, Theorem 5.29 of Chung,
-Fehr, Huang and Liao gives the amplitude bound
+For the one global 256-bit binding-collision event, the non-uniform collision
+transition bound of Chung, Fehr, Huang and Liao gives at most
+\(2e\sqrt{10k_sN/2^{256}}\) amplitude in a batch of \(k_s\) scalar
+responses. New–old and new–new collisions are included in the same count \(N\).
+Equation (17) gives
+\(\sum_s\sqrt{k_s}\le\sqrt{GD/c_0}\). Consequently the accumulated
+amplitude, including the output/database comparison term, is at most
 
 \[
-2eN\sqrt{\frac{10R}{2^{256}}}
+2e\sqrt{\frac{10NGD}{c_0\,2^{256}}}
 +\sqrt{\frac{2}{2^{256}}}.
 \tag{30}
 \]
 
+Any oracle queries needed for output verification are included in the same
+budget. No bound on the number of batches using a presumed universal
+\(d_{\rm ref}\) is needed. This generalizes the uniform-width result in
+Theorem 5.29 using its underlying non-uniform collision capacities.
+
 The calculator squares the entire positive expression. It uses
-`2719/1000 > e` and an integral ceiling square root, so no cross term is lost
-and every rounding direction remains an upper bound. At the worst depth point,
+`2719/1000 > e` and an integral upper bound on
+\(\sqrt{20NGD/c_0}\), preserving the cross term and rounding upwards.
+At the worst depth point,
 
 \[
 \varepsilon_{\rm collision}
-\le0.001471367157310191.
+\le0.001471367172458622.
 \tag{31}
 \]
 
@@ -673,7 +691,7 @@ The finite envelope is largest at `MAXDEPTH=2^40`; the calculator also checks
 \[
 \boxed{
 \varepsilon_{\rm ideal}^{\rm C1}
-\le0.049330348213215253<\frac12.}
+\le0.049330348228363684<\frac12.}
 \tag{32}
 \]
 

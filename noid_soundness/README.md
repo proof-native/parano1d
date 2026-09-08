@@ -16,7 +16,7 @@ are evaluated with arbitrary-precision integer or rational arithmetic.
 | NIST Post-Quantum Cryptography Category | **Category 1** |
 | Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
 | Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348213215253** |
+| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
 
 The first three rows use the classical random-oracle definitions and integer
 presentation of Block and Tiwari. The remaining rows concern a different game:
@@ -37,12 +37,15 @@ at T = 2^64:
     Delta_P2b < 0.312471062061564258
 
 at the NIST Post-Quantum Cryptography Category 1 resource envelope:
-    Delta_P2b^C1 < 0.450669651786784747
+    Delta_P2b^C1 < 0.450669651771636316
 ```
 
-The Category 1 result also states the coherent response-cost premise used to
-translate oracle queries into logical gates and circuit depth. These conditions
-are part of the theorem, not omitted implementation notes.
+The Category 1 result states a batch gate-depth price and minimum scalar gate
+charge used to translate oracle queries into logical circuit resources. These
+conditions are part of the theorem. Faster circuits may use more gates; a
+reference-depth factor is not a universal minimum depth. The separately
+audited [complete constructions and scalar lower bound](docs/response-accounting.md)
+are not substituted for those declared prices.
 
 The [wallet Johnson refinement](docs/wallet-johnson.md) analyzes the same W65
 protocol at radius `4/5`. It changes only the analysis and its executable
@@ -86,6 +89,7 @@ The complete derivations are in:
 - [Block–Tiwari FS-FRI security](docs/block-tiwari.md);
 - [wallet Johnson refinement without a protocol change](docs/wallet-johnson.md);
 - [end-to-end QROM soundness and the Category 1 assessment](docs/category-one.md);
+- [coherent response constructions and resource prices](docs/response-accounting.md);
 - [August 2026 Poseidon2b cryptanalysis review](docs/poseidon2b-august-2026.md).
 
 ## Block–Tiwari comparison
@@ -138,10 +142,11 @@ Release tests pin the production profile, cover both History classes, exercise
 optimizer boundaries and compare normative thresholds by exact integer
 inequalities.
 
-Subject to the fixed Poseidon2b delta and coherent response-cost premises stated
-in [the Category 1 proof](docs/category-one.md), the resulting inequality bounds
-the success probability of every adversary inside the declared resource
-envelope by less than one half in the from-genesis invalid-State game.
+Subject to the fixed Poseidon2b delta, batch gate-depth price and scalar gate
+charge premises stated in [the Category 1 proof](docs/category-one.md), the
+resulting inequality bounds the success probability of every adversary inside
+the declared resource envelope by less than one half in the from-genesis
+invalid-State game.
 
 This repository provides a Category 1 resource assessment for the Parano1d
 soundness game. It does not claim that NIST reviewed or certified Parano1d.
@@ -188,5 +193,7 @@ cargo test --release --locked -p noid_soundness
 | [`src/poseidon2b_cryptanalysis.rs`](src/poseidon2b_cryptanalysis.rs) | production correspondence for published Poseidon2b algebraic attacks |
 | [`src/qrom.rs`](src/qrom.rs) | sequential ideal-QROM all-root bound |
 | [`src/resource.rs`](src/resource.rs) | depth-aware Category 1 resource calculation |
+| [`src/response_audit.rs`](src/response_audit.rs) | complete coherent-response constructions and scoped lower bound |
+| [`src/reversible_multiplier.rs`](src/reversible_multiplier.rs) | executable reversible binary-field multiplier and reduction audit |
 | [`src/exact.rs`](src/exact.rs) | arbitrary-size rational arithmetic and directed decimals |
 | [`src/main.rs`](src/main.rs) | human-readable and exact certificate output |

@@ -14,7 +14,7 @@ use noid_poseidon2b::{
     Digest,
     native::{
         compression::RATE,
-        permutation::{F_ROUNDS, P_ROUNDS, SBOX_EXPONENT, STATE_SIZE},
+        permutation::{F_ROUNDS, MDS_FULL, MDS_PARTIAL, P_ROUNDS, SBOX_EXPONENT, STATE_SIZE},
     },
 };
 use noid_recursive::acceptance::history_step_bank::HISTORY_STEP_FRI_QUERIES;
@@ -49,6 +49,8 @@ pub struct ProductionParameters {
     pub poseidon_sbox_exponent: usize,
     pub poseidon_full_rounds: usize,
     pub poseidon_partial_rounds: usize,
+    pub poseidon_external_matrix: [[u128; 4]; 4],
+    pub poseidon_internal_matrix: [[u128; 4]; 4],
 }
 
 impl ProductionParameters {
@@ -124,6 +126,8 @@ impl ProductionParameters {
             poseidon_sbox_exponent: SBOX_EXPONENT,
             poseidon_full_rounds: F_ROUNDS,
             poseidon_partial_rounds: P_ROUNDS,
+            poseidon_external_matrix: MDS_FULL,
+            poseidon_internal_matrix: MDS_PARTIAL,
         })
     }
 }
@@ -179,5 +183,7 @@ mod tests {
         assert_eq!(parameters.poseidon_sbox_exponent, 7);
         assert_eq!(parameters.poseidon_full_rounds, 8);
         assert_eq!(parameters.poseidon_partial_rounds, 58);
+        assert_eq!(parameters.poseidon_external_matrix, MDS_FULL);
+        assert_eq!(parameters.poseidon_internal_matrix, MDS_PARTIAL);
     }
 }
