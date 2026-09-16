@@ -50,9 +50,13 @@ use noid_ivc_core::deep_chain::schedule::{compile_duplex, merkle_fixed_patterns}
 use noid_ivc_core::deep_chain::source_tree::{
     compress_iv_flat, mds_weights_pub, source_tree_substitution_terms, SourceTreeRefs,
 };
+#[cfg(test)]
+use noid_ivc_core::deep_chain::spine::build_spine_instance_columns;
 use noid_ivc_core::deep_chain::spine::{
-    build_spine_instance_columns, spine_tree_exposure_terms, spine_tree_internal_child_pattern,
-    SpineInstanceFlat, SPINE_TREE_KID_LEAF_BASE, SPINE_TREE_LEAVES, SPINE_TREE_SLOTS,
+    build_spine_instance_columns_with_contract, spine_tree_exposure_terms,
+    spine_tree_internal_child_pattern, SpineContractInstanceFlat, SpineInstanceFlat,
+    SPINE_CONTRACT_CODE_BASE, SPINE_CONTRACT_NEW_OBJECT_BASE, SPINE_CONTRACT_OLD_OBJECT_BASE,
+    SPINE_CONTRACT_POLICY_BASE, SPINE_TREE_KID_LEAF_BASE, SPINE_TREE_LEAVES, SPINE_TREE_SLOTS,
     SPINE_WRAP_SLOT, SPINE_WRAP_SLOTS,
 };
 use noid_ivc_core::deep_chain::{
@@ -629,6 +633,27 @@ pub struct SpineInstanceRegion {
     pub leaves_w: [[LinExpr; 2]; SPINE_TREE_LEAVES],
     pub tx_hash_w: [LinExpr; 2],
     pub tx_hash_flat: [F128; 2],
+    pub contract: Option<SpineContractRegion>,
+}
+
+/// Contract commitment values and exact HistoryStep aliases for one body.
+pub struct SpineContractRegion {
+    pub live: LinExpr,
+    pub terminal: LinExpr,
+    pub flat: SpineContractInstanceFlat,
+    pub program_w: [[LinExpr; 2]; noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS],
+    pub current_w: LinExpr,
+    pub next_w: LinExpr,
+    pub controller_w: [LinExpr; 2],
+    pub refund_authority_w: [LinExpr; 2],
+    pub code_digest_w: [LinExpr; 2],
+    pub policy_digest_w: [LinExpr; 2],
+    pub contexts_w: [LinExpr; noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS],
+    pub deadline_w: LinExpr,
+    pub claim_recipient_w: [LinExpr; 2],
+    pub refund_recipient_w: [LinExpr; 2],
+    pub old_object_root_w: [LinExpr; 2],
+    pub new_object_root_w: [LinExpr; 2],
 }
 
 /// Assemble the complete raw Meta-A/Meta-B draft without observing wallet
@@ -1072,7 +1097,14 @@ fn build_auth_pcs_meta_region_draft(
                     .get(g)
                     .map(|inst| inst.flat.clone())
                     .unwrap_or_else(SpineInstanceFlat::ghost);
-                let icols = build_spine_instance_columns(&inst_flat);
+                let contract = sp
+                    .instances
+                    .get(g)
+                    .and_then(|instance| instance.contract.as_ref());
+                let icols = build_spine_instance_columns_with_contract(
+                    &inst_flat,
+                    contract.map(|contract| &contract.flat),
+                );
                 let tree_abs =
                     spine_meta_base + blk * spine_per_tx + spine_tree_base + i * SPINE_TREE_SLOTS;
                 let wrap_abs =
@@ -1096,6 +1128,108 @@ fn build_auth_pcs_meta_region_draft(
                         .copy_from_slice(&icols.tree_kid[lane]);
                     meta_cols[IN0 + lane][wrap_abs..wrap_abs + SPINE_WRAP_SLOTS]
                         .copy_from_slice(&icols.wrap_in[lane]);
+                }
+                if let Some(contract) = contract {
+                    for step in 0..contract.program_w.len() {
+                        for lane in 0..2 {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + SPINE_CONTRACT_CODE_BASE + step,
+                                contract.program_w[step][lane].clone(),
+                            ));
+                        }
+                    }
+                    for lane in 0..2 {
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_CODE_BASE + contract.program_w.len() - 1,
+                            contract.code_digest_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            IN0 + lane,
+                            wrap_abs + SPINE_CONTRACT_POLICY_BASE,
+                            contract.code_digest_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_POLICY_BASE + 5,
+                            contract.policy_digest_w[lane].clone(),
+                        ));
+                        for object_base in [
+                            SPINE_CONTRACT_OLD_OBJECT_BASE,
+                            SPINE_CONTRACT_NEW_OBJECT_BASE,
+                        ] {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + object_base,
+                                contract.policy_digest_w[lane].clone(),
+                            ));
+                        }
+                    }
+                    for (slot, values) in [
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 1,
+                            [contract.deadline_w.clone(), contract.controller_w[0].clone()],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 2,
+                            [
+                                contract.controller_w[1].clone(),
+                                contract.refund_authority_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 3,
+                            [
+                                contract.refund_authority_w[1].clone(),
+                                contract.claim_recipient_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 4,
+                            [
+                                contract.claim_recipient_w[1].clone(),
+                                contract.refund_recipient_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 5,
+                            [
+                                contract.refund_recipient_w[1].clone(),
+                                LinExpr::constant(
+                                    noid_ivc_core::deep_chain::spine::spine_contract_object_version_flat(),
+                                ),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_OLD_OBJECT_BASE + 1,
+                            [contract.current_w.clone(), LinExpr::zero()],
+                        ),
+                        (
+                            SPINE_CONTRACT_NEW_OBJECT_BASE + 1,
+                            [contract.next_w.clone(), LinExpr::zero()],
+                        ),
+                    ] {
+                        for lane in 0..2 {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + slot,
+                                values[lane].clone(),
+                            ));
+                        }
+                    }
+                    for lane in 0..2 {
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_OLD_OBJECT_BASE + 1,
+                            contract.old_object_root_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_NEW_OBJECT_BASE + 1,
+                            contract.new_object_root_w[lane].clone(),
+                        ));
+                    }
                 }
                 if g >= n_inst {
                     continue;
@@ -1450,6 +1584,9 @@ pub(super) fn allocate_selected_zk_auth_pcs_region(
     // production HistoryStep boundary. The six family domains and their
     // committed contents are unchanged.
     let allocation_ledger = SelectedZkRegionAllocationLedger::new(b.num_wires(), geometry);
+    if std::env::var_os("NOID_ROW_LEDGER").is_some() {
+        eprintln!("[ledger] selected-region allocation {allocation_ledger:?}");
+    }
     let mut main_slices = None;
     let mut owner_slices = None;
     let mut wallet_b_slices = None;
@@ -2461,6 +2598,7 @@ mod split_walk_a_layout_tests {
                 tx_hash_w: direct.tx_hash.map(LinExpr::constant),
                 tx_hash_flat: direct.tx_hash,
                 flat,
+                contract: None,
             }],
         };
         let mut b = FieldR1csBuilder::new();

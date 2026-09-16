@@ -601,7 +601,11 @@ impl SelectedZkAuthorizationProofBatch {
     pub(super) fn entry_for_slot(&self, index: usize) -> &SelectedZkAuthorizationVerifiedEntry {
         let slot = self.canonical.slot(index);
         match slot.kind() {
-            CanonicalSelectedZkAuthorizationSlotKind::Live => &self.live_entries[index],
+            CanonicalSelectedZkAuthorizationSlotKind::Live => {
+                &self.live_entries[slot
+                    .live_entry_index()
+                    .expect("live selected authorization slot has a native proof index")]
+            }
             CanonicalSelectedZkAuthorizationSlotKind::Ghost
             | CanonicalSelectedZkAuthorizationSlotKind::Pad => &self.ghost_entry,
         }
@@ -684,9 +688,10 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     for index in 0..canonical.len() {
         let slot = canonical.slot(index);
         let statement = match slot.kind() {
-            CanonicalSelectedZkAuthorizationSlotKind::Live => {
-                prepared.live_entries[index].statement()
-            }
+            CanonicalSelectedZkAuthorizationSlotKind::Live => prepared.live_entries[slot
+                .live_entry_index()
+                .expect("live selected authorization slot has a native proof index")]
+            .statement(),
             CanonicalSelectedZkAuthorizationSlotKind::Ghost
             | CanonicalSelectedZkAuthorizationSlotKind::Pad => prepared.ghost_entry.statement(),
         };
@@ -855,8 +860,10 @@ fn bind_selected_zk_authorization_all_tiles_trace(
     let meta_b = *vk.meta_b().slices();
 
     let ghost_statement = canonical_selected_zk_ghost_statement();
-    for index in geometry.tier..geometry.auth_tiles {
-        assert_eq!(canonical.slot(index).native_statement(), ghost_statement);
+    for index in 0..geometry.auth_tiles {
+        if canonical.slot(index).kind() == CanonicalSelectedZkAuthorizationSlotKind::Pad {
+            assert_eq!(canonical.slot(index).native_statement(), ghost_statement);
+        }
     }
     let fallback = canonical
         .slot(0)
@@ -892,7 +899,7 @@ fn bind_selected_zk_authorization_all_tiles_trace(
                     assert_eq!(slot.native_statement(), ghost_statement);
                 }
                 CanonicalSelectedZkAuthorizationSlotKind::Pad => {
-                    assert!(index >= geometry.tier && index < geometry.auth_tiles);
+                    assert!(index < geometry.auth_tiles);
                     assert_eq!(live, F128::ZERO);
                     assert!(slot.body_aliases().is_none());
                     assert_eq!(slot.native_statement(), ghost_statement);

@@ -26,7 +26,7 @@ pub use noid_tx::body_hash::{
 pub const INPUT_SELECTORS: usize = noid_tx::TX_INPUTS;
 pub const OUTPUT_SELECTORS: usize = noid_tx::TX_OUTPUTS;
 pub const ACTION_VALIDITY_BITS: usize = INPUT_SELECTORS + OUTPUT_SELECTORS;
-pub const PAGE_VALIDITY_BITS: usize = ACTION_VALIDITY_BITS + 2;
+pub const PAGE_VALIDITY_BITS: usize = ACTION_VALIDITY_BITS + 4;
 
 const _: () = assert!(LEAF_INPUT_BASE + INPUT_SELECTORS == LEAF_OUTPUT0_DATA);
 const _: () = assert!(LEAF_OUTPUT1_OWNER + 1 == LEAF_FLAGS);
@@ -81,6 +81,12 @@ pub struct ActionSurfaceTrace {
     /// They never become state actions; the block scanner consumes them.
     pub start: LinExpr,
     pub end: LinExpr,
+    /// Research-v2 object-contract and terminal-transition selectors. Both
+    /// are committed by the existing body hash. They never become State
+    /// actions; the heterogeneous HistoryStep binds them to the contract
+    /// Meta-A opening and authorization partition.
+    pub contract: LinExpr,
+    pub terminal: LinExpr,
     pub selected_inputs: [LinExpr; INPUT_SELECTORS],
     pub selected_outputs: [LinExpr; OUTPUT_SELECTORS],
     pub input_rows: [ActionRowTrace; INPUT_SELECTORS],
@@ -142,7 +148,7 @@ pub fn bind_user_action_surface(
     pin_eq(b, &tx_live_sq, tx_live);
 
     // L15 = [validity_bitmap, is_coinbase]. A physical user page has ten
-    // action bits followed by the canonical START and END delimiters.
+    // action bits followed by START, END, CONTRACT and TERMINAL.
     let bits = range_check_bits(b, &spine.leaves[LEAF_FLAGS][0], PAGE_VALIDITY_BITS);
     pin_zero(b, &spine.leaves[LEAF_FLAGS][1]);
     let raw: [LinExpr; PAGE_VALIDITY_BITS] = std::array::from_fn(|i| LinExpr::from_wire(bits[i]));
@@ -151,6 +157,11 @@ pub fn bind_user_action_surface(
         std::array::from_fn(|i| raw[INPUT_SELECTORS + i].clone());
     let start = raw[ACTION_VALIDITY_BITS].clone();
     let end = raw[ACTION_VALIDITY_BITS + 1].clone();
+    let contract = raw[ACTION_VALIDITY_BITS + 2].clone();
+    let terminal = raw[ACTION_VALIDITY_BITS + 3].clone();
+    // A terminal marker without a contract marker has no canonical meaning.
+    let terminal_without_contract = mul(b, &terminal, &contract.add_const(F128::ONE));
+    pin_zero(b, &terminal_without_contract);
     for (index, live) in raw_inputs.iter().enumerate() {
         bind_dead_pair(b, live, &spine.leaves[LEAF_INPUT_BASE + index]);
     }
@@ -188,6 +199,8 @@ pub fn bind_user_action_surface(
         raw_outputs,
         start,
         end,
+        contract,
+        terminal,
         selected_inputs,
         selected_outputs,
         input_rows,

@@ -150,7 +150,8 @@ pub use tx_body_layout::{
 };
 pub use wallet_authorization::{
     authorization_proof_wire_bytes, canonical_authorization_statement_from_body,
-    prove_paged_spend_authorization, prove_wallet_authorization, validate_authorization_statement,
+    prove_paged_spend_authorization, prove_v2_contract_controller_authorization,
+    prove_wallet_authorization, validate_authorization_statement,
     verify_authorization_statement_proof, verify_paged_spend_authorization,
     verify_paged_spend_authorization_proof, verify_wallet_authorization,
     verify_wallet_authorization_proof, AuthorizationDecodeError, AuthorizationEncodeError,

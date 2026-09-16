@@ -684,14 +684,102 @@ impl BuiltHistoryStep {
 /// block production uses [`BuiltHistoryStep`] and never materializes CSR rows.
 pub struct FrozenHistoryStep {
     r1cs: FieldR1cs,
+    /// Research/freezer witness retained so a newly composed matrix can be
+    /// satisfaction-checked before any expensive terminal freeze.
+    witness: Vec<F128>,
     useful_rows: usize,
     class_id: CanonicalHistoryStepClassId,
     preparations: HistoryStepPreparations,
 }
 
+/// Research-only exact direct-block relation. It excludes the parent-proof
+/// replay and outer HistoryStep public-I/O glue, but includes the complete
+/// selected authorization, Meta, transaction, fee and exact-State machinery.
+/// This lets heterogeneous contract witnesses be compared before freezing a
+/// new recursive matrix bank.
+#[doc(hidden)]
+pub struct FrozenDirectBlockResearch {
+    r1cs: FieldR1cs,
+    witness: Vec<F128>,
+    useful_rows: usize,
+    class_id: CanonicalHistoryStepClassId,
+}
+
+#[doc(hidden)]
+impl FrozenDirectBlockResearch {
+    pub fn matrix(&self) -> &FieldR1cs {
+        &self.r1cs
+    }
+
+    pub fn witness(&self) -> &[F128] {
+        &self.witness
+    }
+
+    pub const fn useful_rows(&self) -> usize {
+        self.useful_rows
+    }
+
+    pub const fn class_id(&self) -> CanonicalHistoryStepClassId {
+        self.class_id
+    }
+}
+
+/// Assemble the complete direct-block portion against an already natively
+/// prepared boundary, without requiring a newly frozen recursive parent.
+#[doc(hidden)]
+pub fn assemble_frozen_direct_block_research<const TIER: usize>(
+    current: HistoryStepBlockInput<TIER>,
+) -> Result<FrozenDirectBlockResearch, HistoryStepError> {
+    let HistoryStepBlockInput {
+        start_accumulator,
+        end_accumulator,
+        components,
+        authorization,
+        sealed_header,
+        parent_header,
+        ..
+    } = current;
+    let class_id = canonical_history_step_class_id(TIER).ok_or(HistoryStepError::InvalidClass)?;
+    let mut builder = FieldR1csBuilder::new();
+    let parent_id = digest_lanes(&noid_chain::hash_block_header(&parent_header))
+        .map(|value| LinExpr::from_wire(builder.alloc_f128(flat_of(value))));
+    let assembly = build_block_slots_selected_zk(
+        &mut builder,
+        &start_accumulator,
+        &end_accumulator,
+        &components,
+        &sealed_header,
+        TIER,
+        authorization,
+        &parent_header,
+        &parent_id,
+    );
+    let useful_rows = builder.num_wires();
+    finalize_selected_zk_block_region(assembly, canonical_history_step_shape(class_id).m).map_err(
+        |source| {
+            HistoryStepError::sidecar(
+                HistoryStepSidecarOperation::FinalizeCurrentDirectBlock,
+                source,
+            )
+        },
+    )?;
+    let (r1cs, witness) = builder.build();
+    Ok(FrozenDirectBlockResearch {
+        r1cs,
+        witness,
+        useful_rows,
+        class_id,
+    })
+}
+
 impl FrozenHistoryStep {
     pub fn matrix(&self) -> &FieldR1cs {
         &self.r1cs
+    }
+
+    #[doc(hidden)]
+    pub fn witness(&self) -> &[F128] {
+        &self.witness
     }
 
     pub const fn useful_rows(&self) -> usize {
@@ -2215,6 +2303,7 @@ fn finish_history_step_assembly<const TIER: usize>(
     Ok(match r1cs {
         Some(r1cs) => HistoryStepAssemblyOutput::Frozen(FrozenHistoryStep {
             r1cs,
+            witness,
             useful_rows: used,
             class_id: current_class,
             preparations,

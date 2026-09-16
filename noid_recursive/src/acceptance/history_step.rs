@@ -79,13 +79,14 @@ pub use freezer::{
     HistoryStepFreezeStage,
 };
 pub use relation::{
-    assemble_frozen_history_step_base, assemble_frozen_history_step_recursive,
-    assemble_history_step_base, assemble_history_step_recursive,
-    derive_history_step_direct_block_vk, derive_history_step_runtime_parts,
-    pin_history_step_class_bank, prepare_history_step_for_pow, prove_built_history_step_terminal,
-    prove_built_history_step_terminal_cancellable, prove_history_step,
-    verify_history_step_terminal, AcceptedHistoryStepTerminal, BuiltHistoryStep, FrozenHistoryStep,
-    HistoryStepError, HistoryStepMatrixSource, HistoryStepMatrixSourceError, HistoryStepParent,
+    assemble_frozen_direct_block_research, assemble_frozen_history_step_base,
+    assemble_frozen_history_step_recursive, assemble_history_step_base,
+    assemble_history_step_recursive, derive_history_step_direct_block_vk,
+    derive_history_step_runtime_parts, pin_history_step_class_bank, prepare_history_step_for_pow,
+    prove_built_history_step_terminal, prove_built_history_step_terminal_cancellable,
+    prove_history_step, verify_history_step_terminal, AcceptedHistoryStepTerminal,
+    BuiltHistoryStep, FrozenDirectBlockResearch, FrozenHistoryStep, HistoryStepError,
+    HistoryStepMatrixSource, HistoryStepMatrixSourceError, HistoryStepParent,
     HistoryStepParentTranscriptLayout, HistoryStepRuntime, HistoryStepRuntimeParts,
     HistoryStepSidecarOperation, HistoryStepTerminal, PreparedHistoryStepForPow,
     HISTORY_STEP_WIRE_VERSION,
@@ -106,6 +107,30 @@ pub struct AuthorizationComponentInput {
     pub tx_index: usize,
     pub tx_body_hash: [noid_core::Block128; 2],
     pub public: noid_gkr::OwnerAuthPublicInputs,
+}
+
+pub const V2_CONTRACT_PROGRAM_STEPS: usize = 8;
+pub const V2_CONTRACT_SLOTS: usize = 16;
+
+/// Research-only contract opening associated with one physical user body.
+/// It is deliberately not part of the v1 wire or consensus API.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V2ContractComponentInput {
+    /// Index in `tx_body_inputs`, including coinbase and an optional payout.
+    pub body_index: usize,
+    pub live: bool,
+    pub program: [[noid_core::Block128; 2]; V2_CONTRACT_PROGRAM_STEPS],
+    pub current: noid_core::Block128,
+    pub contexts: [noid_core::Block128; V2_CONTRACT_PROGRAM_STEPS],
+    pub next: noid_core::Block128,
+    /// Claim authority used before the deadline.
+    pub controller: [noid_core::Block128; 2],
+    /// Recovery authority used at or after the deadline.
+    pub refund_authority: [noid_core::Block128; 2],
+    pub terminal: bool,
+    pub deadline: u64,
+    pub claim_recipient: [noid_core::Block128; 2],
+    pub refund_recipient: [noid_core::Block128; 2],
 }
 
 /// Sibling-only exact-state carrier. Merkle topology is verifier-derived from
@@ -142,6 +167,9 @@ pub struct HistoryStepBlockComponents {
     pub tx_body_hashes: Vec<[noid_core::Block128; 2]>,
     pub tx_root_inputs: Vec<noid_gkr::MerklePathInputs>,
     pub authorization_inputs: Vec<AuthorizationComponentInput>,
+    /// Empty for v1. The isolated v2 feasibility builder populates at most
+    /// fixed contract-capable prefix and never serializes this field.
+    pub v2_contract_inputs: Vec<V2ContractComponentInput>,
     pub exact_state: ExactStateStructuralFrontierInputs,
 }
 

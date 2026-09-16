@@ -7,16 +7,24 @@
 
 use std::time::{Duration, Instant};
 
-use noid_core::Block128;
+use noid_core::{Block128, CanonicalSerialize};
 use noid_gkr::zk_authorization::ZkAuthorizationProof;
 use noid_gkr::{
-    prove_paged_spend_authorization, prove_wallet_authorization, verify_wallet_authorization_proof,
-    OwnerAuthWitness, WalletAuthorizationBundle,
+    prove_paged_spend_authorization, prove_v2_contract_controller_authorization,
+    prove_wallet_authorization, verify_wallet_authorization_proof, OwnerAuthWitness,
+    WalletAuthorizationBundle,
 };
-use noid_poseidon2b::primitives::{derive_address, SpendSecret, TxBodyHash};
+use noid_poseidon2b::native::compression::Poseidon2bSponge;
+use noid_poseidon2b::native::domain::{capacity_iv, DomainTag};
+use noid_poseidon2b::primitives::{derive_address, Address, SpendSecret, TxBodyHash};
+use noid_tx::body_hash::{
+    body_hash_leaves, TX8X2_LEAF_EPOCH_ANCHOR, TX8X2_LEAF_FEE, TX8X2_LEAF_FLAGS,
+    TX8X2_LEAF_OUTPUT0_DATA, TX8X2_LEAF_OUTPUT1_DATA, TX8X2_LEAF_OUTPUT1_OWNER,
+};
 use noid_tx::{
     hash_paged_spend, output_bitmap_bit, Transaction, TxBody, TxInput, TxOutput, TxPage,
-    PAGED_SPEND_END_BIT, PAGED_SPEND_START_BIT, TX_INPUTS, TX_OUTPUTS,
+    PAGED_SPEND_CONTRACT_BIT, PAGED_SPEND_END_BIT, PAGED_SPEND_START_BIT, PAGED_SPEND_TERMINAL_BIT,
+    TX_INPUTS, TX_OUTPUTS,
 };
 
 pub const BENCH_LOG_SLOTS: u32 = 24;
@@ -467,6 +475,171 @@ impl TrackedSpendable {
     }
 }
 
+const V2_RESEARCH_PROGRAM_STEPS: usize = 8;
+const V2_RESEARCH_CODE_DOMAIN: DomainTag = DomainTag::new(b"CNTCODE_");
+const V2_RESEARCH_POLICY_DOMAIN: DomainTag = DomainTag::new(b"CNTPOL__");
+const V2_RESEARCH_OBJECT_DOMAIN: DomainTag = DomainTag::new(b"CNTOBJ__");
+
+#[derive(Clone)]
+struct V2ResearchObject {
+    program: [[Block128; 2]; V2_RESEARCH_PROGRAM_STEPS],
+    current: Block128,
+    controller_seed: u128,
+    controller: [Block128; 2],
+    refund_authority_seed: u128,
+    refund_authority: [Block128; 2],
+    old_root: Address,
+    deadline: u64,
+    claim_recipient: [Block128; 2],
+    refund_recipient: [Block128; 2],
+}
+
+/// Deliberately invalid research cases used to demonstrate that each new
+/// contract boundary is enforced rather than merely carried as witness data.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum V2ResearchMutation {
+    None,
+    InvalidOpcodeOpening,
+    WrongNextOpening,
+    WrongContextOpening,
+    WrongTerminalRecipient,
+    WrongBranchAuthorization,
+}
+
+fn v2_digest_fields(bytes: [u8; 32]) -> [Block128; 2] {
+    [
+        Block128::from(u128::from_le_bytes(bytes[..16].try_into().unwrap())),
+        Block128::from(u128::from_le_bytes(bytes[16..].try_into().unwrap())),
+    ]
+}
+
+fn v2_address(fields: [Block128; 2]) -> Address {
+    let mut bytes = [0u8; 32];
+    bytes[..16].copy_from_slice(&fields[0].to_bytes());
+    bytes[16..].copy_from_slice(&fields[1].to_bytes());
+    Address(bytes)
+}
+
+fn v2_code_digest(program: &[[Block128; 2]; V2_RESEARCH_PROGRAM_STEPS]) -> [Block128; 2] {
+    let mut sponge = Poseidon2bSponge::with_iv(capacity_iv(V2_RESEARCH_CODE_DOMAIN));
+    for instruction in program {
+        sponge.absorb_pair(instruction[0], instruction[1]);
+    }
+    v2_digest_fields(sponge.finalize_no_pad())
+}
+
+fn v2_object_root(
+    program: &[[Block128; 2]; V2_RESEARCH_PROGRAM_STEPS],
+    state: Block128,
+    controller: [Block128; 2],
+    refund_authority: [Block128; 2],
+    deadline: u64,
+    claim_recipient: [Block128; 2],
+    refund_recipient: [Block128; 2],
+) -> Address {
+    let code = v2_code_digest(program);
+    let mut policy = Poseidon2bSponge::with_iv(capacity_iv(V2_RESEARCH_POLICY_DOMAIN));
+    policy.absorb_pair(code[0], code[1]);
+    policy.absorb_pair(Block128::from(deadline as u128), controller[0]);
+    policy.absorb_pair(controller[1], refund_authority[0]);
+    policy.absorb_pair(refund_authority[1], claim_recipient[0]);
+    policy.absorb_pair(claim_recipient[1], refund_recipient[0]);
+    policy.absorb_pair(refund_recipient[1], Block128::from(2u128));
+    let policy = v2_digest_fields(policy.finalize_no_pad());
+    let mut object = Poseidon2bSponge::with_iv(capacity_iv(V2_RESEARCH_OBJECT_DOMAIN));
+    object.absorb_pair(policy[0], policy[1]);
+    object.absorb_pair(state, Block128::from(0u128));
+    Address(object.finalize_no_pad())
+}
+
+fn v2_contract_context(body: &TxBody) -> [Block128; V2_RESEARCH_PROGRAM_STEPS] {
+    let leaves = body_hash_leaves(body);
+    [
+        leaves[TX8X2_LEAF_EPOCH_ANCHOR][0],
+        leaves[TX8X2_LEAF_EPOCH_ANCHOR][1],
+        leaves[TX8X2_LEAF_FEE][0],
+        leaves[TX8X2_LEAF_OUTPUT0_DATA][1],
+        leaves[TX8X2_LEAF_OUTPUT1_DATA][1],
+        leaves[TX8X2_LEAF_OUTPUT1_OWNER][0],
+        leaves[TX8X2_LEAF_OUTPUT1_OWNER][1],
+        leaves[TX8X2_LEAF_FLAGS][0],
+    ]
+}
+
+fn v2_execute_program(
+    mut state: Block128,
+    program: &[[Block128; 2]; V2_RESEARCH_PROGRAM_STEPS],
+    contexts: &[Block128; V2_RESEARCH_PROGRAM_STEPS],
+) -> Block128 {
+    for (step, instruction) in program.iter().enumerate() {
+        state = match instruction[0].to_u128() {
+            0 => state,
+            1 => state + instruction[1],
+            2 => state * instruction[1],
+            3 => state + contexts[step] * (state + instruction[1]),
+            opcode => panic!("non-canonical research opcode {opcode}"),
+        };
+    }
+    state
+}
+
+fn v2_research_object(seed: u128, index: usize, parent_height: u64) -> V2ResearchObject {
+    let controller_seed = seed.wrapping_add(0xC017_0000).wrapping_add(index as u128);
+    let controller = derive_address(&mk_secret(controller_seed)).as_fields();
+    let refund_authority_seed = seed.wrapping_add(0xBEF0_0000).wrapping_add(index as u128);
+    let refund_authority = derive_address(&mk_secret(refund_authority_seed)).as_fields();
+    let program = std::array::from_fn(|step| {
+        [
+            Block128::from(((step + index) % 4) as u128),
+            Block128::from(
+                seed.wrapping_add(0xA000_0000)
+                    .wrapping_add((index as u128) << 8)
+                    .wrapping_add(step as u128 + 1),
+            ),
+        ]
+    });
+    let current = Block128::from(
+        seed.wrapping_add(0x5700_0000)
+            .wrapping_add(index as u128 + 1),
+    );
+    let claim_recipient = derive_address(&mk_secret(
+        seed.wrapping_add(0xC1A1_0000).wrapping_add(index as u128),
+    ))
+    .as_fields();
+    let refund_recipient = derive_address(&mk_secret(
+        seed.wrapping_add(0xBACC_0000).wrapping_add(index as u128),
+    ))
+    .as_fields();
+    let child_height = parent_height + 1;
+    let deadline = if index % 2 == 0 {
+        child_height + 1
+    } else {
+        child_height
+    };
+    let old_root = v2_object_root(
+        &program,
+        current,
+        controller,
+        refund_authority,
+        deadline,
+        claim_recipient,
+        refund_recipient,
+    );
+    V2ResearchObject {
+        program,
+        current,
+        controller_seed,
+        controller,
+        refund_authority_seed,
+        refund_authority,
+        old_root,
+        deadline,
+        claim_recipient,
+        refund_recipient,
+    }
+}
+
 #[derive(Clone)]
 struct HistoryStepFixtureCheckpoint {
     parent_header: noid_chain::BlockHeader,
@@ -689,6 +862,450 @@ impl HonestHistoryStepFixtureProvider {
             .get(parent_slot)?
             .as_ref()
             .map(|checkpoint| &checkpoint.start_accumulator)
+    }
+
+    /// Build a natively checked saturated B25 child whose first `contract_count`
+    /// logical transactions consume proof-native object roots. The parent
+    /// State is a deterministic research boundary derived from the honest B25
+    /// checkpoint; no new parent terminal is claimed or required by the
+    /// direct-block matrix experiment.
+    #[doc(hidden)]
+    pub fn v2_research_b25_input(
+        &self,
+        contract_count: usize,
+    ) -> Result<noid_recursive::HistoryStepBlockInput<25>, String> {
+        self.v2_research_input::<25>(contract_count, V2ResearchMutation::None, 0, 25)
+    }
+
+    #[doc(hidden)]
+    pub fn v2_research_b25_input_with_mutation(
+        &self,
+        contract_count: usize,
+        mutation: V2ResearchMutation,
+    ) -> Result<noid_recursive::HistoryStepBlockInput<25>, String> {
+        self.v2_research_input::<25>(contract_count, mutation, 0, 25)
+    }
+
+    #[doc(hidden)]
+    pub fn v2_research_b255_input(
+        &self,
+        contract_count: usize,
+    ) -> Result<noid_recursive::HistoryStepBlockInput<255>, String> {
+        self.v2_research_input::<255>(contract_count, V2ResearchMutation::None, 1, 26)
+    }
+
+    fn v2_research_input<const TIER: usize>(
+        &self,
+        contract_count: usize,
+        mutation: V2ResearchMutation,
+        parent_slot: usize,
+        user_count: usize,
+    ) -> Result<noid_recursive::HistoryStepBlockInput<TIER>, String> {
+        if contract_count > noid_recursive::V2_CONTRACT_SLOTS {
+            return Err(format!(
+                "research B{TIER} supports at most {} contract calls",
+                noid_recursive::V2_CONTRACT_SLOTS
+            ));
+        }
+        let needs_terminal = matches!(
+            mutation,
+            V2ResearchMutation::WrongTerminalRecipient
+                | V2ResearchMutation::WrongBranchAuthorization
+        );
+        if (mutation != V2ResearchMutation::None && contract_count == 0)
+            || (needs_terminal && contract_count < 2)
+        {
+            return Err("research mutation requires a matching live contract slot".into());
+        }
+        let mut checkpoint = self.checkpoints[parent_slot]
+            .as_ref()
+            .ok_or_else(|| format!("honest B{TIER} parent checkpoint has not been built"))?
+            .clone();
+        if checkpoint.spendables.len() < user_count {
+            return Err(format!("honest B{TIER} parent has too few spendables"));
+        }
+
+        let objects = (0..contract_count)
+            .map(|index| v2_research_object(self.seed, index, checkpoint.parent_header.height))
+            .collect::<Vec<_>>();
+        for (source, object) in checkpoint
+            .spendables
+            .iter()
+            .take(contract_count)
+            .zip(&objects)
+        {
+            let old = checkpoint.parent_state.state.slot(source.slot_index);
+            if old.is_empty() {
+                return Err("research object source slot is empty".into());
+            }
+            checkpoint
+                .parent_state
+                .state
+                .set_slot(
+                    source.slot_index,
+                    noid_chain::SlotValue::with_owner_fields(
+                        old.amount(),
+                        old.creation_id(),
+                        object.old_root.as_fields(),
+                    ),
+                )
+                .map_err(|error| format!("install research object: {error:?}"))?;
+        }
+        if contract_count != 0 {
+            let root = checkpoint
+                .parent_state
+                .try_state_root()
+                .map_err(|error| format!("seal research parent State: {error}"))?;
+            checkpoint.parent_header.state_root = root;
+            checkpoint.start_accumulator.state_root = root;
+            checkpoint.start_accumulator.tip_semantic_id =
+                noid_chain::block_header::semantic_header_id(&checkpoint.parent_header);
+        }
+
+        let timestamp = checkpoint
+            .parent_header
+            .timestamp
+            .checked_add(noid_chain::consensus::params::BLOCK_TIME)
+            .ok_or_else(|| "research timestamp overflow".to_owned())?;
+        let target = noid_chain::consensus::next_target(
+            checkpoint.asert_anchor.anchor_height,
+            checkpoint.asert_anchor.anchor_timestamp,
+            &checkpoint.asert_anchor.anchor_target,
+            checkpoint.parent_header.height + 1,
+            timestamp,
+        );
+        let mut output_slot_cursor = checkpoint.output_slot_cursor;
+        let mut reserved = std::collections::BTreeSet::new();
+        let mut candidates = Vec::with_capacity(user_count);
+        let mut wallet_authorities = Vec::with_capacity(user_count - contract_count);
+        let mut contract_records = Vec::with_capacity(contract_count);
+
+        #[derive(Clone)]
+        struct ContractRecord {
+            logical_txid: TxBodyHash,
+            authority_seed: u128,
+            wrong_authority_seed: u128,
+            corrupt_authorization: bool,
+            component: noid_recursive::V2ContractComponentInput,
+        }
+
+        for (tx_index, source) in checkpoint.spendables.iter().take(user_count).enumerate() {
+            let slot = checkpoint.parent_state.state.slot(source.slot_index);
+            if slot.is_empty() {
+                return Err("research child source slot is empty".into());
+            }
+            let mut output_slots = [0u32; TX_OUTPUTS];
+            for output_slot in &mut output_slots {
+                while checkpoint.parent_state.state.slot(output_slot_cursor)
+                    != noid_chain::SlotValue::EMPTY
+                    || reserved.contains(&output_slot_cursor)
+                {
+                    output_slot_cursor = output_slot_cursor
+                        .checked_add(1)
+                        .ok_or_else(|| "research output slot overflow".to_owned())?;
+                }
+                *output_slot = output_slot_cursor;
+                reserved.insert(output_slot_cursor);
+                output_slot_cursor = output_slot_cursor
+                    .checked_add(1)
+                    .ok_or_else(|| "research output slot overflow".to_owned())?;
+            }
+            let mut inputs = [TxInput::dummy(); TX_INPUTS];
+            inputs[0] = TxInput {
+                slot_index: source.slot_index,
+                amount: slot.amount(),
+                creation_id: slot.creation_id(),
+            };
+
+            if tx_index < contract_count {
+                let object = &objects[tx_index];
+                if [slot.owner_hi, slot.owner_lo] != object.old_root.as_fields() {
+                    return Err("research object root was not installed in parent State".into());
+                }
+                let terminal = tx_index % 2 == 1;
+                let mut outputs = [TxOutput::dummy(); TX_OUTPUTS];
+                outputs[0] = TxOutput {
+                    slot_index: output_slots[0],
+                    amount: 0,
+                    owner: Address([0u8; 32]),
+                };
+                let mut body = TxBody {
+                    epoch_anchor: checkpoint.start_accumulator.epoch_anchor_id,
+                    fee: 0,
+                    input_owner: object.old_root,
+                    inputs,
+                    outputs,
+                    validity_bitmap: 1
+                        | output_bitmap_bit(0)
+                        | PAGED_SPEND_START_BIT
+                        | PAGED_SPEND_END_BIT
+                        | PAGED_SPEND_CONTRACT_BIT
+                        | if terminal {
+                            PAGED_SPEND_TERMINAL_BIT
+                        } else {
+                            0
+                        },
+                    is_coinbase: false,
+                };
+                let ordinary_floor = noid_chain::consensus::fees::fee_breakdown(
+                    1,
+                    2,
+                    checkpoint.parent_state.active_slot_count,
+                    checkpoint.parent_header.log_slots,
+                )
+                .required_total;
+                body.fee = ordinary_floor
+                    .checked_add((contract_count - tx_index) as u64)
+                    .ok_or_else(|| "research contract fee overflow".to_owned())?;
+                body.outputs[0].amount = slot
+                    .amount()
+                    .checked_sub(body.fee)
+                    .ok_or_else(|| "research object does not cover its fee".to_owned())?;
+                let contexts = v2_contract_context(&body);
+                let next = v2_execute_program(object.current, &object.program, &contexts);
+                let before_deadline = checkpoint.parent_header.height + 1 < object.deadline;
+                body.outputs[0].owner = if terminal {
+                    v2_address(if before_deadline {
+                        object.claim_recipient
+                    } else {
+                        object.refund_recipient
+                    })
+                } else {
+                    v2_object_root(
+                        &object.program,
+                        next,
+                        object.controller,
+                        object.refund_authority,
+                        object.deadline,
+                        object.claim_recipient,
+                        object.refund_recipient,
+                    )
+                };
+                if mutation == V2ResearchMutation::WrongTerminalRecipient && tx_index == 1 {
+                    body.outputs[0].owner =
+                        derive_address(&mk_secret(self.seed.wrapping_add(0xBAD0_0000_0000_0001)));
+                }
+                let page = TxPage::new(body.clone())
+                    .map_err(|error| format!("research contract page: {error}"))?;
+                let logical_txid = hash_paged_spend(std::slice::from_ref(&page))
+                    .map_err(|error| format!("research contract group: {error}"))?;
+                let mut component = noid_recursive::V2ContractComponentInput {
+                    body_index: 0,
+                    live: true,
+                    program: object.program,
+                    current: object.current,
+                    contexts,
+                    next,
+                    controller: object.controller,
+                    refund_authority: object.refund_authority,
+                    terminal,
+                    deadline: object.deadline,
+                    claim_recipient: object.claim_recipient,
+                    refund_recipient: object.refund_recipient,
+                };
+                if tx_index == 0 {
+                    match mutation {
+                        V2ResearchMutation::InvalidOpcodeOpening => {
+                            component.program[0][0] = Block128::from(4u128);
+                        }
+                        V2ResearchMutation::WrongNextOpening => {
+                            component.next += Block128::from(1u128);
+                        }
+                        V2ResearchMutation::WrongContextOpening => {
+                            component.contexts[0] += Block128::from(1u128);
+                        }
+                        _ => {}
+                    }
+                }
+                contract_records.push(ContractRecord {
+                    logical_txid,
+                    authority_seed: if before_deadline {
+                        object.controller_seed
+                    } else {
+                        object.refund_authority_seed
+                    },
+                    wrong_authority_seed: if before_deadline {
+                        object.refund_authority_seed
+                    } else {
+                        object.controller_seed
+                    },
+                    corrupt_authorization: mutation == V2ResearchMutation::WrongBranchAuthorization
+                        && tx_index == 1,
+                    component,
+                });
+                candidates.push(Transaction::new(body));
+            } else {
+                let spend_secret = source.spend_secret();
+                let owner = derive_address(&spend_secret);
+                if [slot.owner_hi, slot.owner_lo] != owner.as_fields() {
+                    return Err("research wallet source owner mismatch".into());
+                }
+                let output_seeds: [u128; TX_OUTPUTS] = std::array::from_fn(|output_index| {
+                    self.seed
+                        .wrapping_add(0x2200_0000)
+                        .wrapping_add((contract_count as u128) << 32)
+                        .wrapping_add((tx_index as u128) << 4)
+                        .wrapping_add(output_index as u128)
+                });
+                let mut outputs = [TxOutput::dummy(); TX_OUTPUTS];
+                for index in 0..TX_OUTPUTS {
+                    outputs[index] = TxOutput {
+                        slot_index: output_slots[index],
+                        amount: 1,
+                        owner: derive_address(&mk_secret(output_seeds[index])),
+                    };
+                }
+                let mut body = TxBody {
+                    epoch_anchor: checkpoint.start_accumulator.epoch_anchor_id,
+                    fee: 0,
+                    input_owner: owner,
+                    inputs,
+                    outputs,
+                    validity_bitmap: 1
+                        | output_bitmap_bit(0)
+                        | output_bitmap_bit(1)
+                        | PAGED_SPEND_START_BIT
+                        | PAGED_SPEND_END_BIT,
+                    is_coinbase: false,
+                };
+                body.fee = noid_chain::consensus::fees::required_fee_for_tx_body(
+                    &body,
+                    checkpoint.parent_state.active_slot_count,
+                    checkpoint.parent_header.log_slots,
+                );
+                let spendable = slot
+                    .amount()
+                    .checked_sub(body.fee)
+                    .ok_or_else(|| "research wallet input does not cover its fee".to_owned())?;
+                body.outputs[0].amount = spendable / 2;
+                body.outputs[1].amount = spendable - body.outputs[0].amount;
+                let page = TxPage::new(body.clone())
+                    .map_err(|error| format!("research wallet page: {error}"))?;
+                let logical_txid = hash_paged_spend(std::slice::from_ref(&page))
+                    .map_err(|error| format!("research wallet group: {error}"))?;
+                wallet_authorities.push((logical_txid, source.spend_secret_seed));
+                candidates.push(Transaction::new(body));
+            }
+        }
+
+        let miner_seed = self
+            .seed
+            .wrapping_add(0x3900_0000)
+            .wrapping_add(contract_count as u128);
+        let template = noid_chain::consensus::build_block_template(
+            &checkpoint.parent_header,
+            &checkpoint.parent_state,
+            &checkpoint.finalized_active_counts,
+            candidates,
+            derive_address(&mk_secret(miner_seed)),
+            timestamp,
+            target,
+        )
+        .map_err(|error| format!("build research B{TIER} template: {error:?}"))?;
+        if template.txs.len() != user_count {
+            return Err(format!(
+                "research B{TIER} retained {} of {user_count} users",
+                template.txs.len()
+            ));
+        }
+        for (index, tx) in template.txs.iter().enumerate() {
+            let marked = tx.body.validity_bitmap & PAGED_SPEND_CONTRACT_BIT != 0;
+            if marked != (index < contract_count) {
+                return Err("fee ordering did not retain the contract prefix".into());
+            }
+        }
+
+        let mut ordered_contracts = Vec::with_capacity(contract_count);
+        let authorization_proofs = template
+            .txs
+            .iter()
+            .map(|transaction| -> Result<ZkAuthorizationProof, String> {
+                let page = TxPage {
+                    body: transaction.body.clone(),
+                };
+                let logical_txid = hash_paged_spend(std::slice::from_ref(&page))
+                    .map_err(|error| format!("hash research PagedSpend: {error}"))?;
+                if let Some(record) = contract_records
+                    .iter()
+                    .find(|record| record.logical_txid == logical_txid)
+                {
+                    ordered_contracts.push(record.component.clone());
+                    let before_deadline =
+                        checkpoint.parent_header.height + 1 < record.component.deadline;
+                    let selected_authority = if before_deadline {
+                        record.component.controller
+                    } else {
+                        record.component.refund_authority
+                    };
+                    let wrong_authority = if before_deadline {
+                        record.component.refund_authority
+                    } else {
+                        record.component.controller
+                    };
+                    return prove_v2_contract_controller_authorization(
+                        std::slice::from_ref(&page),
+                        if record.corrupt_authorization {
+                            wrong_authority
+                        } else {
+                            selected_authority
+                        },
+                        OwnerAuthWitness::new(mk_secret(if record.corrupt_authorization {
+                            record.wrong_authority_seed
+                        } else {
+                            record.authority_seed
+                        })),
+                    )
+                    .map(|bundle| bundle.proof)
+                    .map_err(|error| format!("prove research contract controller: {error}"));
+                }
+                let seed = wallet_authorities
+                    .iter()
+                    .find_map(|(txid, seed)| (txid == &logical_txid).then_some(*seed))
+                    .ok_or_else(|| "research template lost its wallet authority".to_owned())?;
+                prove_paged_spend_authorization(
+                    std::slice::from_ref(&page),
+                    OwnerAuthWitness::new(mk_secret(seed)),
+                )
+                .map(|bundle| bundle.proof)
+                .map_err(|error| format!("prove research wallet authorization: {error}"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if ordered_contracts.len() != contract_count {
+            return Err("research template lost a contract record".into());
+        }
+
+        let block = template.into_block(0);
+        let stream = noid_chain::validate_block_page_stream(&block.transactions)
+            .map_err(|error| format!("research block stream: {error}"))?;
+        for (index, component) in ordered_contracts.iter_mut().enumerate() {
+            component.body_index = stream.user_start_index + index;
+        }
+        let end_accumulator = checkpoint
+            .start_accumulator
+            .advance(&checkpoint.parent_header, &block.header)
+            .map_err(|error| format!("advance research B{TIER} accumulator: {error:?}"))?;
+        let context = noid_block::HistoryStepPreparationContext {
+            parent_header: &checkpoint.parent_header,
+            tx_epoch_anchor_header: &checkpoint.tx_epoch_anchor_header,
+            parent_state: &checkpoint.parent_state,
+            start_accumulator: &checkpoint.start_accumulator,
+            previous_timestamps: &checkpoint.previous_timestamps,
+            finalized_active_counts: &checkpoint.finalized_active_counts,
+            asert_anchor: &checkpoint.asert_anchor,
+            local_time: timestamp,
+        };
+        let prepared = noid_block::prepare_v2_research_history_step_input_witness::<TIER>(
+            block,
+            context,
+            authorization_proofs,
+            &self.ghost,
+            ordered_contracts,
+        )
+        .map_err(|error| format!("prepare research B{TIER} HistoryStep: {error}"))?;
+        prepared
+            .finish_template(&checkpoint.start_accumulator, &end_accumulator)
+            .map(|(_, input)| input)
+            .map_err(|error| format!("finish research B{TIER} HistoryStep: {error}"))
     }
 
     fn fork<const TIER: usize>(

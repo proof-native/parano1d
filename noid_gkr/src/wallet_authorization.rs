@@ -321,6 +321,33 @@ pub fn prove_paged_spend_authorization(
     prove_selected_authorization(public, input_position, witness)
 }
 
+/// Research-v2 twin for an object contract. The logical transaction remains
+/// bound exactly as in the wallet path, while the private owner permutation
+/// proves the controller committed by the object opening rather than treating
+/// the object's State root as a wallet address. HistoryStep is responsible for
+/// binding that controller to the consumed object root.
+#[doc(hidden)]
+pub fn prove_v2_contract_controller_authorization(
+    pages: &[TxPage],
+    controller: [Block128; 2],
+    witness: OwnerAuthWitness,
+) -> Result<WalletAuthorizationBundle, ProveAuthorizationError> {
+    let canonical = canonical_paged_spend_auth(pages)?;
+    let input_position = pages
+        .iter()
+        .enumerate()
+        .find_map(|(page, page_body)| {
+            page_body
+                .body
+                .live_inputs()
+                .next()
+                .map(|(slot, _)| page * noid_tx::TX_INPUTS + slot)
+        })
+        .expect("canonical v2 contract call has a live input");
+    let public = OwnerAuthPublicInputs::new(canonical.logical_txid.as_fields(), controller);
+    prove_selected_authorization(public, input_position, witness)
+}
+
 fn prove_selected_authorization(
     public: OwnerAuthPublicInputs,
     input_position: usize,
