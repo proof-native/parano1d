@@ -1,0 +1,104 @@
+{
+  "cases": [
+    {
+      "body_pages": 25,
+      "contract_count": 0,
+      "contract_tiles": 4,
+      "fresh_boolean_rows": 4,
+      "gross_incremental_rows": 410,
+      "incremental_rows_if_type_bits_reuse_existing_boolean_aliases": 406,
+      "prefix_rows": 6,
+      "r1cs_satisfied": true,
+      "selected_values_match_native_shift": true,
+      "selection_rows": 400,
+      "statement_fields": 4,
+      "wallet_tiles": 28
+    },
+    {
+      "body_pages": 25,
+      "contract_count": 1,
+      "contract_tiles": 4,
+      "fresh_boolean_rows": 4,
+      "gross_incremental_rows": 410,
+      "incremental_rows_if_type_bits_reuse_existing_boolean_aliases": 406,
+      "prefix_rows": 6,
+      "r1cs_satisfied": true,
+      "selected_values_match_native_shift": true,
+      "selection_rows": 400,
+      "statement_fields": 4,
+      "wallet_tiles": 28
+    },
+    {
+      "body_pages": 25,
+      "contract_count": 2,
+      "contract_tiles": 4,
+      "fresh_boolean_rows": 4,
+      "gross_incremental_rows": 410,
+      "incremental_rows_if_type_bits_reuse_existing_boolean_aliases": 406,
+      "prefix_rows": 6,
+      "r1cs_satisfied": true,
+      "selected_values_match_native_shift": true,
+      "selection_rows": 400,
+      "statement_fields": 4,
+      "wallet_tiles": 28
+    },
+    {
+      "body_pages": 25,
+      "contract_count": 3,
+      "contract_tiles": 4,
+      "fresh_boolean_rows": 4,
+      "gross_incremental_rows": 410,
+      "incremental_rows_if_type_bits_reuse_existing_boolean_aliases": 406,
+      "prefix_rows": 6,
+      "r1cs_satisfied": true,
+      "selected_values_match_native_shift": true,
+      "selection_rows": 400,
+      "statement_fields": 4,
+      "wallet_tiles": 28
+    },
+    {
+      "body_pages": 25,
+      "contract_count": 4,
+      "contract_tiles": 4,
+      "fresh_boolean_rows": 4,
+      "gross_incremental_rows": 410,
+      "incremental_rows_if_type_bits_reuse_existing_boolean_aliases": 406,
+      "prefix_rows": 6,
+      "r1cs_satisfied": true,
+      "selected_values_match_native_shift": true,
+      "selection_rows": 400,
+      "statement_fields": 4,
+      "wallet_tiles": 28
+    }
+  ],
+  "established": [
+    "a fixed four-contract and twenty-eight-wallet authorization layout preserves the full twenty-five-page ordinary B25 capacity",
+    "all five possible contract counts use one identical R1CS shape",
+    "a four-stage conditional shift maps each ordinary statement past the contract prefix",
+    "the generated R1CS witnesses satisfy the matrix and every selected value matches the native index shift"
+  ],
+  "kind": "b25_fixed_contract_wallet_tile_partition_recursive_row_model",
+  "layout": {
+    "body_order": "zero to four contract pages, then ordinary wallet pages, then ghosts",
+    "contract_authorization_tiles": "0..4",
+    "contract_page_capacity": 4,
+    "ordinary_wallet_page_capacity_preserved": 25,
+    "wallet_authorization_tiles": "4..32"
+  },
+  "not_established": [
+    "production body type-bit allocation and canonical transaction ordering",
+    "heterogeneous capsule verification in the selected all-tiles relation",
+    "contract statement fields, object hashes, effect binding, or complete HistoryStep integration"
+  ],
+  "projection": {
+    "current_b25_useful_rows": 4185273,
+    "four_universal_contract_tiles_rows": 1608,
+    "partition_rows_gross": 410,
+    "projected_useful_rows_before_object_hash_and_history_links": 4187291,
+    "rows_left_in_m22_before_object_hash_and_history_links": 7013,
+    "stays_m22": true
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789498865
+}

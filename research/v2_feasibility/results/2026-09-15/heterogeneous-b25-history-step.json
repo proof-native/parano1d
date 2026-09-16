@@ -1,0 +1,166 @@
+{
+  "schema": "parano1d-v2-heterogeneous-history-step-research-v2",
+  "recorded_utc_date": "2026-09-16",
+  "base_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "prototype_revision": "590b489a2bc5c7c78dfa16241b534fd921227beb",
+  "author": "Ignotus Nemo",
+  "status": "research-prototype",
+  "tier": 25,
+  "contract_envelope": {
+    "fixed_contract_slots": 16,
+    "program_steps_per_contract": 8,
+    "program_fields_per_step": 2,
+    "transaction_body_bytes": 323,
+    "authorization_tile_capacity": 32,
+    "wallet_capable_body_positions": 25,
+    "contract_capable_prefix_positions": 16,
+    "object_modes": [
+      "continuing",
+      "terminal"
+    ],
+    "deadline_branches": [
+      "claim-before-deadline",
+      "refund-at-or-after-deadline"
+    ]
+  },
+  "relation": {
+    "direct_useful_rows": 2226648,
+    "contract_policy_rows_for_sixteen_fixed_slots": 4112,
+    "deferred_contract_execution_and_partition_rows_for_sixteen_fixed_slots": 2768,
+    "execution_rows_per_slot": 144,
+    "statement_digest_hex": "8ae7ec37e1fd4a6923e9e0b6f15c9c246191750e3f63ea0628c32d9d60506584",
+    "content_independent_for_measured_call_counts": true,
+    "measured_call_counts": [
+      0,
+      1,
+      4,
+      16
+    ]
+  },
+  "positive_cases": [
+    {
+      "contract_calls": 0,
+      "satisfied": true,
+      "fixture_preparation_ms": 24633.3,
+      "matrix_build_and_satisfaction_scan_ms": 2078.1
+    },
+    {
+      "contract_calls": 1,
+      "satisfied": true,
+      "fixture_preparation_ms": 44072.9,
+      "matrix_build_and_satisfaction_scan_ms": 4704.2,
+      "timing_note": "transiently contended single sample, retained as raw data and excluded from performance comparison"
+    },
+    {
+      "contract_calls": 4,
+      "satisfied": true,
+      "fixture_preparation_ms": 22527.8,
+      "matrix_build_and_satisfaction_scan_ms": 1559.5
+    },
+    {
+      "contract_calls": 16,
+      "satisfied": true,
+      "fixture_preparation_ms": 32581.0,
+      "matrix_build_and_satisfaction_scan_ms": 1661.2
+    }
+  ],
+  "negative_cases": [
+    {
+      "case": "invalid-opcode-opening",
+      "contract_calls": 1,
+      "same_relation_shape": true,
+      "satisfied": false
+    },
+    {
+      "case": "wrong-next-opening",
+      "contract_calls": 1,
+      "same_relation_shape": true,
+      "satisfied": false
+    },
+    {
+      "case": "wrong-context-opening",
+      "contract_calls": 1,
+      "same_relation_shape": true,
+      "satisfied": false
+    },
+    {
+      "case": "wrong-terminal-recipient",
+      "contract_calls": 2,
+      "same_relation_shape": true,
+      "satisfied": false
+    },
+    {
+      "case": "wrong-branch-authorization",
+      "contract_calls": 2,
+      "native_preparation_rejected": true,
+      "error": "HistoryStep authorization proof verification failed"
+    }
+  ],
+  "full_history_step": {
+    "fixture_contract_calls": 0,
+    "useful_rows": 4188799,
+    "padded_rows": 4194304,
+    "remaining_rows": 5505,
+    "statement_digest_hex": "f0126ac728420ea7b330aa43eea22c77cac7582269342cdcc583339c1109fb4f",
+    "satisfied": true,
+    "scope_note": "The canonical zero-call launch witness was assembled through the complete parent composition. The 16-call witness was satisfaction-checked in the identical fixed direct relation. No terminal proof was frozen."
+  },
+  "alignment_study": {
+    "before_reordering": [
+      {
+        "fixed_contract_slots": 4,
+        "full_useful_rows": 4185503,
+        "remaining_rows": 8801
+      },
+      {
+        "fixed_contract_slots": 8,
+        "full_useful_rows": 4185679,
+        "remaining_rows": 8625
+      },
+      {
+        "fixed_contract_slots": 9,
+        "full_useful_rows": 4185723,
+        "remaining_rows": 8581
+      },
+      {
+        "fixed_contract_slots": 10,
+        "full_useful_rows": 4185767,
+        "remaining_rows": 8537
+      },
+      {
+        "fixed_contract_slots": 11,
+        "full_useful_rows": 4194003,
+        "remaining_rows": 301
+      },
+      {
+        "fixed_contract_slots": 12,
+        "full_useful_rows": 4194047,
+        "remaining_rows": 257
+      },
+      {
+        "fixed_contract_slots": 16,
+        "full_useful_rows": 4194223,
+        "remaining_rows": 81
+      }
+    ],
+    "cause": "The eleventh fixed slot moved the six committed selected-region families across a dyadic allocation boundary and introduced 8192 alignment rows. The execution relation itself remained linear.",
+    "correction": "Keep only deadline-policy values required by the authorization statement before the committed-region allocation. Bind program execution, contexts, recipient and contract-prefix shape after it.",
+    "moved_real_constraints": 2768,
+    "rows_recovered_at_sixteen_slots": 5424,
+    "after_reordering_full_useful_rows": 4188799,
+    "after_reordering_remaining_rows": 5505
+  },
+  "timing_boundary": {
+    "fixture_preparation": "Builds deterministic transactions and authorization proofs for the research fixture. It is not miner block-production latency because users normally supply their authorization proofs.",
+    "matrix_build_and_satisfaction_scan": "Builds the direct relation and evaluates every constraint. It is not recursive proof construction.",
+    "samples_per_case": 1,
+    "interpretation": "Structural and adversarial feasibility evidence only. These exploratory timings do not establish latency tails or production throughput."
+  },
+  "limitations": [
+    "No new frozen matrix pack or recursive terminal proof was produced.",
+    "The complete parent-verifier composition was assembled and satisfaction-checked for B25. B255 was checked as a complete direct relation.",
+    "The instruction set, object receipt and wire ABI remain research inputs rather than a selected consensus interface.",
+    "The changed relation has not received a new end-to-end post-quantum soundness calculation.",
+    "Admission under invalid-proof load, State-witness availability, stale-proof retries, production proving and network propagation remain unmeasured."
+  ]
+}

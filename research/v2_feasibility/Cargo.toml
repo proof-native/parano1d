@@ -1,0 +1,28 @@
+[package]
+name = "paranoid-v2-feasibility"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Research only. Never part of the node, workspace tests or release binaries.
+[workspace]
+resolver = "2"
+
+[dependencies]
+bench_prover = { path = "../../bench_prover" }
+noid_core = { path = "../../noid_core" }
+noid_gkr = { path = "../../noid_gkr" }
+noid_fri_binius = { path = "../../noid_fri_binius" }
+noid_tx = { path = "../../noid_tx" }
+noid_poseidon2b = { path = "../../noid_poseidon2b" }
+noid-ivc-core = { path = "../../noid_ivc_core" }
+noid-ivc-prover = { path = "../../noid_ivc_prover" }
+noid_recursive = { path = "../../noid_recursive" }
+rayon = "1.10"
+rand_core = { version = "0.6", features = ["getrandom"] }
+bincode = "1"
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

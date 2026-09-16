@@ -1,0 +1,64 @@
+{
+  "backend": "avx2+vpclmul",
+  "rayon_threads": 12,
+  "result": {
+    "copies_batched_in_inner_proof": 1,
+    "exclusions": [
+      "dynamic public State-effect envelope",
+      "permissionless program or matrix authentication",
+      "contract interpreter and integer semantics",
+      "HistoryStep integration and its optimized region sidecar",
+      "network, storage, contention and admission"
+    ],
+    "full_replay": {
+      "allocated_proof_wires": 12801,
+      "outer_proof_bytes_bincode_expanded": 519568,
+      "outer_prove_ms": {
+        "max": 3217.354733,
+        "median": 3217.354733,
+        "min": 3217.354733
+      },
+      "outer_verify_ms": {
+        "max": 1320.572321,
+        "median": 1320.572321,
+        "min": 1320.572321
+      },
+      "padded_rows": 4194304,
+      "trace_build_and_satisfiability_ms": 3129.281415,
+      "useful_rows": 2412563,
+      "verifier_rows": 2399039
+    },
+    "hashes_per_copy": 8,
+    "inner_build_ms": 6.132890000000001,
+    "inner_padded_rows": 4096,
+    "inner_proof_bytes_bincode_expanded": 212336,
+    "inner_prove_ms_one_setup_sample": 213.827845,
+    "inner_useful_rows": 2889,
+    "kind": "complete_inline_recursive_replay_of_fixed_compiled_c1_relation",
+    "measured_samples": 1,
+    "negative_checks_passed": 1,
+    "path_free_cost_decomposition_not_a_proof": {
+      "leaf_obligations": 266,
+      "padded_rows": 262144,
+      "path_obligations": 266,
+      "proof_wires_without_paths": 9077,
+      "status": "incomplete_until_every_recorded_obligation_is_discharged",
+      "total_leaf_lanes": 8512,
+      "total_path_levels": 1862,
+      "useful_rows": 202103,
+      "verifier_rows_without_leaf_and_path_hashing": 192303
+    },
+    "raw_samples": [
+      {
+        "outer_prove_ms": 3217.354733,
+        "outer_verify_ms": 1320.572321
+      }
+    ],
+    "security_boundary": "full_replay includes inline PCS leaf and Merkle path checks",
+    "warmup_samples": 1
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789452701,
+  "whole_process_peak_rss": "VmHWM:\t 1900560 kB"
+}

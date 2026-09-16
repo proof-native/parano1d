@@ -1,0 +1,68 @@
+{
+  "backend": "avx2+vpclmul",
+  "rayon_threads": 12,
+  "result": {
+    "active_steps": 64,
+    "exclusions": [
+      "branches and control-flow soundness",
+      "memory and dynamic addressing",
+      "bounded integer semantics and overflow",
+      "multiple objects, authorization and origin rules",
+      "linking declared program and effects to an authenticated block",
+      "HistoryStep integration, network, storage and contention"
+    ],
+    "included": [
+      "two boolean opcode bits per slot",
+      "dynamic NOP ADD MUL and SQUARE+IMMEDIATE selection",
+      "full-program Poseidon2b commitment",
+      "old-to-new value execution and declared-effect equality"
+    ],
+    "incremental_rows_if_appended_without_reuse": 23563,
+    "kind": "optimistic_fixed_shape_dynamic_opcode_interpreter_floor",
+    "measured_samples": 3,
+    "negative_checks_passed": 3,
+    "padded_rows": 32768,
+    "proof_bytes_bincode_expanded": 245616,
+    "prove_ms": {
+      "max": 167.102358,
+      "median": 153.555238,
+      "min": 146.391814
+    },
+    "raw_samples": [
+      {
+        "prove_ms": 146.391814,
+        "verify_ms": 25.733594
+      },
+      {
+        "prove_ms": 167.102358,
+        "verify_ms": 45.267604000000006
+      },
+      {
+        "prove_ms": 153.555238,
+        "verify_ms": 25.015227
+      }
+    ],
+    "row_sum_projection_with_existing_b25": {
+      "combined_padded_rows": 8388608,
+      "combined_useful_rows": 4208836,
+      "existing_padded_rows": 4194304,
+      "existing_useful_rows": 4185273,
+      "geometry_multiplier": 2.0,
+      "status": "row_arithmetic_only_not_an_integrated_history_step_benchmark"
+    },
+    "same_matrix_digest_for_distinct_program_and_state_witnesses": true,
+    "shape_and_witness_build_ms": 54.324022,
+    "slots": 64,
+    "useful_rows": 23564,
+    "verify_ms": {
+      "max": 45.267604000000006,
+      "median": 25.733594,
+      "min": 25.015227
+    },
+    "warmup_samples": 1
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789488906,
+  "whole_process_peak_rss": "VmHWM:\t   42488 kB"
+}

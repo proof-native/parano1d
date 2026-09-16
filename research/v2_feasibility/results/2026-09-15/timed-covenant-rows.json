@@ -1,0 +1,88 @@
+{
+  "b25_conservative_projection": {
+    "conservative_meta_and_history_equality_link_ceiling": 160,
+    "exact_full_b25_meta_contract_ghost_useful_rows": 4185327,
+    "fixed_partition_rows": 410,
+    "four_contract_capsule_recursive_rows": 1860,
+    "four_timed_covenant_semantics_rows": 1056,
+    "padded_rows": 4194304,
+    "projected_useful_rows": 4188813,
+    "remaining_rows": 5491,
+    "stays_m22": true
+  },
+  "established": [
+    "a useful two-party timed covenant has one content-invariant R1CS shape across both boundary branches",
+    "the exact block height can remain an outer HistoryStep input, so a holder does not need to regenerate its private authorization proof for every candidate block",
+    "claimant and recipient are both selected by the authenticated deadline branch",
+    "the deadline edge is exact: claim is valid at deadline minus one and refund is valid at the deadline",
+    "wrong authority, wrong recipient and wrong output shape are rejected",
+    "four contract slots remain inside the current B25 m22 envelope under the stated conservative row projection"
+  ],
+  "invalid_cases": [
+    {
+      "name": "refund_authority_before_deadline",
+      "rejected_by_unsatisfied_r1cs": true
+    },
+    {
+      "name": "claim_authority_at_deadline",
+      "rejected_by_unsatisfied_r1cs": true
+    },
+    {
+      "name": "wrong_claim_recipient",
+      "rejected_by_unsatisfied_r1cs": true
+    },
+    {
+      "name": "wrong_refund_recipient",
+      "rejected_by_unsatisfied_r1cs": true
+    },
+    {
+      "name": "non_terminal_body_shape",
+      "rejected_by_unsatisfied_r1cs": true
+    }
+  ],
+  "kind": "timed_two_branch_covenant_recursive_row_model",
+  "measured_increment_per_contract": {
+    "deadline_u64_range_rows": 65,
+    "four_address_lane_selections_and_pins_plus_body_shape": 9,
+    "height_vs_deadline_comparison_rows": 190,
+    "matrix_digest_hex": "8ade04e4bcf3b0014c4bffff8b0888b9f9cab04e3c87fd40561c92763edeb8d7",
+    "total_rows_after_reusing_existing_height_bits": 264
+  },
+  "not_established": [
+    "the same semantics integrated into the production HistoryStep matrix",
+    "a universal instruction encoding for this predicate rather than a fixed covenant primitive",
+    "continuing objects, multiple independently controlled inputs, calls between objects or storage trees",
+    "complete soundness composition and production proving time"
+  ],
+  "same_matrix_for_all_valid_and_invalid_cases": true,
+  "schema": 1,
+  "semantics": {
+    "at_or_after_deadline": "refund authority must prove its secret and output0 must pay the committed refund recipient",
+    "before_deadline": "claim authority must prove its secret and output0 must pay the committed claim recipient",
+    "covers": [
+      "hashlock/refund escrow",
+      "delayed key recovery",
+      "inheritance or dead-man switch"
+    ],
+    "deadline_source": "old object State or an authenticated program operand",
+    "height_source": "accepted HistoryStep accumulator",
+    "proof_knows_exact_inclusion_height": false,
+    "terminal_body_shape": "one live input and output0 only"
+  },
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789501817,
+  "valid_cases": [
+    {
+      "name": "claim_one_block_before_deadline",
+      "r1cs_satisfied": true
+    },
+    {
+      "name": "refund_exactly_at_deadline",
+      "r1cs_satisfied": true
+    },
+    {
+      "name": "refund_after_deadline",
+      "r1cs_satisfied": true
+    }
+  ]
+}

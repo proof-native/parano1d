@@ -1,0 +1,171 @@
+{
+  "baseline_tx_spine_slots": 7936,
+  "cases": [
+    {
+      "column_cells": 4194304,
+      "combined_prove": {
+        "max_ms": 1012,
+        "median_ms": 1012,
+        "min_ms": 1012,
+        "samples_ms": [
+          1012
+        ]
+      },
+      "contract_calls": 0,
+      "live_slots": 7936,
+      "main_prove": {
+        "max_ms": 797,
+        "median_ms": 797,
+        "min_ms": 797,
+        "samples_ms": [
+          797
+        ]
+      },
+      "mle_build_ms": 244,
+      "native_verify": {
+        "max_ms": 2,
+        "median_ms": 2,
+        "min_ms": 2,
+        "samples_ms": [
+          2
+        ]
+      },
+      "num_vars": 22,
+      "object_hash_slots": 0,
+      "permutations_per_call": 14,
+      "same_dyadic_envelope_as_tier_baseline": true,
+      "serialized_main_plus_shift_bytes": 4480,
+      "shift_prove": {
+        "max_ms": 214,
+        "median_ms": 214,
+        "min_ms": 214,
+        "samples_ms": [
+          214
+        ]
+      },
+      "slot_envelope": 8192,
+      "slot_slack_after": 256,
+      "tier": 255,
+      "tx_spine_slots": 7936
+    },
+    {
+      "column_cells": 4194304,
+      "combined_prove": {
+        "max_ms": 984,
+        "median_ms": 984,
+        "min_ms": 984,
+        "samples_ms": [
+          984
+        ]
+      },
+      "contract_calls": 1,
+      "live_slots": 7950,
+      "main_prove": {
+        "max_ms": 764,
+        "median_ms": 764,
+        "min_ms": 764,
+        "samples_ms": [
+          764
+        ]
+      },
+      "mle_build_ms": 259,
+      "native_verify": {
+        "max_ms": 3,
+        "median_ms": 3,
+        "min_ms": 3,
+        "samples_ms": [
+          3
+        ]
+      },
+      "num_vars": 22,
+      "object_hash_slots": 14,
+      "permutations_per_call": 14,
+      "same_dyadic_envelope_as_tier_baseline": true,
+      "serialized_main_plus_shift_bytes": 4480,
+      "shift_prove": {
+        "max_ms": 219,
+        "median_ms": 219,
+        "min_ms": 219,
+        "samples_ms": [
+          219
+        ]
+      },
+      "slot_envelope": 8192,
+      "slot_slack_after": 242,
+      "tier": 255,
+      "tx_spine_slots": 7936
+    },
+    {
+      "column_cells": 4194304,
+      "combined_prove": {
+        "max_ms": 1017,
+        "median_ms": 1017,
+        "min_ms": 1017,
+        "samples_ms": [
+          1017
+        ]
+      },
+      "contract_calls": 16,
+      "live_slots": 8160,
+      "main_prove": {
+        "max_ms": 796,
+        "median_ms": 796,
+        "min_ms": 796,
+        "samples_ms": [
+          796
+        ]
+      },
+      "mle_build_ms": 223,
+      "native_verify": {
+        "max_ms": 3,
+        "median_ms": 3,
+        "min_ms": 3,
+        "samples_ms": [
+          3
+        ]
+      },
+      "num_vars": 22,
+      "object_hash_slots": 224,
+      "permutations_per_call": 14,
+      "same_dyadic_envelope_as_tier_baseline": true,
+      "serialized_main_plus_shift_bytes": 4480,
+      "shift_prove": {
+        "max_ms": 220,
+        "median_ms": 220,
+        "min_ms": 220,
+        "samples_ms": [
+          220
+        ]
+      },
+      "slot_envelope": 8192,
+      "slot_slack_after": 32,
+      "tier": 255,
+      "tx_spine_slots": 7936
+    }
+  ],
+  "dyadic_slot_envelope": 8192,
+  "established": [
+    "The configured program/object hashing budget is represented by the exact measured number of appended Poseidon2b permutation slots per call.",
+    "The tested augmented slot counts remain in the same production block-spine dyadic envelope.",
+    "Production block-spine main and shift sumchecks accept the augmented arbitrary permutation slots.",
+    "Main-plus-shift proof byte length is unchanged while num_vars is unchanged."
+  ],
+  "generated_unix_seconds": 1789497831,
+  "kind": "v2-augmented-block-spine-timing",
+  "maximum_calls_without_envelope_growth": 18,
+  "not_established": [
+    "A mixed Tx8x2/object descriptor that derives every object slot input from capsule statement wires.",
+    "Four final old/new root pins per call against the selected transaction input and output owners.",
+    "Recursive trace rows for the mixed descriptor and pins.",
+    "Shared PCS opening, region-sidecar integration, or complete HistoryStep timing.",
+    "Network serialization or propagation impact from public contract statement fields."
+  ],
+  "object_permutations_per_contract_call": 14,
+  "physical_user_page_limit": 255,
+  "rayon_threads": "12",
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "status": "native-main-and-shift-measured-integration-not-established",
+  "tier": 255,
+  "tier_body_instances": 256,
+  "unused_permutation_slots_before_contracts": 256
+}

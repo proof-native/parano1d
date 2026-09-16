@@ -1,0 +1,189 @@
+{
+  "algebraic_cases": [
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000000",
+      "current_state_hex": "00000000000000000000000000000009",
+      "explicit_masked_carrier_ms": 149.368461,
+      "main_relation_max_degree": 3,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "arithmetic_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "00000000000000000000000000000014",
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000000e15",
+      "public_boundary_claims": 8,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 3.849201,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "9cfdeaf45d292ea4ad2ebfff42141d3f",
+        "e25944522a362d0e42b18d3c0fe79211"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "trace_rows_used": 17
+    },
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000001",
+      "current_state_hex": "0000000000000000000000000000000b",
+      "explicit_masked_carrier_ms": 161.857479,
+      "main_relation_max_degree": 4,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "context_selected_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "000000000000000000000000000000d6",
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000001eab",
+      "public_boundary_claims": 8,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 2.020296,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "e27d817668b8de9adda7511c4db14fa9",
+        "45e1193265e1038d17f47930bc78fd51"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "trace_rows_used": 17
+    }
+  ],
+  "established": [
+    "two distinct 128-bit programs use one fixed transition relation",
+    "existing 2^11 bank and 512-cell State-table geometry",
+    "eleven masked MLE-check rounds with degree-ten serialized shape",
+    "five terminal dynamic operand claims",
+    "current and next State plus context and nonce boundary binding",
+    "program, State, context and nonce statement digest sensitivity",
+    "fresh authorization PCS commitment and complete Phase A/Phase B proof",
+    "canonical allocation-bounded wire encode/decode roundtrip",
+    "complete native verification after wire decoding",
+    "joint hiding and conditioned companion certificates recompute",
+    "proof payload keeps the current authorization wire geometry"
+  ],
+  "full_pcs_cases": [
+    {
+      "call_nonce_hex": "00000000000000000000000000000011",
+      "conditioned_companion_certificate_recomputed": true,
+      "context_hex": "00000000000000000000000000000000",
+      "current_state_hex": "00000000000000000000000000000009",
+      "decode_median_ms": 0.024569,
+      "decode_ms": [
+        0.034381,
+        0.024569,
+        0.023506000000000003
+      ],
+      "distinct_queries": [
+        65,
+        65,
+        64
+      ],
+      "joint_hiding_certificate_recomputed": true,
+      "modeled_bytes": [
+        89672,
+        89992,
+        89512
+      ],
+      "name": "arithmetic_state_transition",
+      "negative_checks_passed": 5,
+      "next_state_hex": "00000000000000000000000000000014",
+      "owner_proof_bytes": 3744,
+      "program_word_hex": "00000000000000000000000000000e15",
+      "prove_median_ms": 549.2443529999999,
+      "prove_ms": [
+        512.040219,
+        571.4423370000001,
+        549.2443529999999
+      ],
+      "samples": 3,
+      "statement_transcript_lanes": 4,
+      "verify_median_ms": 27.223601,
+      "verify_ms": [
+        54.592565,
+        27.148364,
+        27.223601
+      ],
+      "wire_bytes": [
+        89720,
+        90040,
+        89560
+      ],
+      "wire_bytes_max": 90040,
+      "wire_bytes_min": 89560,
+      "wire_roundtrip_verified": true
+    },
+    {
+      "call_nonce_hex": "00000000000000000000000000000012",
+      "conditioned_companion_certificate_recomputed": true,
+      "context_hex": "00000000000000000000000000000001",
+      "current_state_hex": "0000000000000000000000000000000b",
+      "decode_median_ms": 0.024215,
+      "decode_ms": [
+        0.02381,
+        0.024462,
+        0.024215
+      ],
+      "distinct_queries": [
+        64,
+        65,
+        65
+      ],
+      "joint_hiding_certificate_recomputed": true,
+      "modeled_bytes": [
+        89960,
+        89576,
+        89448
+      ],
+      "name": "context_selected_state_transition",
+      "negative_checks_passed": 5,
+      "next_state_hex": "000000000000000000000000000000d6",
+      "owner_proof_bytes": 3744,
+      "program_word_hex": "00000000000000000000000000001eab",
+      "prove_median_ms": 514.911259,
+      "prove_ms": [
+        514.70267,
+        514.911259,
+        545.277959
+      ],
+      "samples": 3,
+      "statement_transcript_lanes": 4,
+      "verify_median_ms": 26.97693,
+      "verify_ms": [
+        26.97693,
+        26.974923,
+        27.123603
+      ],
+      "wire_bytes": [
+        90008,
+        89624,
+        89496
+      ],
+      "wire_bytes_max": 90008,
+      "wire_bytes_min": 89496,
+      "wire_roundtrip_verified": true
+    }
+  ],
+  "kind": "programmable_authorization_capsule_complete_native_pcs_and_wire_not_historystep",
+  "not_established": [
+    "recursive HistoryStep acceptance",
+    "binding the research policy statement to the production Tx8x2 body",
+    "contract code larger than 128 bits",
+    "branches, memory, bounded integers, multiple objects and read-only references",
+    "privacy of contract State",
+    "soundness accounting for a changed relation"
+  ],
+  "same_existing_bank_geometry": true,
+  "same_verifier_algorithm_for_distinct_non_whitelisted_programs": true,
+  "schema": 2,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789491410
+}

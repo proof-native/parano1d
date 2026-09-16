@@ -1,0 +1,205 @@
+{
+  "algebraic_cases": [
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000000",
+      "current_state_hex": "00000000000000000000000000000009",
+      "explicit_masked_carrier_ms": 459.824809,
+      "main_relation_max_degree": 10,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "arithmetic_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "00000000000000000000000000000014",
+      "owner_trace_rows_used": 67,
+      "policy_trace_rows_used": 17,
+      "policy_trace_start_row": 96,
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000000e15",
+      "public_boundary_claims": 12,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 14.551747,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "9cfdeaf45d292ea4ad2ebfff42141d3f",
+        "e25944522a362d0e42b18d3c0fe79211"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "total_nonoverlapping_state_rows_used": 84
+    },
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000001",
+      "current_state_hex": "0000000000000000000000000000000b",
+      "explicit_masked_carrier_ms": 447.010043,
+      "main_relation_max_degree": 10,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "context_selected_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "000000000000000000000000000000d6",
+      "owner_trace_rows_used": 67,
+      "policy_trace_rows_used": 17,
+      "policy_trace_start_row": 96,
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000001eab",
+      "public_boundary_claims": 12,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 6.085572,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "e27d817668b8de9adda7511c4db14fa9",
+        "45e1193265e1038d17f47930bc78fd51"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "total_nonoverlapping_state_rows_used": 84
+    }
+  ],
+  "established": [
+    "the current 66-round private owner permutation and a policy trace coexist in nonoverlapping rows of one committed State table",
+    "one unified degree-ten Boolean relation enforces owner knowledge and policy execution",
+    "two distinct 128-bit programs use one fixed transition relation",
+    "existing 2^11 bank and 512-cell State-table geometry",
+    "eleven masked MLE-check rounds with degree-ten serialized shape",
+    "the composite relation retains the same five terminal dynamic operand claims",
+    "current and next State plus context and nonce boundary binding",
+    "program, State, context and nonce statement digest sensitivity",
+    "fresh authorization PCS commitment and complete Phase A/Phase B proof",
+    "canonical allocation-bounded wire encode/decode roundtrip",
+    "complete native verification after wire decoding",
+    "joint hiding and conditioned companion certificates recompute",
+    "proof payload keeps the current authorization wire geometry and byte ceiling"
+  ],
+  "full_pcs_cases": [
+    {
+      "call_nonce_hex": "00000000000000000000000000000011",
+      "conditioned_companion_certificate_recomputed": true,
+      "context_hex": "00000000000000000000000000000000",
+      "current_state_hex": "00000000000000000000000000000009",
+      "decode_median_ms": 0.023632,
+      "decode_ms": [
+        0.025724999999999998,
+        0.022773,
+        0.023632
+      ],
+      "distinct_queries": [
+        64,
+        65,
+        64
+      ],
+      "joint_hiding_certificate_recomputed": true,
+      "modeled_bytes": [
+        89000,
+        89512,
+        89224
+      ],
+      "name": "arithmetic_state_transition",
+      "negative_checks_passed": 6,
+      "next_state_hex": "00000000000000000000000000000014",
+      "owner_address_hex": [
+        "fbc30e5a49d7e355c5ed99dfc29d3a9c",
+        "bf05210a474af0d36035a24cc219fedb"
+      ],
+      "owner_proof_bytes": 3744,
+      "program_word_hex": "00000000000000000000000000000e15",
+      "prove_median_ms": 912.363051,
+      "prove_ms": [
+        912.363051,
+        877.372119,
+        925.576445
+      ],
+      "samples": 3,
+      "statement_transcript_lanes": 4,
+      "verify_median_ms": 37.82919,
+      "verify_ms": [
+        37.771265,
+        37.911507,
+        37.82919
+      ],
+      "wire_bytes": [
+        89048,
+        89560,
+        89272
+      ],
+      "wire_bytes_max": 89560,
+      "wire_bytes_min": 89048,
+      "wire_roundtrip_verified": true
+    },
+    {
+      "call_nonce_hex": "00000000000000000000000000000012",
+      "conditioned_companion_certificate_recomputed": true,
+      "context_hex": "00000000000000000000000000000001",
+      "current_state_hex": "0000000000000000000000000000000b",
+      "decode_median_ms": 0.023222,
+      "decode_ms": [
+        0.022678,
+        0.023222,
+        0.023314
+      ],
+      "distinct_queries": [
+        65,
+        65,
+        65
+      ],
+      "joint_hiding_certificate_recomputed": true,
+      "modeled_bytes": [
+        89064,
+        89320,
+        89288
+      ],
+      "name": "context_selected_state_transition",
+      "negative_checks_passed": 6,
+      "next_state_hex": "000000000000000000000000000000d6",
+      "owner_address_hex": [
+        "5805839a6a3739c8e41f25e0ddb33f43",
+        "a06e15b1f9d921e9344654a9893a14fe"
+      ],
+      "owner_proof_bytes": 3744,
+      "program_word_hex": "00000000000000000000000000001eab",
+      "prove_median_ms": 936.063133,
+      "prove_ms": [
+        958.562967,
+        892.9630629999999,
+        936.063133
+      ],
+      "samples": 3,
+      "statement_transcript_lanes": 4,
+      "verify_median_ms": 37.873837,
+      "verify_ms": [
+        37.781093,
+        38.421846,
+        37.873837
+      ],
+      "wire_bytes": [
+        89112,
+        89368,
+        89336
+      ],
+      "wire_bytes_max": 89368,
+      "wire_bytes_min": 89112,
+      "wire_roundtrip_verified": true
+    }
+  ],
+  "kind": "composite_private_owner_plus_programmable_policy_complete_native_pcs_and_wire_not_historystep",
+  "not_established": [
+    "recursive HistoryStep acceptance",
+    "binding the research policy statement to the production Tx8x2 body",
+    "contract code larger than 128 bits",
+    "branches, memory, bounded integers, multiple objects and read-only references",
+    "privacy of contract State",
+    "soundness accounting for a changed relation"
+  ],
+  "same_existing_bank_geometry": true,
+  "same_verifier_algorithm_for_distinct_non_whitelisted_programs": true,
+  "schema": 2,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789493735
+}

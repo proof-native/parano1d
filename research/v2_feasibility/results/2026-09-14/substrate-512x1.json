@@ -1,0 +1,63 @@
+{
+  "backend": "avx2+vpclmul",
+  "cpu": "model name\t: 13th Gen Intel(R) Core(TM) i7-1365U",
+  "rayon_threads": 12,
+  "result": {
+    "codeword_bytes": 16777216,
+    "commitment_and_proof_bytes_bincode_expanded": 367740,
+    "copies_in_one_proof": 1,
+    "exclusions": [
+      "FROST-GKR batching",
+      "program authentication/interpreter",
+      "ZK for arbitrary witnesses",
+      "HistoryStep recursive integration",
+      "State reads and writes",
+      "network and storage",
+      "consensus admission"
+    ],
+    "field_rows_log2": 18,
+    "hashes_per_copy": 512,
+    "kind": "hash_proxy_closed_native_c1_not_recursive_contract",
+    "log_batch_size": 5,
+    "log_inv_rate": 2,
+    "matrix_nnz": 3795494,
+    "measured_samples": 3,
+    "negative_checks_passed": 3,
+    "padded_rows": 262144,
+    "proof_bytes_bincode_expanded": 367680,
+    "prove_ms": {
+      "max": 311.33239299999997,
+      "median": 289.853416,
+      "min": 288.157449
+    },
+    "queries": 133,
+    "raw_samples": [
+      {
+        "prove_ms": 289.853416,
+        "verify_ms": 131.693994
+      },
+      {
+        "prove_ms": 311.33239299999997,
+        "verify_ms": 140.52524699999998
+      },
+      {
+        "prove_ms": 288.157449,
+        "verify_ms": 149.54493
+      }
+    ],
+    "shape_build_ms": 298.38428700000003,
+    "shape_preparation_ms": 1914.758567,
+    "useful_rows": 184329,
+    "verify_ms": {
+      "max": 149.54493,
+      "median": 140.52524699999998,
+      "min": 131.693994
+    },
+    "warmup_samples": 1,
+    "witness_bytes": 4194304
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789419247,
+  "whole_process_peak_rss": "VmHWM:\t  297796 kB"
+}

@@ -1,0 +1,106 @@
+{
+  "augmented": {
+    "contract_slots_per_transaction_block": 14,
+    "domain_slots": 4096,
+    "fixed_hi_gate_lengths": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "fixed_low_logs": [
+      6,
+      6,
+      6,
+      6
+    ],
+    "fixed_pattern_count": 4,
+    "kind": "tx_wrap_plus_contract_commitments",
+    "object_root_pins_for_real_calls": 16,
+    "permutations_built_for_real_contracts": 56,
+    "proof_component_sizes": {
+      "selection": 912,
+      "shifts": 1632,
+      "substitution": 880,
+      "total_component_bytes": 109560,
+      "walk": 106136
+    },
+    "prove_median_micros": 178724,
+    "real_contract_calls": 4,
+    "roundtrip_verified": true,
+    "semantic_input_cell_pins_for_real_calls": 112,
+    "substitution_claimed_refs": 6,
+    "substitution_shift_refs": 4,
+    "substitution_terms": 8,
+    "unused_tail_slots": 17,
+    "verify_and_pin_median_micros": 13751,
+    "w_log": 12
+  },
+  "baseline": {
+    "contract_slots_per_transaction_block": 0,
+    "domain_slots": 4096,
+    "fixed_hi_gate_lengths": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "fixed_low_logs": [
+      6,
+      6,
+      6,
+      6
+    ],
+    "fixed_pattern_count": 4,
+    "kind": "tx_wrap_only",
+    "object_root_pins_for_real_calls": 0,
+    "permutations_built_for_real_contracts": 0,
+    "proof_component_sizes": {
+      "selection": 912,
+      "shifts": 1632,
+      "substitution": 880,
+      "total_component_bytes": 109560,
+      "walk": 106136
+    },
+    "prove_median_micros": 173400,
+    "real_contract_calls": 0,
+    "roundtrip_verified": true,
+    "semantic_input_cell_pins_for_real_calls": 0,
+    "substitution_claimed_refs": 6,
+    "substitution_shift_refs": 4,
+    "substitution_terms": 8,
+    "unused_tail_slots": 31,
+    "verify_and_pin_median_micros": 12764,
+    "w_log": 12
+  },
+  "corrupted_program_cell_rejected_by_boundary_pin": true,
+  "established": [
+    "the contract code and old/new object commitment schedule fits in the existing 31-slot tail of every B25 Meta-A transaction block",
+    "extending the existing Tx8x2 wrap sponge patterns keeps the same four fixed tables, their low-log and high-gate arity, the same eight substitution terms, the same claimed refs and the same shift layout",
+    "the Meta-A walk domain remains 2^12 and the measured standalone proof component byte count is identical",
+    "four real calls require no additional deep-chain walk and their program/object hashes round-trip through the actual Poseidon2b walk",
+    "a corrupted program cell is rejected by the original semantic boundary pin"
+  ],
+  "kind": "b25_contract_commitments_inside_existing_meta_a_wrap_family",
+  "layout": {
+    "body_tree": "0..32",
+    "contract_code_commitment": "33..41 (8 permutations for 16 program fields)",
+    "current_object_commitment": "41..44 (code digest, State, controller, version)",
+    "meta_a_domain": "2^12 slots, unchanged",
+    "next_object_commitment": "44..47 (code digest, State, controller, version)",
+    "per_transaction_block": "64 slots",
+    "remaining_padding": "47..64",
+    "tx8x2_wrap": 32
+  },
+  "not_established": [
+    "the complete production Meta-A union after changing its canonical wrap tables",
+    "the recursive cell-pin links to the capsule bank and Tx body",
+    "a final contract context/effect ABI or integrated HistoryStep timing",
+    "a new end-to-end soundness certificate"
+  ],
+  "proof_component_bytes_unchanged": true,
+  "recursive_relation_shape_unchanged": true,
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789499691
+}
