@@ -3196,6 +3196,14 @@ mod tests {
         assert!(context.store.get_undo_log(1).unwrap().is_some());
         assert!(context.store.get_undo_log(2).unwrap().is_some());
         assert!(context.store.get_recent_block(1).unwrap().is_some());
+        assert_eq!(
+            context
+                .store
+                .get_recent_canonical_block(1)
+                .unwrap()
+                .as_deref(),
+            Some(first.block_bytes())
+        );
         assert!(context
             .store
             .get_recent_accepted_block_bundle_bounded(1)
@@ -3212,6 +3220,14 @@ mod tests {
                 .get_recent_accepted_block_bundle_bounded(2)
                 .unwrap(),
             Some(second.encode())
+        );
+        assert_eq!(
+            context
+                .store
+                .get_recent_canonical_block(2)
+                .unwrap()
+                .as_deref(),
+            Some(second.block_bytes())
         );
         assert!(!context
             .store
@@ -3351,6 +3367,22 @@ mod tests {
         assert_eq!(result.applied_heights, vec![1, 2]);
         assert_eq!(context.tip_height(), 2);
         assert_eq!(context.tip_hash(), second.block_hash());
+        assert_eq!(
+            context
+                .store
+                .get_recent_canonical_block(1)
+                .unwrap()
+                .as_deref(),
+            Some(first.block_bytes())
+        );
+        assert_eq!(
+            context
+                .store
+                .get_recent_canonical_block(2)
+                .unwrap()
+                .as_deref(),
+            Some(second.block_bytes())
+        );
         assert!(context
             .store
             .get_history_step_terminal_at(1, first.block_hash())

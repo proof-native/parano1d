@@ -329,16 +329,14 @@ pub fn reconcile_receipts_at_startup(
     let mut history_changed = false;
     if first <= tip {
         for height in first..=tip {
-            let Some(bundle_bytes) = chain
+            let Some(block_bytes) = chain
                 .store
-                .get_recent_accepted_block_bundle_bounded(height)
-                .map_err(|error| format!("load retained accepted block {height}: {error}"))?
+                .get_recent_canonical_block(height)
+                .map_err(|error| format!("load retained canonical block {height}: {error}"))?
             else {
                 continue;
             };
-            let bundle = noid_chain::AcceptedBlockBundle::decode(&bundle_bytes)
-                .map_err(|error| format!("decode retained accepted block {height}: {error}"))?;
-            let block = noid_chain::block::Block::from_bytes(bundle.block_bytes())
+            let block = noid_chain::block::Block::from_bytes(&block_bytes)
                 .map_err(|error| format!("decode retained block body {height}: {error:?}"))?;
             let (block_recovered, block_history_changed) = recover_outgoing_receipts_from_block(
                 wallet,

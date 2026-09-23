@@ -285,6 +285,11 @@ impl MdbxHistoricalReadSnapshot<'_> {
         let Some(ObjectLength(block_len)) = block_len else {
             return Ok(None);
         };
+        if block_len > crate::consensus::wire_limits::MAX_BLOCK_BYTES {
+            return Err(StoreError::Decode(
+                "accepted block length exceeds hard bounds",
+            ));
+        }
         let block_bytes: Vec<u8> = self
             .txn
             .get(&blocks, &key)?
@@ -2041,6 +2046,13 @@ impl MdbxStore {
         let txn = self.db.begin_ro_txn()?;
         let tbl = txn.open_table(Some(T_RECENT_BLOCKS))?;
         Ok(txn.get(&tbl, &u64_key(height))?)
+    }
+
+    /// Read a retained body and check its height and canonical header in one
+    /// MDBX snapshot. A body covered by a recursive-suffix marker is available
+    /// here even though it cannot be served as a standalone proof bundle.
+    pub fn get_recent_canonical_block(&self, height: u64) -> Result<Option<Vec<u8>>, StoreError> {
+        self.historical_read_snapshot()?.get_recent_block(height)
     }
 
     /// Read one bounded content-addressed block body independently of the
@@ -4737,6 +4749,50 @@ mod tests {
     }
 
     #[test]
+    fn canonical_retained_body_checks_height_header_and_size() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = MdbxStore::open(directory.path()).unwrap();
+        let (genesis, meta) = commit_genesis(&store);
+        let original = block(&genesis, 1, 7);
+        commit_accepted_test_block(&store, &original, &meta);
+
+        let mut wrong_height = original.clone();
+        wrong_height.header.height = 2;
+        let mut displaced = original.clone();
+        displaced.header.nonce += 1;
+        for (bytes, reason) in [
+            (
+                wrong_height.to_bytes(),
+                "accepted block height differs from its key",
+            ),
+            (displaced.to_bytes(), "accepted block body is not canonical"),
+            (vec![0], "accepted block body is malformed"),
+            (
+                vec![0; crate::consensus::wire_limits::MAX_BLOCK_BYTES + 1],
+                "accepted block length exceeds hard bounds",
+            ),
+        ] {
+            let txn = store.db.begin_rw_txn().unwrap();
+            let recent = txn.open_table(Some(T_RECENT_BLOCKS)).unwrap();
+            txn.put(&recent, u64_key(1), bytes, WriteFlags::empty())
+                .unwrap();
+            txn.commit().unwrap();
+            assert!(matches!(
+                store.get_recent_canonical_block(1),
+                Err(StoreError::Decode(message)) if message == reason
+            ));
+        }
+
+        // Body absence is ordinary pruning; the permanent header remains.
+        let txn = store.db.begin_rw_txn().unwrap();
+        let recent = txn.open_table(Some(T_RECENT_BLOCKS)).unwrap();
+        txn.del(&recent, u64_key(1), None).unwrap();
+        txn.commit().unwrap();
+        assert!(store.get_header(1).unwrap().is_some());
+        assert_eq!(store.get_recent_canonical_block(1).unwrap(), None);
+    }
+
+    #[test]
     fn non_genesis_commit_requires_and_persists_one_complete_bundle() {
         let directory = tempfile::tempdir().unwrap();
         let store = MdbxStore::open(directory.path()).unwrap();
@@ -4793,6 +4849,10 @@ mod tests {
             Some(bundle.history_step_terminal_bytes())
         );
         assert_eq!(store.get_chain_tip().unwrap(), Some((1, hash)));
+        assert_eq!(
+            store.get_recent_canonical_block(1).unwrap(),
+            Some(block.to_bytes())
+        );
 
         // Canonical height rows may later become recursive markers or be
         // displaced by a reorg. The independent recent proof object remains
@@ -5059,6 +5119,7 @@ mod tests {
         let boundary = tip - RETAINED_BLOCK_SERVING_DEPTH;
         let boundary_hash = crate::hash_block_header(&store.get_header(boundary).unwrap().unwrap());
         assert_eq!(store.get_recent_block(boundary).unwrap(), None);
+        assert_eq!(store.get_recent_canonical_block(boundary).unwrap(), None);
         assert!(store
             .get_history_step_terminal_at(boundary, boundary_hash)
             .unwrap()

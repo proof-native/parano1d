@@ -468,7 +468,9 @@ pub struct RetainedBlockInfo {
     /// Decimal u128 string; a complete block can aggregate more than u64.
     pub total_fees_micronoid: String,
     pub block_bytes: u64,
+    /// Zero when the retained body has no standalone HistoryStep terminal.
     pub history_step_bytes: u64,
+    /// Zero when no standalone accepted block bundle is available.
     pub bundle_bytes: u64,
     pub transactions: Vec<BlockTransactionInfo>,
 }

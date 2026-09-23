@@ -116,12 +116,10 @@ fn block_header_info(header: &noid_chain::BlockHeader) -> BlockHeaderInfo {
 
 fn retained_transaction_summaries(
     header: &noid_chain::BlockHeader,
-    bundle_bytes: &[u8],
+    block_bytes: &[u8],
     address: Option<&noid_poseidon2b::primitives::Address>,
 ) -> Result<Vec<RecentTransactionInfo>, String> {
-    let bundle = noid_chain::AcceptedBlockBundle::decode(bundle_bytes)
-        .map_err(|error| format!("decode retained block bundle: {error}"))?;
-    let block = noid_chain::Block::from_bytes(bundle.block_bytes())
+    let block = noid_chain::Block::from_bytes(block_bytes)
         .map_err(|error| format!("decode retained block: {error:?}"))?;
     if block.header != *header {
         return Err("retained block header does not match canonical header".into());
@@ -1796,7 +1794,7 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn get_block(&self, height: u64) -> RpcResult<Option<String>> {
         let chain = self.chain.read().await;
-        match chain.store.get_recent_block(height) {
+        match chain.store.get_recent_canonical_block(height) {
             Ok(Some(bytes)) => Ok(Some(hex::encode(bytes))),
             Ok(None) => Ok(None),
             Err(e) => Err(rpc_err(e.to_string())),
@@ -1804,7 +1802,7 @@ impl ParanoidApiServer for RpcHandler {
     }
 
     async fn get_block_details(&self, height: u64) -> RpcResult<Option<BlockDetailsInfo>> {
-        let (header, retained_bytes) = {
+        let (header, retained_bytes, bundle_bytes) = {
             let chain = self.chain.read().await;
             let Some(header) = chain
                 .get_header_from_store(height)
@@ -1814,21 +1812,37 @@ impl ParanoidApiServer for RpcHandler {
             };
             let retained = chain
                 .store
+                .get_recent_canonical_block(height)
+                .map_err(|error| rpc_err(error.to_string()))?;
+            // A recursive-suffix marker authorizes the retained body but is
+            // not a standalone terminal. Bundle availability only controls
+            // the informational proof sizes, never the transaction list.
+            let bundle = chain
+                .store
                 .get_recent_accepted_block_bundle_bounded(height)
                 .map_err(|error| rpc_err(error.to_string()))?;
-            (header, retained)
+            (header, retained, bundle)
         };
         let header_info = block_header_info(&header);
-        let Some(bundle_bytes) = retained_bytes else {
+        let Some(block_bytes) = retained_bytes else {
             return Ok(Some(BlockDetailsInfo {
                 header: header_info,
                 retained: None,
             }));
         };
 
-        let bundle = noid_chain::AcceptedBlockBundle::decode(&bundle_bytes)
-            .map_err(|error| rpc_err(format!("decode retained block bundle: {error}")))?;
-        let block = noid_chain::Block::from_bytes(bundle.block_bytes())
+        let (history_step_bytes, bundle_len) = match bundle_bytes {
+            Some(bytes) => {
+                let bundle = noid_chain::AcceptedBlockBundle::decode(&bytes)
+                    .map_err(|error| rpc_err(format!("decode retained block bundle: {error}")))?;
+                (
+                    bundle.history_step_terminal_bytes().len() as u64,
+                    bytes.len() as u64,
+                )
+            }
+            None => (0, 0),
+        };
+        let block = noid_chain::Block::from_bytes(&block_bytes)
             .map_err(|error| rpc_err(format!("decode retained block: {error:?}")))?;
         if block.header != header {
             return Err(rpc_err(
@@ -2024,9 +2038,9 @@ impl ParanoidApiServer for RpcHandler {
             reward_micronoid,
             reward_noid: crate::types::micronoid_to_noid(reward_micronoid),
             total_fees_micronoid,
-            block_bytes: bundle.block_bytes().len() as u64,
-            history_step_bytes: bundle.history_step_terminal_bytes().len() as u64,
-            bundle_bytes: bundle_bytes.len() as u64,
+            block_bytes: block_bytes.len() as u64,
+            history_step_bytes,
+            bundle_bytes: bundle_len,
             transactions,
         };
         Ok(Some(BlockDetailsInfo {
@@ -2070,22 +2084,21 @@ impl ParanoidApiServer for RpcHandler {
                 else {
                     return Err(rpc_err(format!("canonical header {height} is unavailable")));
                 };
-                if let Some(bundle) = chain
+                if let Some(body) = chain
                     .store
-                    .get_recent_accepted_block_bundle_bounded(height)
+                    .get_recent_canonical_block(height)
                     .map_err(|error| rpc_err(error.to_string()))?
                 {
-                    retained.push((header, bundle));
+                    retained.push((header, body));
                 }
             }
             (tip_height, retained_from_height, retained)
         };
 
         let mut transactions = Vec::new();
-        for (header, bundle) in retained {
+        for (header, body) in retained {
             transactions.extend(
-                retained_transaction_summaries(&header, &bundle, filter.as_ref())
-                    .map_err(rpc_err)?,
+                retained_transaction_summaries(&header, &body, filter.as_ref()).map_err(rpc_err)?,
             );
         }
 
