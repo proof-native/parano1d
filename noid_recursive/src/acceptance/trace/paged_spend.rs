@@ -170,7 +170,10 @@ fn compact_end_records(
     mut candidates: Vec<PagedSpendGroupTrace>,
 ) -> Vec<PagedSpendGroupTrace> {
     let physical_pages = candidates.len();
-    let route_rows = physical_pages.next_power_of_two();
+    // The shared body/authentication axis also carries primary coinbase.
+    // This is unchanged for legacy 25/255 and gives power-of-two candidate
+    // capacities a canonical all-zero authorization suffix.
+    let route_rows = (physical_pages + 1).next_power_of_two();
     candidates.resize_with(route_rows, zero_group);
 
     let mut output_inputs: Vec<usize> = (0..route_rows).collect();
@@ -253,7 +256,7 @@ pub fn bind_paged_spend_stream(
     arithmetic: &[UserPublicArithmeticTrace],
 ) -> PagedSpendBlockTrace {
     let tier = spines.len();
-    assert!(matches!(tier, 25 | 255));
+    assert!(crate::region_sidecar::selected_zk_block_geometry(tier).is_some());
     assert_eq!(page_hashes.len(), tier);
     assert_eq!(page_live.len(), tier);
     assert_eq!(surfaces.len(), tier);
@@ -438,7 +441,7 @@ pub fn bind_paged_spend_stream(
     }
 
     let groups = compact_end_records(b, candidates);
-    assert_eq!(groups.len(), tier.next_power_of_two());
+    assert_eq!(groups.len(), (tier + 1).next_power_of_two());
     for group in &groups[tier..] {
         pin_zero(b, &group.live);
     }

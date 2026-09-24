@@ -15,3 +15,5 @@ pub use history_step_witness::{
     prepare_v2_research_history_step_input_witness, HistoryStepPreparationContext,
     HistoryStepWitnessError, PreparedHistoryStepInputWitness, PreparedHistoryStepWitness,
 };
+
+pub mod candidate_history;

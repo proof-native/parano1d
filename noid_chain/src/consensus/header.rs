@@ -57,6 +57,7 @@ pub fn validate_header(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
     )
 }
 
@@ -88,6 +89,7 @@ pub fn validate_header_template(
         anchor_timestamp,
         anchor_target,
         false,
+        None,
     )
 }
 
@@ -115,6 +117,7 @@ pub fn validate_header_timeless(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
     )
 }
 
@@ -148,6 +151,37 @@ pub fn validate_header_timeless_prehashed_parent(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
+    )
+}
+
+/// Research/upgrade entry point with explicit height-selected timing.
+/// The active-network entry points above continue to use their old rules.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_header_with_schedule(
+    header: &BlockHeader,
+    parent: &BlockHeader,
+    prev_timestamps: &[u64],
+    finalized_active_counts: &[u64],
+    local_time: Option<u64>,
+    anchor_height: u64,
+    anchor_timestamp: u64,
+    anchor_target: &[u8; 32],
+    check_pow: bool,
+    schedule: super::forks::ForkSchedule,
+) -> Result<(), ConsensusError> {
+    validate_header_inner(
+        header,
+        parent,
+        block_id(parent),
+        prev_timestamps,
+        finalized_active_counts,
+        local_time,
+        anchor_height,
+        anchor_timestamp,
+        anchor_target,
+        check_pow,
+        Some(schedule),
     )
 }
 
@@ -163,6 +197,7 @@ fn validate_header_inner(
     anchor_timestamp: u64,
     anchor_target: &[u8; 32],
     check_pow: bool,
+    schedule: Option<super::forks::ForkSchedule>,
 ) -> Result<(), ConsensusError> {
     // 1. Parent hash linkage.
     if header.prev_block_hash != expected_parent_hash {
@@ -175,13 +210,23 @@ fn validate_header_inner(
     }
 
     // 3. Difficulty target matches ASERT expectation.
-    let expected_target = next_target(
-        anchor_height,
-        anchor_timestamp,
-        anchor_target,
-        header.height,
-        header.timestamp,
-    );
+    let expected_target = match schedule {
+        Some(schedule) => super::difficulty::next_target_with_schedule(
+            anchor_height,
+            anchor_timestamp,
+            anchor_target,
+            header.height,
+            header.timestamp,
+            schedule,
+        ),
+        None => next_target(
+            anchor_height,
+            anchor_timestamp,
+            anchor_target,
+            header.height,
+            header.timestamp,
+        ),
+    };
     if header.difficulty_target != expected_target {
         return Err(ConsensusError::BadDifficultyTarget);
     }

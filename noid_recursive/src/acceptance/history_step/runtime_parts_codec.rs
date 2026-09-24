@@ -403,6 +403,76 @@ impl HistoryStepRuntimeParts {
     }
 }
 
+impl super::v2::V2RuntimeParts {
+    pub fn encode_compact(&self) -> Result<Vec<u8>, super::v2::V2Error> {
+        let expected = 8
+            + 40
+            + BLOCK_SLICE_COUNT * SLICE_BYTES
+            + layout_len(self.child_layout())?
+            + layout_len(self.parent_layout())?;
+        if expected > HISTORY_STEP_RUNTIME_PARTS_COMPACT_MAX_BYTES {
+            return Err(encoding().into());
+        }
+        let mut out = Vec::with_capacity(expected);
+        out.extend_from_slice(b"O1V2PT02");
+        let config = self.config();
+        for value in [
+            config.outer_m() as u64,
+            config.pages() as u64,
+            config.schedule().v1_1_height().unwrap(),
+            config.activation_height(),
+            config.block_time(),
+        ] {
+            out.extend_from_slice(&value.to_le_bytes());
+        }
+        put_block_slices(&mut out, self.block_vk().selected_registry_slices()?)?;
+        put_layout(&mut out, self.child_layout())?;
+        put_layout(&mut out, self.parent_layout())?;
+        if out.len() != expected {
+            return Err(encoding().into());
+        }
+        Ok(out)
+    }
+
+    /// Decode an externally pinned one-class recipe. This cannot reinterpret
+    /// old Meta tables as object tables or old two-arm transcripts as v2.
+    pub fn decode_compact(encoded: &[u8]) -> Result<Self, super::v2::V2Error> {
+        let mut preflight = Reader::new(encoded)?;
+        if preflight.take(8)? != b"O1V2PT02" {
+            return Err(encoding().into());
+        }
+        preflight.take(40)?;
+        preflight.take(BLOCK_SLICE_COUNT * SLICE_BYTES)?;
+        preflight_layout(&mut preflight)?;
+        preflight_layout(&mut preflight)?;
+        preflight.finish()?;
+        let mut reader = Reader::new(encoded)?;
+        reader.take(8)?;
+        let mut values = [0u64; 5];
+        for value in &mut values {
+            *value = u64::from_le_bytes(reader.take(8)?.try_into().map_err(|_| encoding())?);
+        }
+        let activation = noid_chain::consensus::forks::V2Activation::new(values[3], values[4])
+            .ok_or_else(encoding)?;
+        let schedule =
+            noid_chain::consensus::forks::ForkSchedule::new(Some(values[2]), Some(activation))
+                .ok_or_else(encoding)?;
+        let config = super::v2::V2Config::new(
+            usize::try_from(values[0]).map_err(|_| encoding())?,
+            usize::try_from(values[1]).map_err(|_| encoding())?,
+            schedule,
+        )?;
+        let block = BlockRegionSidecarVk::from_object_registry_slices(
+            config.pages(),
+            read_block_slices(&mut reader)?,
+        )?;
+        let child = read_layout(&mut reader)?;
+        let parent = read_layout(&mut reader)?;
+        reader.finish()?;
+        Self::new(config, block, child, parent)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

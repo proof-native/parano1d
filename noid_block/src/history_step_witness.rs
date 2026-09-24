@@ -415,7 +415,7 @@ fn prepare_native_history_step<const TIER: usize>(
     })
 }
 
-fn validate_parent_state_boundary(
+pub(super) fn validate_parent_state_boundary(
     parent: &BlockHeader,
     state: &ChainState,
 ) -> Result<(), HistoryStepWitnessError> {
@@ -474,7 +474,7 @@ fn validate_nonce_independent_block(
     Ok(())
 }
 
-fn build_history_step_components(
+pub(super) fn build_history_step_components(
     block: &Block,
     parent_state: &ChainState,
 ) -> Result<HistoryStepBlockComponents, HistoryStepWitnessError> {

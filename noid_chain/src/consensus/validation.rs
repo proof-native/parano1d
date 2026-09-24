@@ -252,6 +252,14 @@ pub fn validate_mandatory_coinbase(
     block: &Block,
     parent: &BlockHeader,
 ) -> Result<(), ConsensusError> {
+    validate_mandatory_coinbase_with_schedule(block, parent, super::forks::ACTIVE_SCHEDULE)
+}
+
+pub fn validate_mandatory_coinbase_with_schedule(
+    block: &Block,
+    parent: &BlockHeader,
+    schedule: super::forks::ForkSchedule,
+) -> Result<(), ConsensusError> {
     let expected_anchor = crate::consensus::pow::block_id(parent);
     let stream =
         validate_block_page_stream(&block.transactions).map_err(page_stream_consensus_error)?;
@@ -272,11 +280,13 @@ pub fn validate_mandatory_coinbase(
         return Err(ConsensusError::BadCoinbaseOwner);
     }
 
-    let allocation = crate::consensus::development_allocation::development_allocation(
-        block.header.height,
-        block.header.log_slots,
-    )
-    .map_err(|_| ConsensusError::BadDevelopmentPayout)?;
+    let allocation =
+        crate::consensus::development_allocation::development_allocation_with_schedule(
+            block.header.height,
+            block.header.log_slots,
+            schedule,
+        )
+        .map_err(|_| ConsensusError::BadDevelopmentPayout)?;
 
     match (allocation.payout_each, stream.has_development_payout) {
         (Some(_), false) => return Err(ConsensusError::MissingDevelopmentPayout),
@@ -333,6 +343,7 @@ pub fn validate_block_checks(
         anchor,
         Some(local_time),
         true,
+        None,
     )
 }
 
@@ -359,6 +370,7 @@ pub fn validate_block_checks_template(
         anchor,
         Some(local_time),
         false,
+        None,
     )
 }
 
@@ -377,6 +389,31 @@ pub fn validate_block_checks_timeless(
         anchor,
         None,
         true,
+        None,
+    )
+}
+
+/// Explicit candidate schedule; this does not select it for the network.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_block_checks_with_schedule(
+    block: &Block,
+    parent: &BlockHeader,
+    prev_timestamps: &[u64],
+    finalized_active_counts: &[u64],
+    local_time: Option<u64>,
+    anchor: &AnchorInfo,
+    check_pow: bool,
+    schedule: super::forks::ForkSchedule,
+) -> Result<(), ConsensusError> {
+    validate_block_checks_inner(
+        block,
+        parent,
+        prev_timestamps,
+        finalized_active_counts,
+        anchor,
+        local_time,
+        check_pow,
+        Some(schedule),
     )
 }
 
@@ -388,13 +425,14 @@ fn validate_block_checks_inner(
     anchor: &AnchorInfo,
     local_time: Option<u64>,
     check_pow: bool,
+    schedule: Option<super::forks::ForkSchedule>,
 ) -> Result<(), ConsensusError> {
     // Bound the raw semantic surface before any O(n) consensus scan.  This is
     // also the first line of defence for direct in-memory callers that did not
     // arrive through the bounded wire decoder.
     validate_block_resource_preflight(block)?;
-    match (local_time, check_pow) {
-        (Some(local_time), true) => validate_header(
+    if let Some(schedule) = schedule {
+        super::header::validate_header_with_schedule(
             &block.header,
             parent,
             prev_timestamps,
@@ -403,28 +441,47 @@ fn validate_block_checks_inner(
             anchor.anchor_height,
             anchor.anchor_timestamp,
             &anchor.anchor_target,
-        )?,
-        (Some(local_time), false) => validate_header_template(
-            &block.header,
-            parent,
-            prev_timestamps,
-            finalized_active_counts,
-            local_time,
-            anchor.anchor_height,
-            anchor.anchor_timestamp,
-            &anchor.anchor_target,
-        )?,
-        (None, _) => validate_header_timeless(
-            &block.header,
-            parent,
-            prev_timestamps,
-            finalized_active_counts,
-            anchor.anchor_height,
-            anchor.anchor_timestamp,
-            &anchor.anchor_target,
-        )?,
+            check_pow,
+            schedule,
+        )?;
+    } else {
+        match (local_time, check_pow) {
+            (Some(local_time), true) => validate_header(
+                &block.header,
+                parent,
+                prev_timestamps,
+                finalized_active_counts,
+                local_time,
+                anchor.anchor_height,
+                anchor.anchor_timestamp,
+                &anchor.anchor_target,
+            )?,
+            (Some(local_time), false) => validate_header_template(
+                &block.header,
+                parent,
+                prev_timestamps,
+                finalized_active_counts,
+                local_time,
+                anchor.anchor_height,
+                anchor.anchor_timestamp,
+                &anchor.anchor_target,
+            )?,
+            (None, _) => validate_header_timeless(
+                &block.header,
+                parent,
+                prev_timestamps,
+                finalized_active_counts,
+                anchor.anchor_height,
+                anchor.anchor_timestamp,
+                &anchor.anchor_target,
+            )?,
+        }
     }
-    validate_mandatory_coinbase(block, parent)?;
+    validate_mandatory_coinbase_with_schedule(
+        block,
+        parent,
+        schedule.unwrap_or(super::forks::ACTIVE_SCHEDULE),
+    )?;
     validate_block_page_stream(&block.transactions).map_err(page_stream_consensus_error)?;
     validate_block_slot_conflicts(&block.transactions)?;
     validate_tx_consensus(&block.transactions[0])?;

@@ -664,3 +664,5 @@ mod tests {
         assert!(!active_matrix.satisfies(&active_witness));
     }
 }
+
+pub(crate) mod scheduled_allocation;

@@ -107,6 +107,51 @@ fn next_target_with_activation(
     let raw_exp = (actual as i128 - ideal as i128) * 65536 / halflife;
     let exponent: i64 = raw_exp.clamp(i64::MIN as i128, i64::MAX as i128) as i64;
 
+    target_from_exponent(anchor_target, height, activation_height, exponent)
+}
+
+/// Explicit candidate timing. Pre-v2 calls retain the exact legacy integer
+/// path, including the established v1 -> v1.1 coefficient switch.
+pub fn next_target_with_schedule(
+    anchor_height: u64,
+    anchor_timestamp: u64,
+    anchor_target: &[u8; 32],
+    height: u64,
+    timestamp: u64,
+    schedule: super::forks::ForkSchedule,
+) -> [u8; 32] {
+    let Some(at) = schedule.v2().filter(|at| height >= at.height()) else {
+        return next_target_with_activation(
+            anchor_height,
+            anchor_timestamp,
+            anchor_target,
+            height,
+            timestamp,
+            schedule.v1_1_height(),
+        );
+    };
+    let actual = timestamp
+        .saturating_sub(anchor_timestamp)
+        .min(i64::MAX as u64) as i128;
+    let ideal = schedule
+        .ideal_elapsed(anchor_height, height)
+        .min(i128::MAX as u128) as i128;
+    let halflife = super::params::EPOCH_LENGTH as i128 * at.block_time() as i128;
+    let exponent = actual.saturating_sub(ideal).saturating_mul(65536) / halflife;
+    target_from_exponent(
+        anchor_target,
+        height,
+        schedule.v1_1_height(),
+        exponent.clamp(i64::MIN as i128, i64::MAX as i128) as i64,
+    )
+}
+
+fn target_from_exponent(
+    anchor_target: &[u8; 32],
+    height: u64,
+    activation_height: Option<u64>,
+    exponent: i64,
+) -> [u8; 32] {
     // Decompose: arithmetic right shift gives floor for negative numbers (Rust guarantees this).
     let shifts: i64 = exponent >> 16;
     let frac: u16 = (exponent - shifts * 65536) as u16; // always in [0, 65535]
@@ -163,6 +208,57 @@ fn next_target_with_activation(
     }
 
     clamped
+}
+
+#[cfg(test)]
+mod scheduled_tests {
+    use super::*;
+    use crate::consensus::forks::{ForkSchedule, V2Activation};
+
+    #[test]
+    fn candidate_preserves_both_legacy_rules_before_activation() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        for height in 1..10 {
+            for timestamp in [0, 1, 117, 180, 200, 501, u64::MAX] {
+                assert_eq!(
+                    next_target_with_schedule(0, 0, &GENESIS_TARGET, height, timestamp, schedule),
+                    next_target_with_activation(0, 0, &GENESIS_TARGET, height, timestamp, Some(5))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mixed_target_intervals_neither_jump_nor_retroactively_retime_history() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        for anchor in [0, 6, 9, 10, 12] {
+            for height in (anchor + 1)..16 {
+                let elapsed = schedule.ideal_elapsed(anchor, height) as u64;
+                assert_eq!(
+                    next_target_with_schedule(
+                        anchor,
+                        100,
+                        &GENESIS_TARGET,
+                        height,
+                        100 + elapsed,
+                        schedule
+                    ),
+                    GENESIS_TARGET
+                );
+            }
+        }
+        // Six post-fork target intervals are one candidate halflife.
+        let ideal = schedule.ideal_elapsed(6, 12) as u64;
+        let slower = next_target_with_schedule(6, 0, &GENESIS_TARGET, 12, ideal + 180, schedule);
+        assert_eq!(
+            slower,
+            target_from_exponent(&GENESIS_TARGET, 12, Some(5), 65536)
+        );
+        assert_ne!(
+            next_target_with_schedule(6, 0, &GENESIS_TARGET, 12, ideal, schedule),
+            next_target_with_activation(6, 0, &GENESIS_TARGET, 12, ideal, Some(5))
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

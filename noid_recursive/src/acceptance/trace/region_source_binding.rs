@@ -1520,7 +1520,18 @@ pub(super) fn allocate_selected_zk_auth_pcs_region(
     txr: &TxRootRegionData,
     spine: &SpineRegionData,
 ) -> Result<SelectedZkAuthPcsRegionAllocation, SelectedZkAuthPcsRegionAllocationError> {
-    let geometry = preflight_selected_zk_authorization_draft(&authorization)?;
+    let authorization_geometry = preflight_selected_zk_authorization_draft(&authorization)?;
+    let geometry = crate::region_sidecar::selected_zk_block_geometry(
+        spine
+            .instances
+            .len()
+            .checked_sub(1)
+            .ok_or(SelectedZkAuthPcsRegionAllocationError::SpineShape)?,
+    )
+    .ok_or(SelectedZkAuthPcsRegionAllocationError::SpineShape)?;
+    if geometry.auth_tiles != authorization_geometry.auth_tiles {
+        return Err(SelectedZkAuthPcsRegionAllocationError::AuthorizationShape);
+    }
     preflight_selected_zk_meta_inputs(es, txr, spine, geometry)?;
 
     let (owner, main, wallet_a, wallet_b, overflow) = authorization.into_parts();
@@ -1897,6 +1908,41 @@ mod selected_zk_common_allocator_tests {
             assert_eq!(committed_cells, expected_cells, "B{tier} committed cells");
             assert_eq!(ledger.after, expected_span, "B{tier} allocation span");
             assert!(ledger.after < 1usize << class_m, "B{tier} class domain");
+        }
+    }
+
+    #[test]
+    fn candidate_allocations_form_complete_object_registry_certificates() {
+        use crate::region_sidecar::{BlockRegionSidecarVk, SelectedZkBlockRegionVkSlices};
+        for tier in [25, 63, 64, 96, 127, 128, 255] {
+            let g = crate::region_sidecar::selected_zk_block_geometry(tier).unwrap();
+            let ledger = SelectedZkRegionAllocationLedger::new(966_647, g);
+            let slices = SelectedZkBlockRegionVkSlices {
+                wallet_a: family_slices(ledger.wallet_a, g.wallet_a_w_log),
+                wallet_b: family_slices(ledger.wallet_b, g.wallet_b_w_log),
+                meta_a: family_slices(ledger.meta_a, g.meta_a_w_log),
+                meta_b: family_slices(ledger.meta_b, g.meta_b_w_log),
+                owner_c: family_slices(ledger.owner, g.owner_w_log),
+                main_c: family_slices(ledger.main, g.main_w_log),
+            };
+            let vk = BlockRegionSidecarVk::from_object_registry_slices(tier, slices).unwrap();
+            assert!(vk.supports_objects());
+            assert_eq!(vk.meta_a().w_log(), g.meta_a_w_log);
+            // A registry with the same dimensions but missing an overflow
+            // region cannot silently stand in for the candidate certificate.
+            let mut bad = vk.selected_registry_slices().unwrap();
+            bad.meta_a[0].log2_len -= 1;
+            assert!(BlockRegionSidecarVk::from_object_registry_slices(tier, bad).is_err());
+            let recipe = vk.selected_registry_slices().unwrap();
+            let rebuilt = BlockRegionSidecarVk::from_object_registry_slices(tier, recipe).unwrap();
+            assert_eq!(rebuilt, vk);
+            if ![25, 255].contains(&tier) {
+                assert!(BlockRegionSidecarVk::from_selected_registry_slices(
+                    tier,
+                    vk.selected_registry_slices().unwrap()
+                )
+                .is_err());
+            }
         }
     }
 

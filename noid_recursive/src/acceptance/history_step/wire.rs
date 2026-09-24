@@ -149,7 +149,10 @@ impl BaseFoldWireShape {
     }
 }
 
-fn field_proof_len(shape: FieldShape, params: &PcsParams) -> Result<usize, HistoryStepError> {
+pub(super) fn field_proof_len(
+    shape: FieldShape,
+    params: &PcsParams,
+) -> Result<usize, HistoryStepError> {
     if shape.k_skip >= usize::BITS as usize || shape.m < shape.k_skip || shape.k_log < shape.k_skip
     {
         return Err(HistoryStepError::WireEncoding);
@@ -209,17 +212,17 @@ fn put_hash(out: &mut Vec<u8>, value: &[u8; HASH_BYTES]) {
     out.extend_from_slice(value);
 }
 
-struct Reader<'a> {
+pub(super) struct Reader<'a> {
     bytes: &'a [u8],
     position: usize,
 }
 
 impl<'a> Reader<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
+    pub(super) fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, position: 0 }
     }
 
-    fn take(&mut self, count: usize) -> Result<&'a [u8], HistoryStepError> {
+    pub(super) fn take(&mut self, count: usize) -> Result<&'a [u8], HistoryStepError> {
         let end = add(self.position, count)?;
         let bytes = self
             .bytes
@@ -268,13 +271,13 @@ impl<'a> Reader<'a> {
         Ok(F256::from_le_bytes(bytes))
     }
 
-    fn hash(&mut self) -> Result<[u8; HASH_BYTES], HistoryStepError> {
+    pub(super) fn hash(&mut self) -> Result<[u8; HASH_BYTES], HistoryStepError> {
         self.take(HASH_BYTES)?
             .try_into()
             .map_err(|_| HistoryStepError::WireEncoding)
     }
 
-    fn finish(self) -> Result<(), HistoryStepError> {
+    pub(super) fn finish(self) -> Result<(), HistoryStepError> {
         if self.position == self.bytes.len() {
             Ok(())
         } else {
@@ -283,7 +286,7 @@ impl<'a> Reader<'a> {
     }
 }
 
-fn encode_f128_vec(
+pub(super) fn encode_f128_vec(
     out: &mut Vec<u8>,
     values: &[F128],
     expected: usize,
@@ -297,7 +300,10 @@ fn encode_f128_vec(
     Ok(())
 }
 
-fn decode_f128_vec(reader: &mut Reader<'_>, count: usize) -> Result<Vec<F128>, HistoryStepError> {
+pub(super) fn decode_f128_vec(
+    reader: &mut Reader<'_>,
+    count: usize,
+) -> Result<Vec<F128>, HistoryStepError> {
     let mut values = Vec::with_capacity(count);
     for _ in 0..count {
         values.push(reader.f128()?);
@@ -378,7 +384,7 @@ fn decode_hash_vec(
     Ok(values)
 }
 
-fn encode_field_proof(
+pub(super) fn encode_field_proof(
     out: &mut Vec<u8>,
     proof: &C1FieldR1csProof,
     shape: FieldShape,
@@ -406,7 +412,7 @@ fn encode_field_proof(
     )
 }
 
-fn decode_field_proof(
+pub(super) fn decode_field_proof(
     reader: &mut Reader<'_>,
     shape: FieldShape,
     params: &PcsParams,

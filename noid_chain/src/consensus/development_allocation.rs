@@ -63,6 +63,7 @@ pub struct DevelopmentAllocation {
 pub enum DevelopmentAllocationError {
     InexactRewardShare,
     PayoutOverflow,
+    InexactInterval,
 }
 
 impl core::fmt::Display for DevelopmentAllocationError {
@@ -72,6 +73,46 @@ impl core::fmt::Display for DevelopmentAllocationError {
 }
 
 impl std::error::Error for DevelopmentAllocationError {}
+
+/// Explicit candidate schedule; callers of the existing network functions
+/// retain their unchanged rules. The period ends at the original height.
+pub fn development_allocation_with_schedule(
+    height: u64,
+    log_slots: u32,
+    schedule: super::forks::ForkSchedule,
+) -> Result<DevelopmentAllocation, DevelopmentAllocationError> {
+    let Some(at) = schedule.v2().filter(|at| height >= at.height()) else {
+        return development_allocation(height, log_slots);
+    };
+    if 86_400 % at.block_time() != 0 {
+        return Err(DevelopmentAllocationError::InexactInterval);
+    }
+    let mut allocation = development_allocation(height, log_slots)?;
+    if !allocation.active {
+        return Ok(allocation);
+    }
+    let interval = 86_400 / at.block_time();
+    let elapsed = height - at.height();
+    let count = if elapsed == 0 {
+        None
+    } else if elapsed.is_multiple_of(interval) {
+        Some(interval)
+    } else if height == DEVELOPMENT_ALLOCATION_END_HEIGHT {
+        Some(elapsed % interval)
+    } else {
+        None
+    };
+    allocation.payout_due = count.is_some();
+    allocation.payout_each = count
+        .map(|count| {
+            allocation
+                .share_each
+                .checked_mul(count)
+                .ok_or(DevelopmentAllocationError::PayoutOverflow)
+        })
+        .transpose()?;
+    Ok(allocation)
+}
 
 #[inline]
 pub const fn development_allocation_active(height: u64) -> bool {

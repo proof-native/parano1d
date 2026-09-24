@@ -66,6 +66,7 @@ mod freezer;
 mod gated_recorder;
 mod relation;
 mod runtime_parts_codec;
+pub mod v2;
 mod wire;
 
 pub use crate::acceptance::history_step_bank::HistoryStepMatrixLease;
@@ -248,6 +249,32 @@ pub fn prepare_history_step_authorizations<const TIER: usize>(
     {
         return Err(HistoryStepAuthorizationError::NonCanonicalTier);
     }
+    prepare_checked_authorizations(inputs, proofs, ghost)
+}
+
+/// Explicit research candidate capacity; ordinary nodes continue to select
+/// only the two legacy classes through the entry point above.
+pub fn prepare_candidate_authorizations(
+    config: v2::V2Config,
+    effective_page_count: usize,
+    inputs: &[AuthorizationComponentInput],
+    proofs: Vec<noid_gkr::zk_authorization::ZkAuthorizationProof>,
+    ghost: &PreparedHistoryStepGhostAuthorization,
+) -> Result<PreparedHistoryStepAuthorizations, HistoryStepAuthorizationError> {
+    if effective_page_count > config.pages()
+        || inputs.len() > effective_page_count
+        || proofs.len() != inputs.len()
+    {
+        return Err(HistoryStepAuthorizationError::ComponentShape);
+    }
+    prepare_checked_authorizations(inputs, proofs, ghost)
+}
+
+fn prepare_checked_authorizations(
+    inputs: &[AuthorizationComponentInput],
+    proofs: Vec<noid_gkr::zk_authorization::ZkAuthorizationProof>,
+    ghost: &PreparedHistoryStepGhostAuthorization,
+) -> Result<PreparedHistoryStepAuthorizations, HistoryStepAuthorizationError> {
     if inputs.iter().any(|input| {
         input.public.layout != noid_gkr::OwnerAuthLayout::FIXED
             || input.tx_body_hash != input.public.tx_body_hash
@@ -291,6 +318,52 @@ impl<const TIER: usize> HistoryStepBlockInput<TIER> {
         sealed_header: &BlockHeader,
         parent_header: &BlockHeader,
     ) -> Result<Self, HistoryStepInputError> {
+        Self::try_new_inner(
+            start_accumulator,
+            end_accumulator,
+            components,
+            authorizations,
+            sealed_header,
+            parent_header,
+            true,
+        )
+    }
+
+    pub fn try_new_candidate(
+        config: v2::V2Config,
+        start_accumulator: &ChainAccumulator,
+        end_accumulator: &ChainAccumulator,
+        components: HistoryStepBlockComponents,
+        authorizations: PreparedHistoryStepAuthorizations,
+        sealed_header: &BlockHeader,
+        parent_header: &BlockHeader,
+    ) -> Result<Self, HistoryStepInputError> {
+        if TIER != config.pages()
+            || sealed_header.height < config.activation_height()
+            || components.effective_page_count() > TIER
+        {
+            return Err(HistoryStepInputError::NonCanonicalTier { tier: TIER });
+        }
+        Self::try_new_inner(
+            start_accumulator,
+            end_accumulator,
+            components,
+            authorizations,
+            sealed_header,
+            parent_header,
+            false,
+        )
+    }
+
+    fn try_new_inner(
+        start_accumulator: &ChainAccumulator,
+        end_accumulator: &ChainAccumulator,
+        components: HistoryStepBlockComponents,
+        authorizations: PreparedHistoryStepAuthorizations,
+        sealed_header: &BlockHeader,
+        parent_header: &BlockHeader,
+        legacy_class: bool,
+    ) -> Result<Self, HistoryStepInputError> {
         if crate::region_sidecar::selected_zk_block_geometry(TIER).is_none() {
             return Err(HistoryStepInputError::NonCanonicalTier { tier: TIER });
         }
@@ -307,7 +380,7 @@ impl<const TIER: usize> HistoryStepBlockInput<TIER> {
             effective_page_count,
         )
         .map(|class| class.page_capacity());
-        if actual_tier != Some(TIER) {
+        if legacy_class && actual_tier != Some(TIER) {
             return Err(HistoryStepInputError::WrongTier {
                 expected_tier: TIER,
                 live_authorizations,

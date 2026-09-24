@@ -96,6 +96,31 @@ pub struct RecordingDuplexRegionVk {
 }
 
 impl RecordingDuplexRegionVk {
+    /// Fixed transcript roles for a single parent relation. The layout digest
+    /// distinguishes this key from the legacy two-arm selected recipe.
+    pub(crate) fn new_fixed(
+        purpose: [u8; 32],
+        w_log: usize,
+        slices: [WitnessSlice; DUPLEX_REGION_COMMITTED_COLUMNS],
+        blocks: Vec<(DuplexLayout, usize)>,
+    ) -> Result<Self, RegionSidecarError> {
+        let (fixed, refs, rec_refs) = canonical_recording_fixed(w_log, &blocks)?;
+        let layout_digest = recording_layout_digest(w_log, &blocks, None);
+        let vk = Self {
+            purpose,
+            w_log,
+            slices,
+            blocks,
+            selected: None,
+            fixed,
+            refs,
+            rec_refs,
+            layout_digest,
+        };
+        vk.validate_structure()?;
+        Ok(vk)
+    }
+
     /// One fixed key for two recording-layout alternatives.  Corresponding
     /// roles share their dyadic offset and block size; the fixed bank stores
     /// arm 0 plus the characteristic-two arm delta.
@@ -140,7 +165,11 @@ impl RecordingDuplexRegionVk {
     }
 
     pub(crate) fn selected_block(&self, arm: usize, role: usize) -> Option<&(DuplexLayout, usize)> {
-        self.selected.as_ref()?.arms.get(arm)?.get(role)
+        match &self.selected {
+            Some(selected) => selected.arms.get(arm)?.get(role),
+            None if arm == 0 => self.blocks.get(role),
+            None => None,
+        }
     }
 
     fn selector_slice(&self) -> Option<WitnessSlice> {

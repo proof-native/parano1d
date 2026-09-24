@@ -428,11 +428,11 @@ pub fn derive_history_step_direct_block_vk<const TIER: usize>(
     Ok(assembly.region_vk().clone())
 }
 
-fn placeholder_history_step_recording_layout(slot_count: usize) -> DuplexLayout {
+pub(super) fn placeholder_history_step_recording_layout(slot_count: usize) -> DuplexLayout {
     compile_duplex(&[TranscriptOp::Absorb(vec![Some(0); 2 * slot_count])])
 }
 
-fn history_step_query_lane_count(params: &PcsParams) -> usize {
+pub(super) fn history_step_query_lane_count(params: &PcsParams) -> usize {
     let log_dim = params.m - noid_ivc_core::pcs::LOG_PACKING - params.log_batch_size;
     let k_code = log_dim + params.log_inv_rate;
     let per_lane = 128 / k_code;
@@ -1050,7 +1050,7 @@ struct PreparedParentReplay {
     r_prev_recordings: Vec<LayoutRecordedChannel>,
 }
 
-fn capture_scratch_recording(
+pub(super) fn capture_scratch_recording(
     recording: &RecordedChannel,
     builder: &FieldR1csBuilder,
 ) -> LayoutRecordedChannel {
@@ -1394,7 +1394,7 @@ fn zero_fresh_claim(shape: FieldShape) -> C1FreshLincheckClaim {
     }
 }
 
-fn zero_fold_proof(k_log: usize) -> C1MatrixFoldProof {
+pub(super) fn zero_fold_proof(k_log: usize) -> C1MatrixFoldProof {
     C1MatrixFoldProof {
         phase1_rounds: vec![[F256::ZERO; 2]; k_log + 1],
         g_v: F256::ZERO,
@@ -1714,12 +1714,12 @@ enum HistoryStepAssemblyOutput {
     WitnessOnly(BuiltHistoryStep),
 }
 
-struct DeferredHistoryStepIo {
+pub(super) struct DeferredHistoryStepIo {
     tip_block_id: [DeferredWitnessSlot; 2],
     epoch_anchor_id: [DeferredWitnessSlot; 2],
 }
 
-fn allocate_deferred_history_step_io(
+pub(super) fn allocate_deferred_history_step_io(
     builder: &mut FieldR1csBuilder,
     spec: &PublicIoSpec,
     values: &[F128],
@@ -1769,7 +1769,7 @@ fn allocate_deferred_history_step_io(
 }
 
 impl DeferredHistoryStepIo {
-    fn seal(
+    pub(super) fn seal(
         self,
         builder: &mut FieldR1csBuilder,
         io: &mut [F128],

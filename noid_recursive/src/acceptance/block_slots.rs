@@ -76,7 +76,6 @@ use super::trace::action_surface::{
     bind_coinbase_action_with_amount, bind_development_payout_action,
     bind_user_action_surface_for_profile, ActionRowTrace, ActionSurfaceTrace,
 };
-use super::trace::development_allocation::bind_development_allocation;
 use super::trace::exact_state::{
     bind_actions_to_exact_state_leaves, bind_exact_state_header_roots_dynamic,
     build_exact_state_structural_region_slot, select_upper_paired_roots, ExactStateSlotWires,
@@ -89,6 +88,7 @@ use super::trace::region_source_binding::{
     PairedExactStateCells, SpineContractRegion, SpineInstanceRegion, SpineRegionData,
     TxRootPathRegion, TxRootRegionData,
 };
+use super::trace::scheduled_allocation::PreparedDevelopmentAllocation;
 use super::trace::segment_compaction::{bind_segment_upper_chain, compact_segment_updates};
 use super::trace::tx_body_spine::SpineInputsTrace;
 use super::trace::zk_authorization_candidate::{
@@ -117,11 +117,12 @@ use noid_ivc_core::field_circuit::f128_to_u128;
 pub(in crate::acceptance) enum BlockRelationProfile {
     LegacyV1,
     V2,
+    ScheduledV2(noid_chain::consensus::forks::ForkSchedule),
 }
 
 impl BlockRelationProfile {
     fn contracts(self) -> bool {
-        self == Self::V2
+        self != Self::LegacyV1
     }
 }
 
@@ -1657,8 +1658,8 @@ fn mint_v2_selected_zk_authorization_capability(
     let auth_slots = groups.len();
     let geometry = crate::region_sidecar::selected_zk_block_geometry_for_auth_tiles(auth_slots)
         .expect("selected authorization capacity is canonical");
-    let body_auth_slots = geometry.tier;
-    assert_eq!(surfaces.len(), body_auth_slots);
+    let body_auth_slots = surfaces.len();
+    assert!(body_auth_slots < auth_slots);
     assert_eq!(auth_slots, geometry.auth_tiles);
     for group in &groups[body_auth_slots..] {
         assert_eq!(group.live.eval(b.values()), F128::ZERO);
@@ -2315,12 +2316,22 @@ fn build_selected_zk_block_slots_core(
         &header.fields[hf::LOG_SLOTS],
     );
 
-    let allocation = bind_development_allocation(
-        b,
-        &header.fields[hf::HEIGHT],
-        &exact_state_depth.child,
-        &spine_inputs[1].leaves[noid_tx::body_hash::TX8X2_LEAF_OUTPUT0_DATA][1],
-    );
+    let prepared_allocation = match profile {
+        BlockRelationProfile::ScheduledV2(schedule) => PreparedDevelopmentAllocation::new(
+            b,
+            &header.fields[hf::HEIGHT],
+            &exact_state_depth.child,
+            &spine_inputs[1].leaves[noid_tx::body_hash::TX8X2_LEAF_OUTPUT0_DATA][1],
+            schedule,
+        ),
+        _ => PreparedDevelopmentAllocation::legacy(
+            b,
+            &header.fields[hf::HEIGHT],
+            &exact_state_depth.child,
+            &spine_inputs[1].leaves[noid_tx::body_hash::TX8X2_LEAF_OUTPUT0_DATA][1],
+        ),
+    };
+    let allocation = prepared_allocation.trace();
     let ghost_spine_native =
         noid_gkr::spine_statement::spine_inputs_from_body(&noid_gkr::ghost_tx::ghost_tx_body());
     let ghost_spine = constant_spine_inputs_trace(&ghost_spine_native);
@@ -2596,6 +2607,10 @@ fn build_selected_zk_block_slots_core(
         &mut ledger,
         "slots: selected auth+Meta/all-tiles assembly",
     );
+    if matches!(profile, BlockRelationProfile::ScheduledV2(_)) {
+        pin_eq(b, &allocation.v2_active, &LinExpr::constant(F128::ONE));
+    }
+    prepared_allocation.finish(b);
     // Only the deadline-selected authorization address is needed before the
     // dyadically aligned selected-region allocation. Bind the remaining
     // contract shape and execution semantics afterwards to avoid turning a
