@@ -1,10 +1,11 @@
 # v2 contract feasibility research
 
-Status: rebuilding the scheduled v2 candidate from checked experimental parts.
+Status: the current working candidate is one m23 class with 112 user pages
+and a 384-input block budget. See the [independent-payment measurements](results/2026-09-24-tps/REPORT.md).
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
 must be included in the next capacity measurements. Mainnet still selects its
-existing v1 and v1.1 rules. No v2 activation, target interval, capacity or number
-of classes is selected.
+existing v1 and v1.1 rules. The candidate is not a release selection; no v2
+activation height or target interval is selected.
 
 The September 15 integrated prototype established feasibility for an earlier
 object relation; its row counts are historical and do not describe the current

@@ -257,6 +257,9 @@ pub fn freeze<const PAGES: usize>(
         "parent_vk":hex::encode(parts.parent_vk().transcript_digest()),
         "block_vk":hex::encode(parts.block_vk().transcript_digest()),
         "matrix_zstd_bytes":std::fs::metadata(matrix_path).map_err(err)?.len(),
+        "terminal_shape_bound_bytes":v2::terminal_max_bytes(&runtime).map_err(err)?,
+        "terminal_shape_fits_current_cap":v2::terminal_max_bytes(&runtime).map_err(err)?
+            <= noid_chain::consensus::wire_limits::MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
         "setup_ms":elapsed(start), "memory":memory(), "rayon_threads":rayon::current_num_threads(),
         "cpu_backend":noid_core::cpu::selected_backend().to_string()});
     std::fs::write(

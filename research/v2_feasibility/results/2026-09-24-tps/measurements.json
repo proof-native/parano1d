@@ -1,0 +1,1676 @@
+{
+  "schema": 1,
+  "date": "2026-09-24",
+  "base_commit": "216d675595ee7e102a8525bbd6ba041a68706b96",
+  "status": "112 pages / 384 inputs retained as working candidate; activation and interval not selected for release",
+  "host": {
+    "cpu": "Intel Core i7-1365U",
+    "os": "Linux-7.0.0-30-generic-x86_64-with-glibc2.39",
+    "logical_processors": 12
+  },
+  "binaries": {
+    "mining_sha256": "108fa4ab1b0f9f0161162127c85b4e09df9f37d7fb669a89311a48f8d525f378",
+    "receiver_sha256": "9ebcaa18d818f7a64f69217bd0c73281e8a7f306f37d62aba6dbf70c0477bfae",
+    "note": "Mining/freeze runs precede the wire-budget and wallet-proof-byte instrumentation. Receiver uses the instrumented build; relation and candidate identities are unchanged.",
+    "build": "cargo build --locked --release -p bench_prover --bin noid_v2_capacity --features noid_chain/isolated-v1-1-testnet"
+  },
+  "receiver_enforcement": {
+    "systemd_unit": "noid-v2-p112-receiver-20260924.scope",
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "rayon_workers": 4,
+    "cpu_backend": "pclmul",
+    "memory_max_bytes": 8589934592,
+    "memory_swap_max_bytes": 0,
+    "observed_scope_settings": {
+      "MemoryMax": 8589934592,
+      "MemorySwapMax": 0,
+      "ActiveState": "active"
+    },
+    "repeats_after_warmup": 4
+  },
+  "candidate_pins": {
+    "activation": 10,
+    "bank": "57a104e68cc9b26b7ff1f147dbc4ba9d7c4d7420b773ba1f4617fb01d0fdc3b9",
+    "block_seconds": 30,
+    "block_vk": "63e2b3720f117b82b34760923c08f285c4b541ba112f799c3a032a55a20f2821",
+    "cpu_backend": "avx2+vpclmul",
+    "legacy_fixture_directory": "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+    "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "legacy_v1_1_activation": 5,
+    "m": 23,
+    "matrix": "f4d1c8bd58e1d510483bf716d4d245f8f6b911d5b760607322eaa44a9a64e7a6",
+    "matrix_zstd_bytes": 9951178,
+    "max_live_inputs": 384,
+    "memory": {
+      "process_peak_rss_kib": 2171756,
+      "rss_kib": 1002316
+    },
+    "pages": 112,
+    "parent_vk": "c179d0caa43a444d20647d10ef8f5961fdd19224fef53a44685d4c18bc39ae05",
+    "rayon_threads": 12,
+    "setup_ms": 133442.196898,
+    "status": "research; no release parameters selected",
+    "useful_rows": 8350239
+  },
+  "artifacts": [
+    {
+      "file": "candidate.parts",
+      "bytes": 1098890,
+      "sha256": "a30bf766ce750aaaf08668722506434f4a07ff55bac4a1fc806a92c6bfbc343f",
+      "independent_transition_freeze_identical": true
+    },
+    {
+      "file": "candidate.field-r1cs.zst",
+      "bytes": 9951178,
+      "sha256": "e60ab41bdbafc03291ade007677357ea8228a21010d208c35f8ea364a50cfd7f",
+      "independent_transition_freeze_identical": true
+    },
+    {
+      "file": "h000017.block",
+      "bytes": 36716,
+      "sha256": "7e41546074635365ea8f97e0b7875d112192702d98599b48a9b3f44cb28a327e"
+    },
+    {
+      "file": "h000017.terminal",
+      "bytes": 932692,
+      "sha256": "8f386b1cd60c30d511a7f824591084f9f43eaf99a68f61e2c23d3785ff8daada"
+    },
+    {
+      "file": "h000022.block",
+      "bytes": 540,
+      "sha256": "b4b197a536e13338d9b89b2d4c79eb1f880f9285f8b646f8ae8e2df51b529d2f"
+    },
+    {
+      "file": "h000022.terminal",
+      "bytes": 931540,
+      "sha256": "4f86eb072c2d96ccea16fd6c148fbf7f76cc575e1cd2df688a6ddb052e2a1335"
+    }
+  ],
+  "summaries": {
+    "2_payments": {
+      "verify_ms": {
+        "samples": 3,
+        "p50": 948.792156,
+        "minimum": 814.0169189999999,
+        "maximum": 1087.5358669999998
+      },
+      "materialize_ms": {
+        "samples": 3,
+        "p50": 9.976064999999998,
+        "minimum": 7.846563000000001,
+        "maximum": 12.838994
+      },
+      "terminal_bytes": {
+        "samples": 3,
+        "p50": 932788,
+        "minimum": 930356,
+        "maximum": 933268
+      },
+      "wallet_authorization_ms": {
+        "samples": 3,
+        "p50": 1047.236061,
+        "minimum": 1031.803865,
+        "maximum": 1123.866411
+      },
+      "construction_ms": {
+        "samples": 3,
+        "p50": 19767.609107,
+        "minimum": 18312.097098000002,
+        "maximum": 23073.396341
+      }
+    },
+    "112_payments": {
+      "verify_ms": {
+        "samples": 3,
+        "p50": 864.065457,
+        "minimum": 818.117556,
+        "maximum": 914.466862
+      },
+      "materialize_ms": {
+        "samples": 3,
+        "p50": 343.392989,
+        "minimum": 316.668635,
+        "maximum": 388.25183200000004
+      },
+      "terminal_bytes": {
+        "samples": 3,
+        "p50": 930644,
+        "minimum": 929236,
+        "maximum": 932692
+      },
+      "wallet_authorization_ms": {
+        "samples": 3,
+        "p50": 56347.424214,
+        "minimum": 51891.616874,
+        "maximum": 57313.663423
+      },
+      "construction_ms": {
+        "samples": 3,
+        "p50": 22601.171935,
+        "minimum": 22579.977018999998,
+        "maximum": 23526.736666
+      }
+    },
+    "receiver_h17": {
+      "verify_apply_ms": {
+        "samples": 4,
+        "p50": 3590.499543,
+        "minimum": 3503.3579620000005,
+        "maximum": 3669.6029540000004
+      },
+      "verify_ms": {
+        "samples": 4,
+        "p50": 3078.8846219999996,
+        "minimum": 3011.1135670000003,
+        "maximum": 3142.0788970000003
+      },
+      "state_apply_ms": {
+        "samples": 4,
+        "p50": 511.614921,
+        "minimum": 492.244395,
+        "maximum": 527.5240570000001
+      }
+    },
+    "receiver_h22": {
+      "verify_apply_ms": {
+        "samples": 4,
+        "p50": 3179.241958,
+        "minimum": 3151.5927779999997,
+        "maximum": 3298.372441
+      },
+      "verify_ms": {
+        "samples": 4,
+        "p50": 3174.909221,
+        "minimum": 3147.5037509999997,
+        "maximum": 3291.834634
+      },
+      "state_apply_ms": {
+        "samples": 4,
+        "p50": 4.348787,
+        "minimum": 4.056927,
+        "maximum": 6.537807
+      }
+    }
+  },
+  "mining_events": [
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 256084
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 31735.985225
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 269524
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 470.63664500000004
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272608
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 469.699141
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272660
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 503.23874199999995
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272672
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 507.563655
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272688
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 570.253754
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272688
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 532.493606
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272704
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 531.4040669999999
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 333676,
+        "rss_kib": 272708
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 535.741723
+    },
+    {
+      "build_scan_ms": 20141.123384,
+      "m": 23,
+      "matrix": "a861cd6067e1270919ff65acddf5db2517a9e20b9c33cb74680940aa6c84575a",
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 1734112,
+        "rss_kib": 1246232
+      },
+      "pages": 112,
+      "pass": 0,
+      "phase": "freeze",
+      "rows": 8350239,
+      "satisfied": true
+    },
+    {
+      "build_scan_ms": 20894.412421999998,
+      "m": 23,
+      "matrix": "f4d1c8bd58e1d510483bf716d4d245f8f6b911d5b760607322eaa44a9a64e7a6",
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 1863512,
+        "rss_kib": 1385404
+      },
+      "pages": 112,
+      "pass": 1,
+      "phase": "freeze",
+      "rows": 8350239,
+      "satisfied": true
+    },
+    {
+      "phase": "input_budget_recipe_checks",
+      "rejected": 6
+    },
+    {
+      "activation": 10,
+      "bank": "57a104e68cc9b26b7ff1f147dbc4ba9d7c4d7420b773ba1f4617fb01d0fdc3b9",
+      "block_seconds": 30,
+      "block_vk": "63e2b3720f117b82b34760923c08f285c4b541ba112f799c3a032a55a20f2821",
+      "cpu_backend": "avx2+vpclmul",
+      "legacy_fixture_directory": "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+      "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+      "legacy_v1_1_activation": 5,
+      "m": 23,
+      "matrix": "f4d1c8bd58e1d510483bf716d4d245f8f6b911d5b760607322eaa44a9a64e7a6",
+      "matrix_zstd_bytes": 9951178,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 2171756,
+        "rss_kib": 1002316
+      },
+      "pages": 112,
+      "parent_vk": "c179d0caa43a444d20647d10ef8f5961fdd19224fef53a44685d4c18bc39ae05",
+      "rayon_threads": 12,
+      "setup_ms": 133442.196898,
+      "status": "research; no release parameters selected",
+      "useful_rows": 8350239
+    },
+    {
+      "assembly_ms": 4688.407115,
+      "body_bytes": 540,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 15.663488999999998,
+      "fixture_template_ms": 1.933567,
+      "height": 10,
+      "input_ms": 2.357283,
+      "label": "fork_empty",
+      "live_inputs": 0,
+      "live_outputs": 0,
+      "m": 23,
+      "materialize_ms": 1.837734,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 2985308,
+        "rss_kib": 1745336
+      },
+      "pages": 0,
+      "pow_ms": 1338.502385,
+      "prove_ms": 12612.706172,
+      "terminal_bytes": 931508,
+      "touched_segments": 1,
+      "verify_ms": 605.2338040000001,
+      "wallet_authorization_ms": 0.0,
+      "wallet_batch_workers": 0
+    },
+    {
+      "height": 10,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "assembly_ms": 6712.098636000001,
+      "body_bytes": 2801,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 19.443314,
+      "fixture_template_ms": 15.078415,
+      "height": 11,
+      "input_ms": 198.047799,
+      "label": "independent_owner_funding",
+      "live_inputs": 7,
+      "live_outputs": 14,
+      "m": 23,
+      "materialize_ms": 5.4844100000000005,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4004540,
+        "rss_kib": 1865792
+      },
+      "pages": 7,
+      "pow_ms": 975.0404689999999,
+      "prove_ms": 15860.30934,
+      "terminal_bytes": 930164,
+      "touched_segments": 2,
+      "verify_ms": 1077.032424,
+      "wallet_authorization_ms": 3857.809608,
+      "wallet_batch_workers": 4
+    },
+    {
+      "height": 11,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "assembly_ms": 7585.900764,
+      "body_bytes": 5385,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 19.422144,
+      "fixture_template_ms": 14.137502999999999,
+      "height": 12,
+      "input_ms": 400.602601,
+      "label": "independent_owner_funding",
+      "live_inputs": 15,
+      "live_outputs": 30,
+      "m": 23,
+      "materialize_ms": 7.815582999999999,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4098896,
+        "rss_kib": 1869608
+      },
+      "pages": 15,
+      "pow_ms": 442.435678,
+      "prove_ms": 16944.813708,
+      "terminal_bytes": 931572,
+      "touched_segments": 1,
+      "verify_ms": 1046.944641,
+      "wallet_authorization_ms": 7807.8956020000005,
+      "wallet_batch_workers": 4
+    },
+    {
+      "assembly_ms": 6723.919989,
+      "body_bytes": 10553,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 13.630042999999999,
+      "fixture_template_ms": 22.680785,
+      "height": 13,
+      "input_ms": 770.956085,
+      "label": "independent_owner_funding",
+      "live_inputs": 31,
+      "live_outputs": 62,
+      "m": 23,
+      "materialize_ms": 9.20439,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4098896,
+        "rss_kib": 1919152
+      },
+      "pages": 31,
+      "pow_ms": 1478.212039,
+      "prove_ms": 11566.059777999999,
+      "terminal_bytes": 931636,
+      "touched_segments": 1,
+      "verify_ms": 782.326274,
+      "wallet_authorization_ms": 15745.045261,
+      "wallet_batch_workers": 4
+    },
+    {
+      "assembly_ms": 7212.227903,
+      "body_bytes": 16367,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 14.283496999999999,
+      "fixture_template_ms": 35.742973,
+      "height": 14,
+      "input_ms": 1189.244665,
+      "label": "independent_owner_funding",
+      "live_inputs": 49,
+      "live_outputs": 98,
+      "m": 23,
+      "materialize_ms": 11.097179,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4146916,
+        "rss_kib": 1952148
+      },
+      "pages": 49,
+      "pow_ms": 95.36502700000001,
+      "prove_ms": 11844.0365,
+      "terminal_bytes": 931252,
+      "touched_segments": 1,
+      "verify_ms": 819.794531,
+      "wallet_authorization_ms": 19084.025649,
+      "wallet_batch_workers": 4
+    },
+    {
+      "assembly_ms": 7970.515139,
+      "body_bytes": 36716,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 12.92502,
+      "fixture_template_ms": 258.548727,
+      "height": 15,
+      "input_ms": 3056.704924,
+      "label": "fund_independent_owners",
+      "live_inputs": 112,
+      "live_outputs": 112,
+      "m": 23,
+      "materialize_ms": 144.714818,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4148864,
+        "rss_kib": 2020696
+      },
+      "pages": 112,
+      "pow_ms": 387.997608,
+      "prove_ms": 11542.59056,
+      "terminal_bytes": 931124,
+      "touched_segments": 112,
+      "verify_ms": 801.701566,
+      "wallet_authorization_ms": 58140.169006000004,
+      "wallet_batch_workers": 4
+    },
+    {
+      "independent_owners": 2,
+      "inputs": 2,
+      "logical_transactions": 2,
+      "outputs": 4,
+      "phase": "payment_fixture",
+      "sample": 0,
+      "spent_segments": 2,
+      "touched_segments": 6
+    },
+    {
+      "assembly_ms": 6225.308944,
+      "body_bytes": 1186,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 14.141881,
+      "fixture_template_ms": 11.022235,
+      "height": 16,
+      "input_ms": 53.461988000000005,
+      "label": "payment_sample_0_owners_2_inputs_1_outputs_2",
+      "live_inputs": 2,
+      "live_outputs": 4,
+      "m": 23,
+      "materialize_ms": 7.846563000000001,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4269404,
+        "rss_kib": 2132044
+      },
+      "pages": 2,
+      "pow_ms": 1374.582508,
+      "prove_ms": 12033.326166,
+      "terminal_bytes": 933268,
+      "touched_segments": 7,
+      "verify_ms": 814.0169189999999,
+      "wallet_authorization_ms": 1047.236061,
+      "wallet_batch_workers": 2
+    },
+    {
+      "independent_owners": 112,
+      "inputs": 112,
+      "logical_transactions": 112,
+      "outputs": 224,
+      "phase": "payment_fixture",
+      "sample": 0,
+      "spent_segments": 112,
+      "touched_segments": 254
+    },
+    {
+      "audit_ms": 26798.096075,
+      "contracts": 0,
+      "height": 17,
+      "pages": 112,
+      "phase": "full_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 8230.739775,
+      "body_bytes": 36716,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 12.861206,
+      "fixture_template_ms": 365.353331,
+      "height": 17,
+      "input_ms": 2900.983073,
+      "label": "payment_sample_0_owners_112_inputs_1_outputs_2",
+      "live_inputs": 112,
+      "live_outputs": 224,
+      "m": 23,
+      "materialize_ms": 388.25183200000004,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4359964,
+        "rss_kib": 2699452
+      },
+      "pages": 112,
+      "pow_ms": 601.9651339999999,
+      "prove_ms": 12395.013818000001,
+      "terminal_bytes": 932692,
+      "touched_segments": 254,
+      "verify_ms": 864.065457,
+      "wallet_authorization_ms": 57313.663423,
+      "wallet_batch_workers": 4
+    },
+    {
+      "independent_owners": 2,
+      "inputs": 2,
+      "logical_transactions": 2,
+      "outputs": 4,
+      "phase": "payment_fixture",
+      "sample": 1,
+      "spent_segments": 2,
+      "touched_segments": 6
+    },
+    {
+      "assembly_ms": 6629.113198,
+      "body_bytes": 1186,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 18.218274,
+      "fixture_template_ms": 5.983604,
+      "height": 18,
+      "input_ms": 57.845631000000004,
+      "label": "payment_sample_1_owners_2_inputs_1_outputs_2",
+      "live_inputs": 2,
+      "live_outputs": 4,
+      "m": 23,
+      "materialize_ms": 9.976064999999998,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4926440,
+        "rss_kib": 2677012
+      },
+      "pages": 2,
+      "pow_ms": 1315.557504,
+      "prove_ms": 16386.437512,
+      "terminal_bytes": 930356,
+      "touched_segments": 7,
+      "verify_ms": 1087.5358669999998,
+      "wallet_authorization_ms": 1123.866411,
+      "wallet_batch_workers": 2
+    },
+    {
+      "independent_owners": 112,
+      "inputs": 112,
+      "logical_transactions": 112,
+      "outputs": 224,
+      "phase": "payment_fixture",
+      "sample": 1,
+      "spent_segments": 112,
+      "touched_segments": 240
+    },
+    {
+      "assembly_ms": 8081.729471999999,
+      "body_bytes": 36716,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 11.546001,
+      "fixture_template_ms": 337.020288,
+      "height": 19,
+      "input_ms": 2938.503379,
+      "label": "payment_sample_1_owners_112_inputs_1_outputs_2",
+      "live_inputs": 112,
+      "live_outputs": 224,
+      "m": 23,
+      "materialize_ms": 343.392989,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 4926440,
+        "rss_kib": 3170872
+      },
+      "pages": 112,
+      "pow_ms": 1256.677169,
+      "prove_ms": 11559.744168,
+      "terminal_bytes": 930644,
+      "touched_segments": 240,
+      "verify_ms": 818.117556,
+      "wallet_authorization_ms": 51891.616874,
+      "wallet_batch_workers": 4
+    },
+    {
+      "independent_owners": 2,
+      "inputs": 2,
+      "logical_transactions": 2,
+      "outputs": 4,
+      "phase": "payment_fixture",
+      "sample": 2,
+      "spent_segments": 2,
+      "touched_segments": 6
+    },
+    {
+      "assembly_ms": 6309.180977999999,
+      "body_bytes": 1186,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 1.415983,
+      "fixture_template_ms": 6.622921000000001,
+      "height": 20,
+      "input_ms": 59.417217,
+      "label": "payment_sample_2_owners_2_inputs_1_outputs_2",
+      "live_inputs": 2,
+      "live_outputs": 4,
+      "m": 23,
+      "materialize_ms": 12.838994,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 5004796,
+        "rss_kib": 3073100
+      },
+      "pages": 2,
+      "pow_ms": 1642.461218,
+      "prove_ms": 13399.010912,
+      "terminal_bytes": 932788,
+      "touched_segments": 7,
+      "verify_ms": 948.792156,
+      "wallet_authorization_ms": 1031.803865,
+      "wallet_batch_workers": 2
+    },
+    {
+      "independent_owners": 112,
+      "inputs": 112,
+      "logical_transactions": 112,
+      "outputs": 224,
+      "phase": "payment_fixture",
+      "sample": 2,
+      "spent_segments": 112,
+      "touched_segments": 240
+    },
+    {
+      "assembly_ms": 7845.140302,
+      "body_bytes": 36716,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 1.436858,
+      "fixture_template_ms": 282.966788,
+      "height": 21,
+      "input_ms": 2815.6025700000005,
+      "label": "payment_sample_2_owners_112_inputs_1_outputs_2",
+      "live_inputs": 112,
+      "live_outputs": 224,
+      "m": 23,
+      "materialize_ms": 316.668635,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 5004796,
+        "rss_kib": 3176184
+      },
+      "pages": 112,
+      "pow_ms": 388.265478,
+      "prove_ms": 11940.429063,
+      "terminal_bytes": 929236,
+      "touched_segments": 240,
+      "verify_ms": 914.466862,
+      "wallet_authorization_ms": 56347.424214,
+      "wallet_batch_workers": 4
+    },
+    {
+      "assembly_ms": 6601.64286,
+      "body_bytes": 540,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 15.634430000000002,
+      "fixture_template_ms": 1.799324,
+      "height": 22,
+      "input_ms": 2.211969,
+      "label": "independent_owner_empty_successor",
+      "live_inputs": 0,
+      "live_outputs": 0,
+      "m": 23,
+      "materialize_ms": 3.9933349999999996,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 5141316,
+        "rss_kib": 3135232
+      },
+      "pages": 0,
+      "pow_ms": 398.259613,
+      "prove_ms": 12515.264971,
+      "terminal_bytes": 931540,
+      "touched_segments": 1,
+      "verify_ms": 822.624457,
+      "wallet_authorization_ms": 0.0,
+      "wallet_batch_workers": 0
+    },
+    {
+      "complete": true,
+      "m": 23,
+      "memory": {
+        "process_peak_rss_kib": 5141316,
+        "rss_kib": 3135232
+      },
+      "mode": "payments",
+      "pages": 112,
+      "samples": 3,
+      "tip": 22
+    }
+  ],
+  "transition_events": [
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 254712
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 30438.657442
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 268072
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 496.53779599999996
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271160
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 506.85385
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271188
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 488.22913800000003
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271204
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 511.16718000000003
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271216
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 470.29726999999997
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271216
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 501.827052
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271244
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 571.704524
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 332348,
+        "rss_kib": 271248
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 523.858702
+    },
+    {
+      "build_scan_ms": 20178.948251,
+      "m": 23,
+      "matrix": "a861cd6067e1270919ff65acddf5db2517a9e20b9c33cb74680940aa6c84575a",
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 1733452,
+        "rss_kib": 1251796
+      },
+      "pages": 112,
+      "pass": 0,
+      "phase": "freeze",
+      "rows": 8350239,
+      "satisfied": true
+    },
+    {
+      "build_scan_ms": 20646.250318,
+      "m": 23,
+      "matrix": "f4d1c8bd58e1d510483bf716d4d245f8f6b911d5b760607322eaa44a9a64e7a6",
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 1803872,
+        "rss_kib": 1325536
+      },
+      "pages": 112,
+      "pass": 1,
+      "phase": "freeze",
+      "rows": 8350239,
+      "satisfied": true
+    },
+    {
+      "phase": "input_budget_recipe_checks",
+      "rejected": 6
+    },
+    {
+      "activation": 10,
+      "bank": "57a104e68cc9b26b7ff1f147dbc4ba9d7c4d7420b773ba1f4617fb01d0fdc3b9",
+      "block_seconds": 30,
+      "block_vk": "63e2b3720f117b82b34760923c08f285c4b541ba112f799c3a032a55a20f2821",
+      "cpu_backend": "avx2+vpclmul",
+      "legacy_fixture_directory": "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+      "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+      "legacy_v1_1_activation": 5,
+      "m": 23,
+      "matrix": "f4d1c8bd58e1d510483bf716d4d245f8f6b911d5b760607322eaa44a9a64e7a6",
+      "matrix_zstd_bytes": 9951178,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 2180380,
+        "rss_kib": 1014472
+      },
+      "pages": 112,
+      "parent_vk": "c179d0caa43a444d20647d10ef8f5961fdd19224fef53a44685d4c18bc39ae05",
+      "rayon_threads": 12,
+      "setup_ms": 129706.357354,
+      "status": "research; no release parameters selected",
+      "useful_rows": 8350239
+    },
+    {
+      "assembly_ms": 4409.122106,
+      "body_bytes": 540,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 13.566904,
+      "fixture_template_ms": 1.721795,
+      "height": 10,
+      "input_ms": 2.069586,
+      "label": "fork_empty",
+      "live_inputs": 0,
+      "live_outputs": 0,
+      "m": 23,
+      "materialize_ms": 1.947505,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 2884556,
+        "rss_kib": 1710376
+      },
+      "pages": 0,
+      "pow_ms": 1464.380023,
+      "prove_ms": 12623.110867,
+      "terminal_bytes": 932916,
+      "touched_segments": 1,
+      "verify_ms": 487.251368,
+      "wallet_authorization_ms": 0.0,
+      "wallet_batch_workers": 0
+    },
+    {
+      "height": 10,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "assembly_ms": 6521.280855,
+      "body_bytes": 540,
+      "capacity": 112,
+      "contract_calls": 0,
+      "encode_ms": 12.093214,
+      "fixture_template_ms": 1.494762,
+      "height": 11,
+      "input_ms": 1.8380779999999999,
+      "label": "transition_successor_0",
+      "live_inputs": 0,
+      "live_outputs": 0,
+      "m": 23,
+      "materialize_ms": 1.5781560000000001,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 3937600,
+        "rss_kib": 1704692
+      },
+      "pages": 0,
+      "pow_ms": 1533.511997,
+      "prove_ms": 12081.460398000001,
+      "terminal_bytes": 931124,
+      "touched_segments": 1,
+      "verify_ms": 833.740538,
+      "wallet_authorization_ms": 0.0,
+      "wallet_batch_workers": 0
+    },
+    {
+      "height": 11,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "complete": true,
+      "m": 23,
+      "memory": {
+        "process_peak_rss_kib": 3937600,
+        "rss_kib": 1704692
+      },
+      "mode": "transition",
+      "pages": 112,
+      "successors": 1,
+      "tip": 11
+    }
+  ],
+  "receiver_events": [
+    {
+      "cpu_backend": "pclmul",
+      "m": 23,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 642156,
+        "rss_kib": 393256
+      },
+      "pages": 112,
+      "phase": "receiver_setup",
+      "rayon_threads": 4,
+      "setup_ms": 324999.427034
+    },
+    {
+      "height": 17,
+      "phase": "receiver_wire_budget",
+      "production_bundle_codec_result": "Err(HistoryStepMetadata(UnsupportedVersion { actual: 6 }))",
+      "wire_budget": {
+        "accepted_bundle_framed_bytes": 969420,
+        "block_fits_current_cap": true,
+        "body_plus_terminal_bytes": 969408,
+        "body_plus_terminal_fit_one_current_object_response": true,
+        "bundle_fits_current_cap": true,
+        "current_block_cap_bytes": 82905,
+        "current_terminal_cap_bytes": 1100000,
+        "production_v2_transport_qualified": false,
+        "terminal_encoded_fits_current_cap": true,
+        "terminal_shape_bound_bytes": 1032212,
+        "terminal_shape_fits_current_cap": true
+      }
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 808732,
+        "rss_kib": 808732
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 5108.573112
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 1501424,
+        "rss_kib": 808876
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 499.28970499999997,
+      "terminal_bytes": 932692,
+      "verify_apply_ms": 3519.350663,
+      "verify_ms": 3020.060958,
+      "warmup": true
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 1501520,
+        "rss_kib": 808892
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 516.307864,
+      "terminal_bytes": 932692,
+      "verify_apply_ms": 3606.9968969999995,
+      "verify_ms": 3090.6890329999997,
+      "warmup": false
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 1501640,
+        "rss_kib": 808900
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 506.921978,
+      "terminal_bytes": 932692,
+      "verify_apply_ms": 3574.002189,
+      "verify_ms": 3067.080211,
+      "warmup": false
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 1501640,
+        "rss_kib": 808908
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 492.244395,
+      "terminal_bytes": 932692,
+      "verify_apply_ms": 3503.3579620000005,
+      "verify_ms": 3011.1135670000003,
+      "warmup": false
+    },
+    {
+      "height": 17,
+      "memory": {
+        "process_peak_rss_kib": 1501644,
+        "rss_kib": 808908
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 527.5240570000001,
+      "terminal_bytes": 932692,
+      "verify_apply_ms": 3669.6029540000004,
+      "verify_ms": 3142.0788970000003,
+      "warmup": false
+    },
+    {
+      "height": 22,
+      "phase": "receiver_wire_budget",
+      "production_bundle_codec_result": "Err(HistoryStepMetadata(UnsupportedVersion { actual: 6 }))",
+      "wire_budget": {
+        "accepted_bundle_framed_bytes": 932092,
+        "block_fits_current_cap": true,
+        "body_plus_terminal_bytes": 932080,
+        "body_plus_terminal_fit_one_current_object_response": true,
+        "bundle_fits_current_cap": true,
+        "current_block_cap_bytes": 82905,
+        "current_terminal_cap_bytes": 1100000,
+        "production_v2_transport_qualified": false,
+        "terminal_encoded_fits_current_cap": true,
+        "terminal_shape_bound_bytes": 1032212,
+        "terminal_shape_fits_current_cap": true
+      }
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890144,
+        "rss_kib": 1890144
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 2224.420812
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890148,
+        "rss_kib": 1890148
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 3.638784,
+      "terminal_bytes": 931540,
+      "verify_apply_ms": 3080.1408600000004,
+      "verify_ms": 3076.502076,
+      "warmup": true
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890148,
+        "rss_kib": 1890148
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 4.608547,
+      "terminal_bytes": 931540,
+      "verify_apply_ms": 3184.460263,
+      "verify_ms": 3179.851716,
+      "warmup": false
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890172,
+        "rss_kib": 1890172
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 4.056927,
+      "terminal_bytes": 931540,
+      "verify_apply_ms": 3174.023653,
+      "verify_ms": 3169.966726,
+      "warmup": false
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890180,
+        "rss_kib": 1890180
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 6.537807,
+      "terminal_bytes": 931540,
+      "verify_apply_ms": 3298.372441,
+      "verify_ms": 3291.834634,
+      "warmup": false
+    },
+    {
+      "height": 22,
+      "memory": {
+        "process_peak_rss_kib": 1890180,
+        "rss_kib": 1890180
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 4.089027000000001,
+      "terminal_bytes": 931540,
+      "verify_apply_ms": 3151.5927779999997,
+      "verify_ms": 3147.5037509999997,
+      "warmup": false
+    }
+  ],
+  "failed_candidates": [
+    {
+      "pages": 120,
+      "max_live_inputs": 384,
+      "m": 23,
+      "positions": 8428375,
+      "complete_recursive_count": true,
+      "exit_status": 1,
+      "log_sha256": "e2692e6262648bdb6de60de137d3dbb9a66d6414194d97d76e936761a4404b64",
+      "ledger": [
+        "[ledger] slots: statement wires           +       37  (total      6174)",
+        "[ledger] slots: direct header boundary    +        4  (total      6178)",
+        "[ledger] slots: spine (tiles+tree data)   +     5134  (total     11312)",
+        "[ledger] slots: liveness bits             +      735  (total     12047)",
+        "[ledger] slots: exact-state               +    19666  (total     31713)",
+        "[ledger] slots: page surfaces             +   310920  (total    342633)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    347405)",
+        "[ledger] slots: PagedSpend+logical tx-root +   295173  (total    642578)",
+        "[ledger] slots: page arithmetic+logical auth +      512  (total    643090)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   115270  (total    758360)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 758602, order: [Main, MetaA, MetaB, WalletB, WalletA, Owner], main: 786432, owner: 4456448, wallet_b: 1703936, wallet_a: 2883584, meta_a: 983040, meta_b: 1114112, after: 4554752 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5929018  (total   6687378)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24249  (total   6711627)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   6711627)",
+        "[ledger] slots: action allocator+route+order +   328723  (total   7040350)",
+        "[ledger] slots: exact-state action+paired topology +   113295  (total   7153645)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   7157687)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   279067  (total    298034)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    300272)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    301278)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    307141)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    310258)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    431288)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    432052)",
+        "[ledger] R-c1: PCS opening batch          +   143043  (total    444321)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] slots: statement wires           +       37  (total    595998)",
+        "[ledger] slots: direct header boundary    +        4  (total    596002)",
+        "[ledger] slots: spine (tiles+tree data)   +     5134  (total    601136)",
+        "[ledger] slots: liveness bits             +      735  (total    601871)",
+        "[ledger] slots: exact-state               +    19666  (total    621537)",
+        "[ledger] slots: page surfaces             +   310920  (total    932457)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    937229)",
+        "[ledger] slots: PagedSpend+logical tx-root +   295173  (total   1232402)",
+        "[ledger] slots: page arithmetic+logical auth +      512  (total   1232914)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   115270  (total   1348184)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 1348426, order: [Main, WalletB, MetaA, WalletA, MetaB, Owner], main: 1376256, owner: 5046272, wallet_b: 1572864, wallet_a: 2883584, meta_a: 2752512, meta_b: 4456448, after: 5144576 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5929018  (total   7277202)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24249  (total   7301451)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   7301451)",
+        "[ledger] slots: action allocator+route+order +   328723  (total   7630174)",
+        "[ledger] slots: exact-state action+paired topology +   113295  (total   7743469)",
+        "[ledger] R-c1: statement bind             +        0  (total   7761794)",
+        "[ledger] R-c1: public-IO bind             +      655  (total   7762449)",
+        "[ledger] R-c1: post-commit auxiliary      +   328817  (total   8091266)",
+        "[ledger] R-c1: zerocheck                  +     2276  (total   8093542)",
+        "[ledger] R-c1: lincheck                   +     1006  (total   8094548)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total   8102703)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3151  (total   8105854)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   122094  (total   8227948)",
+        "[ledger] R-pcs-c1: plaintext tail         +      772  (total   8228720)",
+        "[ledger] R-c1: PCS opening batch          +   146443  (total   8240991)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   8428375)"
+      ],
+      "error": "Shape { used: 8428375, limit: 8388608 }"
+    },
+    {
+      "pages": 127,
+      "max_live_inputs": 256,
+      "m": 23,
+      "positions": 8422615,
+      "complete_recursive_count": true,
+      "exit_status": 1,
+      "log_sha256": "b4e0f06a186496c20633fe1ed77038aee0a613a5407d4636fe6892836c9cda1a",
+      "ledger": [
+        "[ledger] slots: statement wires           +       37  (total      6174)",
+        "[ledger] slots: direct header boundary    +        4  (total      6178)",
+        "[ledger] slots: spine (tiles+tree data)   +     5372  (total     11550)",
+        "[ledger] slots: liveness bits             +      770  (total     12320)",
+        "[ledger] slots: exact-state               +    19240  (total     31560)",
+        "[ledger] slots: page surfaces             +   329057  (total    360617)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    365389)",
+        "[ledger] slots: PagedSpend+logical tx-root +   310968  (total    676357)",
+        "[ledger] slots: page arithmetic+logical auth +      540  (total    676897)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   121969  (total    798866)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 799122, order: [Main, Owner, MetaA, MetaB, WalletA, WalletB], main: 819200, owner: 1015808, wallet_b: 3407872, wallet_a: 1835008, meta_a: 1114112, meta_b: 1245184, after: 4587520 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5920150  (total   6719016)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24263  (total   6743279)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   6743279)",
+        "[ledger] slots: action allocator+route+order +   321752  (total   7065031)",
+        "[ledger] slots: exact-state action+paired topology +    82842  (total   7147873)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   7151915)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   279079  (total    298046)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    300284)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    301290)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    307153)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    310270)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    431300)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    432064)",
+        "[ledger] R-c1: PCS opening batch          +   143043  (total    444333)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328491  (total    347458)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349696)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350702)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356525)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359642)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480672)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481436)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493705)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328491  (total    347458)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349696)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350702)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356525)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359642)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480672)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481436)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493705)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328491  (total    347458)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349696)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350702)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356525)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359642)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480672)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481436)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493705)",
+        "[ledger] slots: statement wires           +       37  (total    595998)",
+        "[ledger] slots: direct header boundary    +        4  (total    596002)",
+        "[ledger] slots: spine (tiles+tree data)   +     5372  (total    601374)",
+        "[ledger] slots: liveness bits             +      770  (total    602144)",
+        "[ledger] slots: exact-state               +    19240  (total    621384)",
+        "[ledger] slots: page surfaces             +   329057  (total    950441)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    955213)",
+        "[ledger] slots: PagedSpend+logical tx-root +   310968  (total   1266181)",
+        "[ledger] slots: page arithmetic+logical auth +      540  (total   1266721)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   121969  (total   1388690)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 1388946, order: [Main, Owner, WalletB, WalletA, MetaA, MetaB], main: 1409024, owner: 1605632, wallet_b: 1703936, wallet_a: 2883584, meta_a: 4456448, meta_b: 4587520, after: 5177344 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5920150  (total   7308840)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24263  (total   7333103)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   7333103)",
+        "[ledger] slots: action allocator+route+order +   321752  (total   7654855)",
+        "[ledger] slots: exact-state action+paired topology +    82842  (total   7737697)",
+        "[ledger] R-c1: statement bind             +        0  (total   7756022)",
+        "[ledger] R-c1: public-IO bind             +      655  (total   7756677)",
+        "[ledger] R-c1: post-commit auxiliary      +   328829  (total   8085506)",
+        "[ledger] R-c1: zerocheck                  +     2276  (total   8087782)",
+        "[ledger] R-c1: lincheck                   +     1006  (total   8088788)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total   8096943)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3151  (total   8100094)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   122094  (total   8222188)",
+        "[ledger] R-pcs-c1: plaintext tail         +      772  (total   8222960)",
+        "[ledger] R-c1: PCS opening batch          +   146443  (total   8235231)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   8422615)"
+      ],
+      "error": "Shape { used: 8422615, limit: 8388608 }"
+    },
+    {
+      "pages": 127,
+      "max_live_inputs": 384,
+      "m": 23,
+      "positions": 8471819,
+      "complete_recursive_count": true,
+      "exit_status": 1,
+      "log_sha256": "5e50a7305a6e05568124b72f3aa2df3d47dbad31e21e05f4a057b3de626eff32",
+      "ledger": [
+        "[ledger] slots: statement wires           +       37  (total      6174)",
+        "[ledger] slots: direct header boundary    +        4  (total      6178)",
+        "[ledger] slots: spine (tiles+tree data)   +     5372  (total     11550)",
+        "[ledger] slots: liveness bits             +      770  (total     12320)",
+        "[ledger] slots: exact-state               +    20520  (total     32840)",
+        "[ledger] slots: page surfaces             +   329057  (total    361897)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    366669)",
+        "[ledger] slots: PagedSpend+logical tx-root +   310968  (total    677637)",
+        "[ledger] slots: page arithmetic+logical auth +      540  (total    678177)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   121969  (total    800146)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 800402, order: [Main, Owner, MetaA, MetaB, WalletA, WalletB], main: 819200, owner: 1015808, wallet_b: 3407872, wallet_a: 1835008, meta_a: 1114112, meta_b: 1245184, after: 4587520 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5920406  (total   6720552)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24263  (total   6744815)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   6744815)",
+        "[ledger] slots: action allocator+route+order +   338264  (total   7083079)",
+        "[ledger] slots: exact-state action+paired topology +   114010  (total   7197089)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   7201131)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   279067  (total    298034)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    300272)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    301278)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    307141)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    310258)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    431288)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    432052)",
+        "[ledger] R-c1: PCS opening batch          +   143043  (total    444321)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] R-c1: statement bind             +        0  (total     18312)",
+        "[ledger] R-c1: public-IO bind             +      655  (total     18967)",
+        "[ledger] R-c1: post-commit auxiliary      +   328479  (total    347446)",
+        "[ledger] R-c1: zerocheck                  +     2238  (total    349684)",
+        "[ledger] R-c1: lincheck                   +     1006  (total    350690)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total    356513)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3117  (total    359630)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   121030  (total    480660)",
+        "[ledger] R-pcs-c1: plaintext tail         +      764  (total    481424)",
+        "[ledger] R-c1: PCS opening batch          +   143003  (total    493693)",
+        "[ledger] slots: statement wires           +       37  (total    595998)",
+        "[ledger] slots: direct header boundary    +        4  (total    596002)",
+        "[ledger] slots: spine (tiles+tree data)   +     5372  (total    601374)",
+        "[ledger] slots: liveness bits             +      770  (total    602144)",
+        "[ledger] slots: exact-state               +    20520  (total    622664)",
+        "[ledger] slots: page surfaces             +   329057  (total    951721)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    956493)",
+        "[ledger] slots: PagedSpend+logical tx-root +   310968  (total   1267461)",
+        "[ledger] slots: page arithmetic+logical auth +      540  (total   1268001)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   121969  (total   1389970)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 1390226, order: [Main, Owner, WalletB, WalletA, MetaA, MetaB], main: 1409024, owner: 1605632, wallet_b: 1703936, wallet_a: 2883584, meta_a: 4456448, meta_b: 4587520, after: 5177344 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly +  5920406  (total   7310376)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24263  (total   7334639)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total   7334639)",
+        "[ledger] slots: action allocator+route+order +   338264  (total   7672903)",
+        "[ledger] slots: exact-state action+paired topology +   114010  (total   7786913)",
+        "[ledger] R-c1: statement bind             +        0  (total   7805238)",
+        "[ledger] R-c1: public-IO bind             +      655  (total   7805893)",
+        "[ledger] R-c1: post-commit auxiliary      +   328817  (total   8134710)",
+        "[ledger] R-c1: zerocheck                  +     2276  (total   8136986)",
+        "[ledger] R-c1: lincheck                   +     1006  (total   8137992)",
+        "[ledger] R-pcs-c1: sumcheck rounds        +      253  (total   8146147)",
+        "[ledger] R-pcs-c1: grind + query sample   +     3151  (total   8149298)",
+        "[ledger] R-pcs-c1: per-query folds+paths  +   122094  (total   8271392)",
+        "[ledger] R-pcs-c1: plaintext tail         +      772  (total   8272164)",
+        "[ledger] R-c1: PCS opening batch          +   146443  (total   8284435)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total   8471819)"
+      ],
+      "error": "Shape { used: 8471819, limit: 8388608 }"
+    },
+    {
+      "pages": 223,
+      "max_live_inputs": 384,
+      "m": 23,
+      "positions": 13995339,
+      "complete_recursive_count": false,
+      "exit_status": 1,
+      "log_sha256": "d07fa029c885acbf52713a2fb59cb086c2d4359b5e09d64d35175f0345864adf",
+      "ledger": [
+        "[ledger] slots: statement wires           +       37  (total      6174)",
+        "[ledger] slots: direct header boundary    +        4  (total      6178)",
+        "[ledger] slots: spine (tiles+tree data)   +     8636  (total     14814)",
+        "[ledger] slots: liveness bits             +     1250  (total     16064)",
+        "[ledger] slots: exact-state               +    32232  (total     48296)",
+        "[ledger] slots: page surfaces             +   577793  (total    626089)",
+        "[ledger] slots: v2 contract policy        +     4772  (total    630861)",
+        "[ledger] slots: PagedSpend+logical tx-root +   553288  (total   1184149)",
+        "[ledger] slots: page arithmetic+logical auth +      924  (total   1185073)",
+        "[ledger] slots: fee/burn/coinbase arithmetic +   213841  (total   1398914)",
+        "[ledger] selected-region allocation SelectedZkRegionAllocationLedger { before: 1399362, order: [Main, WalletB, WalletA, MetaA, MetaB, Owner], main: 1441792, owner: 8781824, wallet_b: 1835008, wallet_a: 4194304, meta_a: 7340032, meta_b: 7602176, after: 8978432 }",
+        "[ledger] slots: selected auth+Meta/all-tiles assembly + 11835238  (total  13234152)",
+        "[ledger] v2 execution slot: context=16 program=282 recipient=986 terminal=4 total=1288",
+        "[ledger] slots: v2 contract execution     +    24455  (total  13258607)",
+        "[ledger] slots: wallet plural/sidecar assembly +        0  (total  13258607)",
+        "[ledger] slots: action allocator+route+order +   605880  (total  13864487)",
+        "[ledger] slots: exact-state action+paired topology +   126810  (total  13991297)",
+        "[ledger] slots: direct accumulator + header hash +     4042  (total  13995339)"
+      ],
+      "error": "Region(BadSlice)"
+    }
+  ],
+  "sweep_commands": [
+    {
+      "pages": 120,
+      "inputs": 384,
+      "exit_code": 1,
+      "elapsed_s": 47.835125195008004,
+      "command": [
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-m23-p120-i384-tps-20260924-a",
+        "23",
+        "120",
+        "30",
+        "1",
+        "--freeze-only",
+        "--inputs=384"
+      ]
+    },
+    {
+      "pages": 127,
+      "inputs": 256,
+      "exit_code": 1,
+      "elapsed_s": 47.98889959699591,
+      "command": [
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-m23-p127-i256-tps-20260924-a",
+        "23",
+        "127",
+        "30",
+        "1",
+        "--freeze-only",
+        "--inputs=256"
+      ]
+    },
+    {
+      "pages": 223,
+      "inputs": 384,
+      "exit_code": 1,
+      "elapsed_s": 45.470942620013375,
+      "command": [
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-m23-p223-i384-tps-20260924-a",
+        "23",
+        "223",
+        "30",
+        "1",
+        "--freeze-only",
+        "--inputs=384"
+      ]
+    }
+  ],
+  "raw_logs_sha256": {
+    "receiver-p112.log": "be7f56573cd21e30b09042132653450cc4ba37964cdb752df55066fd52cb2146",
+    "build-wire.log": "6d6c2c820ae4462620bfbdc2058ab770f69679b832f35a0d36f48391a965aaba",
+    "p120-i384.log": "e2692e6262648bdb6de60de137d3dbb9a66d6414194d97d76e936761a4404b64",
+    "p127-i384.log": "5e50a7305a6e05568124b72f3aa2df3d47dbad31e21e05f4a057b3de626eff32",
+    "p223-i384.log": "d07fa029c885acbf52713a2fb59cb086c2d4359b5e09d64d35175f0345864adf",
+    "p112-independent-payments.log": "d91e0727dc1ecfddeec92ab58a1807b1ad159ebabc1f8326e1b738db5bc04c71",
+    "p127-i256.log": "b4e0f06a186496c20633fe1ed77038aee0a613a5407d4636fe6892836c9cda1a",
+    "p112-i384.log": "11d6f6fc13b367b6b9626e67c9166a9f27e8f5973a01239958bda11a31c18d54"
+  },
+  "receiver_source_files_sha256": {
+    "bench_prover/src/bin/noid_v2_capacity.rs": "20bcb0d8ae9bc987a73653dd4238aa159727787568ee86c965c6ca201b0a503e",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "c84f81769c14fd7baf94cd3af86687d9dd854ec3a468480ba791a8bf66edc97c",
+    "bench_prover/src/bin/v2_capacity_support/proof.rs": "9c5fad16b90e5c0aa92bf5a0810156762887fc6cca0444bc19659351f1ac2454",
+    "bench_prover/src/bin/v2_capacity_support/payments.rs": "fe14f564b9c9edca66d55b4dd706df452c207eedf2b4784a75da1cb4590f18f6",
+    "noid_recursive/src/acceptance/history_step/v2/config.rs": "a36fb181ecdda35b4bdb7e9dc6c3d74895fdf0cceaabb09d7e323de4a70e0348",
+    "noid_recursive/src/region_sidecar/block.rs": "4e2af24d13bbd04f24d4d5ea7db0999428c190c93bebc3806bbd77700ee46293"
+  },
+  "final_source_files_sha256": {
+    "bench_prover/src/bin/noid_v2_capacity.rs": "20bcb0d8ae9bc987a73653dd4238aa159727787568ee86c965c6ca201b0a503e",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "c84f81769c14fd7baf94cd3af86687d9dd854ec3a468480ba791a8bf66edc97c",
+    "bench_prover/src/bin/v2_capacity_support/proof.rs": "9c5fad16b90e5c0aa92bf5a0810156762887fc6cca0444bc19659351f1ac2454",
+    "bench_prover/src/bin/v2_capacity_support/payments.rs": "fe14f564b9c9edca66d55b4dd706df452c207eedf2b4784a75da1cb4590f18f6",
+    "noid_recursive/src/acceptance/history_step/v2/config.rs": "a36fb181ecdda35b4bdb7e9dc6c3d74895fdf0cceaabb09d7e323de4a70e0348",
+    "noid_recursive/src/region_sidecar/block.rs": "7690e28d9dc777b3097ef44ad9b6d7b7073913c03fa6846ea033a5da92b2be13"
+  },
+  "post_measurement_fix": "The enlarged candidate registry exposed a legacy-constructor alias in an existing negative test. from_selected_registry_slices now explicitly permits only released tiers 25 and 255. This does not change the 112-page object constructor, relation or measured bank.",
+  "validation": {
+    "full_command": "cargo test --locked --release -p noid_recursive -p noid_block --lib",
+    "full_run": {
+      "block_passed": 4,
+      "recursive_passed": 413,
+      "recursive_failed": 1,
+      "recursive_ignored": 3
+    },
+    "initial_failure": "candidate_allocations_form_complete_object_registry_certificates: a new research tier sharing B255 dimensions was accepted by the legacy registry constructor",
+    "fix": "Explicitly reject tiers other than 25 and 255 in the legacy registry constructor",
+    "rerun_command": "cargo test --locked --release -p noid_recursive --lib selected_zk_common_allocator_tests",
+    "rerun": {
+      "passed": 5,
+      "failed": 0,
+      "filtered_out": 412
+    },
+    "unique_tests_successful_across_full_run_and_focused_rerun": 418,
+    "format_and_diff_checks": "passed",
+    "test_log_sha256": {
+      "tests.log": "c3183df9a93fadf20156da3a30ebca4358d27b4b8e54710acae74fa266e5244b",
+      "tests-registry.log": "2527c1e586252c8d964890374ba50e976983dc9fdaf8981e8a0da64b7a04b1f2"
+    }
+  }
+}

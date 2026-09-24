@@ -1,12 +1,17 @@
 # Scheduled single-class measurements
 
-The working hypothesis is one m23 class after the v2 boundary. The existing
-B25/B255 bank remains responsible for blocks before that boundary. Capacity,
-target interval and activation height have not been selected for mainnet.
+The current working candidate is one m23 class with 112 user pages and a
+384-input block budget after the v2 boundary. The existing B25/B255 bank
+remains responsible for blocks before that boundary. Target interval and
+activation height have not been selected; this is not a release-qualified bank.
 The [September 24 measurements](results/2026-09-24/REPORT.md) contain actual
 matrix bounds, proofs after both legacy classes and constrained receiver runs.
 The [96-page input-budget investigation](results/2026-09-24-input-budget/REPORT.md)
 adds an explicit 384-input candidate and real distributed-State boundary blocks.
+The [independent-payment measurements](results/2026-09-24-tps/REPORT.md)
+record the 112-page candidate, larger failed shapes and constrained receiver
+results. The [network budget audit](NETWORK_BUDGETS.md) distinguishes terminal,
+body, bundle and response limits from production protocol admission.
 
 `noid_v2_capacity` builds the complete recursive relation, including the
 contract core described in [CORE_CANDIDATE.md](CORE_CANDIDATE.md). It checks
@@ -45,6 +50,23 @@ B255 to exercise a boundary with both legacy accumulated claims live.
 Tested capacities must include both sides of body-table boundaries:
 63/64 and 127/128, as well as 96. The primary coinbase occupies an additional
 body position, so rounding only the user-page count gives an incorrect domain.
+
+Use `--payments-only` to fund distinct owners and alternate two-payment and
+full-payment blocks, each transaction with one input and two outputs. The first
+full block also rebuilds and checks the complete frozen matrix; the sequence
+ends with an empty recursive successor. For the current candidate:
+
+```sh
+RAYON_NUM_THREADS=12 target/release/noid_v2_capacity \
+  /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
+  /path/to/verified-legacy-fixtures /path/to/NEW-output \
+  23 112 30 3 --payments-only --inputs=384
+```
+
+The 30-second interval in this command is a fixture parameter. This mode retains
+the contract core in the matrix but does not generate live contract calls.
+It reports independent wallet-proof creation separately from miner construction.
+The three execution modes are mutually exclusive.
 
 The sequence begins with an empty fork block, then creates spendable notes
 and sixteen contract objects through ordinary authorized transactions. Each

@@ -19,6 +19,7 @@ use std::{
     time::Instant,
 };
 mod boundaries;
+mod payments;
 mod proof;
 mod state;
 use state::*;
@@ -53,6 +54,39 @@ fn memory() -> serde_json::Value {
     json!({"rss_kib":kb("VmRSS:"), "process_peak_rss_kib":kb("VmHWM:")})
 }
 
+/// Compare research proofs to existing transport budgets without treating
+/// byte-size compatibility as v2 P2P admission. The live metadata codec still
+/// selects the v1/v1.1 formats; the candidate has its own versioned decoder.
+fn wire_budget(
+    runtime: &v2::V2Runtime,
+    body_bytes: usize,
+    terminal_bytes: usize,
+) -> Result<serde_json::Value> {
+    use noid_chain::consensus::wire_limits::{
+        MAX_BLOCK_BYTES, MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
+    };
+    let shape_bound = v2::terminal_max_bytes(runtime).map_err(err)?;
+    let payload = body_bytes
+        .checked_add(terminal_bytes)
+        .ok_or("wire length overflow")?;
+    let bundle = payload
+        .checked_add(noid_chain::accepted_block_bundle::ACCEPTED_BLOCK_BUNDLE_HEADER_BYTES)
+        .ok_or("bundle length overflow")?;
+    Ok(json!({
+        "terminal_shape_bound_bytes":shape_bound,
+        "current_terminal_cap_bytes":MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
+        "terminal_shape_fits_current_cap":shape_bound <= MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
+        "terminal_encoded_fits_current_cap":terminal_bytes <= MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
+        "current_block_cap_bytes":MAX_BLOCK_BYTES,
+        "block_fits_current_cap":body_bytes <= MAX_BLOCK_BYTES,
+        "body_plus_terminal_bytes":payload,
+        "body_plus_terminal_fit_one_current_object_response":payload <= MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES,
+        "accepted_bundle_framed_bytes":bundle,
+        "bundle_fits_current_cap":bundle <= noid_chain::MAX_ACCEPTED_BLOCK_BUNDLE_BYTES,
+        "production_v2_transport_qualified":false
+    }))
+}
+
 pub struct Settings {
     pub pack: PathBuf,
     pub pin: [u8; 32],
@@ -62,6 +96,7 @@ pub struct Settings {
     pub samples: usize,
     pub freeze_only: bool,
     pub transition_only: bool,
+    pub payments_only: bool,
 }
 
 /// A separate process for receiver measurements, with an externally supplied
@@ -142,6 +177,15 @@ pub fn verify_saved(args: &[String], with_state: bool) -> Result<()> {
             16 * 1024 * 1024,
         )?)
         .map_err(err)?;
+        println!(
+            "{}",
+            json!({"phase":"receiver_wire_budget", "height":height,
+                "wire_budget":wire_budget(&runtime, block.to_bytes().len(), bytes.len())?,
+                "production_bundle_codec_result":format!("{:?}",
+                    noid_chain::AcceptedBlockBundle::try_from_parts(block.to_bytes(), bytes.clone())
+                        .map(|_| ()))
+            })
+        );
         noid_chain::consensus::pow::validate_pow(&block.header).map_err(err)?;
         let parent_state = if with_state {
             // Authenticate the endpoint before replaying fixture bodies. The
@@ -252,6 +296,10 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
                 "tip":chain.parent().height,"memory":memory()})
         );
         return Ok(());
+    }
+
+    if run.settings.payments_only {
+        return payments::measure::<PAGES>(&mut run, &mut chain);
     }
 
     let opening = ObjectOpening {
@@ -413,12 +461,20 @@ impl Run {
         mut batch: Batch,
     ) -> Result<()> {
         batch.prove_authorizations(chain.parent().height + 1)?;
+        let authorization_proof_bytes = batch
+            .proofs
+            .iter()
+            .map(|proof| proof.to_bytes().map(|bytes| bytes.len()).map_err(err))
+            .collect::<Result<Vec<_>>>()?;
         let start = Instant::now();
         let (mut block, construction_state) =
             chain.build(&batch.pages, self.settings.config.schedule())?;
         let template_ms = elapsed(start);
         drop(construction_state);
-        if batch.openings.len() == 16 && !self.checked_recursive_matrix {
+        let audit_full_payments = self.settings.payments_only
+            && label.starts_with("payment_sample_")
+            && batch.pages.len() == PAGES;
+        if (batch.openings.len() == 16 || audit_full_payments) && !self.checked_recursive_matrix {
             let start = Instant::now();
             let frozen = v2::assemble_frozen(
                 &self.runtime,
@@ -432,14 +488,12 @@ impl Run {
                 || frozen.parent_vk() != self.runtime.parts().parent_vk()
                 || !frozen.matrix().satisfies(frozen.witness())
             {
-                return Err(
-                    "full recursive contract block changed the matrix or is unsatisfied".into(),
-                );
+                return Err("full recursive block changed the matrix or is unsatisfied".into());
             }
             println!(
                 "{}",
                 json!({"phase":"full_recursive_matrix_audit","height":block.header.height,
-                "pages":batch.pages.len(),"contracts":16,"audit_ms":elapsed(start),"satisfied":true})
+                "pages":batch.pages.len(),"contracts":batch.openings.len(),"audit_ms":elapsed(start),"satisfied":true})
             );
             self.checked_recursive_matrix = true;
         }
@@ -500,6 +554,9 @@ impl Run {
         let apply_ms = elapsed(start);
         let record = json!({"label":label, "height":block.header.height,"m":self.settings.config.outer_m(),
             "capacity":PAGES,"max_live_inputs":self.settings.config.max_live_inputs(),
+            "wire_budget":wire_budget(&self.runtime, block.to_bytes().len(), bytes.len())?,
+            "wallet_authorization_proof_bytes_total":authorization_proof_bytes.iter().sum::<usize>(),
+            "wallet_authorization_proof_bytes_max":authorization_proof_bytes.iter().copied().max(),
             "pages":batch.pages.len(),"contract_calls":batch.openings.len(),
             "live_inputs":batch.pages.iter().map(|p| p.body.live_input_count()).sum::<usize>(),
             "live_outputs":batch.pages.iter().map(|p| p.body.live_output_count()).sum::<usize>(),
@@ -557,6 +614,7 @@ fn mine(header: &BlockHeader) -> u128 {
 #[derive(Default)]
 struct Batch {
     pages: Vec<TxPage>,
+    signers: Vec<u8>,
     proofs: Vec<ZkAuthorizationProof>,
     openings: Vec<ObjectOpening>,
     auth_ms: f64,
@@ -590,7 +648,9 @@ impl Batch {
                         }
                         None => noid_gkr::prove_paged_spend_authorization(
                             std::slice::from_ref(page),
-                            OwnerAuthWitness::new(secret(1)),
+                            OwnerAuthWitness::new(secret(
+                                self.signers.get(index).copied().unwrap_or(1),
+                            )),
                         ),
                     }
                     .map_err(err)?;
@@ -609,12 +669,23 @@ impl Batch {
         outputs: [TxOutput; 2],
         second: bool,
     ) -> Result<()> {
+        self.ordinary_as(chain, slot, outputs, second, 1)
+    }
+
+    fn ordinary_as(
+        &mut self,
+        chain: &Chain,
+        slot: u32,
+        outputs: [TxOutput; 2],
+        second: bool,
+        signer: u8,
+    ) -> Result<()> {
         let mut inputs = [TxInput::dummy(); TX_INPUTS];
         inputs[0] = chain.input_slot(slot)?;
         let page = TxPage::new(TxBody {
             epoch_anchor: chain.epoch_id(),
             fee: chain.fee(if second { 2 } else { 1 }),
-            input_owner: address(1),
+            input_owner: address(signer),
             inputs,
             outputs,
             validity_bitmap: 1
@@ -626,6 +697,8 @@ impl Batch {
         })
         .map_err(err)?;
         self.pages.push(page);
+        self.signers.resize(self.pages.len(), 1);
+        *self.signers.last_mut().unwrap() = signer;
         Ok(())
     }
     fn object(

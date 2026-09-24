@@ -21,7 +21,10 @@ fn run() -> Result<()> {
     }
     if !(8..=10).contains(&args.len())
         || args.iter().skip(8).any(|s| {
-            s != "--freeze-only" && s != "--transition-only" && !s.starts_with("--inputs=")
+            s != "--freeze-only"
+                && s != "--transition-only"
+                && s != "--payments-only"
+                && !s.starts_with("--inputs=")
         })
         || args
             .iter()
@@ -36,7 +39,7 @@ fn run() -> Result<()> {
             .count()
             > 1
     {
-        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only] [--inputs=384]".into());
+        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only|--payments-only] [--inputs=N]".into());
     }
     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
         return Err("this fixture requires noid_chain/isolated-v1-1-testnet; the mainnet decoder is intentionally unchanged".into());
@@ -79,14 +82,19 @@ fn run() -> Result<()> {
         samples,
         freeze_only: args.iter().skip(8).any(|s| s == "--freeze-only"),
         transition_only: args.iter().skip(8).any(|s| s == "--transition-only"),
+        payments_only: args.iter().skip(8).any(|s| s == "--payments-only"),
     };
     match pages {
         25 => measure::<25>(settings),
         63 => measure::<63>(settings),
         64 => measure::<64>(settings),
         96 => measure::<96>(settings),
+        112 => measure::<112>(settings),
+        120 => measure::<120>(settings),
         127 => measure::<127>(settings),
         128 => measure::<128>(settings),
+        192 => measure::<192>(settings),
+        223 => measure::<223>(settings),
         255 => measure::<255>(settings),
         _ => Err("unsupported explicit candidate capacity".into()),
     }

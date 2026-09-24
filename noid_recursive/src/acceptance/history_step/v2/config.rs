@@ -34,7 +34,6 @@ impl V2Config {
     ) -> Result<Self, V2Error> {
         let activation = schedule.v2().ok_or(V2Error::Boundary)?;
         if !(23..=25).contains(&outer_m)
-            || ![25, 63, 64, 96, 127, 128, 255].contains(&pages)
             || crate::region_sidecar::selected_zk_block_geometry_with_inputs(pages, max_live_inputs)
                 .is_none()
             || activation.height() <= 1
@@ -175,5 +174,24 @@ mod tests {
             assert!(V2Config::with_input_budget(23, pages, inputs, schedule).is_err());
         }
         assert!(V2Config::new(23, usize::MAX, schedule).is_err());
+    }
+
+    #[test]
+    fn capacity_sweep_keeps_input_limits_and_distinct_bank_identities() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let mut identities = std::collections::HashSet::new();
+        for pages in [96, 112, 120, 127, 128, 192, 223, 255] {
+            for inputs in [256, 384] {
+                let config = V2Config::with_input_budget(23, pages, inputs, schedule).unwrap();
+                let geometry = config.block_geometry();
+                assert_eq!(geometry.tier, pages);
+                assert_eq!(geometry.touched_capacity, inputs + 2 * pages + 1);
+                assert_eq!(geometry.auth_tiles, (pages + 1).next_power_of_two());
+                assert_eq!(config.max_live_inputs(), inputs);
+                assert!(identities.insert(config.identity_bytes()));
+            }
+        }
+        assert!(V2Config::with_input_budget(23, 129, 384, schedule).is_err());
+        assert!(V2Config::with_input_budget(23, 127, 257, schedule).is_err());
     }
 }
