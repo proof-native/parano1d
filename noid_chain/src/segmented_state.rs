@@ -42,6 +42,7 @@ use std::sync::{Arc, OnceLock};
 use noid_core::{Block128, TowerField};
 use noid_poseidon2b::native::compress;
 
+use crate::exact_segment_cache::{ExactSegmentCache, ExactSegmentTree};
 use crate::exact_state_hash::{slot_leaf_hash, StateHash};
 use crate::fri_state::{compute_segment_root, SlotValue, StateError, StateRoot, LOG_SEGMENT_SIZE};
 use crate::sparse_merkle::{SparseMerkleCache, SparseMerkleError};
@@ -350,17 +351,18 @@ pub struct SegmentedFriState {
     /// survives segment flushing and is cleared only after `ChainState`
     /// recomputes the exact segment root from the resident columns.
     exact_dirty: HashSet<u16>,
+    /// Bounded, copy-on-write exact Merkle trees for hot resident segments.
+    /// Every column mutation either updates its tree or invalidates it.
+    exact_segment_cache: ExactSegmentCache,
     /// Segment IDs that have been explicitly evicted from RAM but have non-zero
     /// data in MDBX. A segment in this set must be reloaded from MDBX before
     /// any slot within it can be read or written.
     ///
     /// # Memory model
     ///
-    /// After each block commit, the MDBX backend calls `evict_clean_segments()`
-    /// which moves all non-dirty segment columns from RAM to the evicted set.
-    /// This bounds peak RAM usage to approximately:
-    ///   `(segments touched per block) × 3 MB + (evicted set bookkeeping)`
-    /// regardless of total chain history or active slot count.
+    /// After each block commit, MDBX retains only the bounded exact-tree working
+    /// set and evicts other columns. The cache accounts for both raw columns
+    /// and Merkle trees; active block scratch remains bounded by touched segments.
     evicted: HashSet<u16>,
     /// Segment IDs whose leaves in `tree` were updated since the last
     /// `flush_tree` call. Used by the incremental Merkle updater to recompute
@@ -402,6 +404,7 @@ impl SegmentedFriState {
             dirty: HashSet::new(),
             mdbx_dirty: HashSet::new(),
             exact_dirty: HashSet::new(),
+            exact_segment_cache: ExactSegmentCache::default(),
             evicted: HashSet::new(),
             dirty_tree_leaves: HashSet::new(),
         }
@@ -427,6 +430,7 @@ impl SegmentedFriState {
             dirty: HashSet::new(),
             mdbx_dirty: HashSet::new(),
             exact_dirty: HashSet::new(),
+            exact_segment_cache: ExactSegmentCache::default(),
             evicted: HashSet::new(),
             dirty_tree_leaves: HashSet::new(),
         }
@@ -458,6 +462,7 @@ impl SegmentedFriState {
             dirty: self.dirty.clone(),
             mdbx_dirty: HashSet::new(),
             exact_dirty: HashSet::new(),
+            exact_segment_cache: ExactSegmentCache::default(),
             evicted,
             dirty_tree_leaves: self.dirty_tree_leaves.clone(),
         })
@@ -614,6 +619,9 @@ impl SegmentedFriState {
             if self.live_counts[seg_idx] == 0 {
                 self.segments[seg_idx] = None;
                 self.evicted.remove(&seg);
+                self.exact_segment_cache.remove(seg);
+            } else {
+                self.exact_segment_cache.update_slot(seg, loc, *v);
             }
 
             // Mark the segment commitment stale (cleared by flush_segment) and
@@ -750,6 +758,53 @@ impl SegmentedFriState {
         self.exact_dirty.clear();
     }
 
+    /// Return an exact subtree from a tree kept current by the column mutation
+    /// path. Callers still enforce residency and the compact chain-root binding.
+    pub(crate) fn cached_exact_segment_tree(&self, seg_id: u16) -> Option<&ExactSegmentTree> {
+        self.exact_segment_cache.get(seg_id)
+    }
+
+    pub(crate) fn remember_exact_segment_tree(&mut self, seg_id: u16, tree: ExactSegmentTree) {
+        debug_assert_eq!(tree.log_slots(), self.effective_log_seg);
+        if self.live_counts[seg_id as usize] != 0 && !self.is_evicted(seg_id) {
+            self.exact_segment_cache.insert(seg_id, tree);
+        }
+    }
+
+    /// Build a tree only on a cache miss. Cold payload authentication and root
+    /// refresh use the same hashes as the streaming reference implementation.
+    pub(crate) fn exact_segment_root(
+        &mut self,
+        seg_id: u16,
+    ) -> Result<StateHash, ExactStateReadError> {
+        if self.is_evicted(seg_id) {
+            return Err(ExactStateReadError::EvictedSegment { seg_id });
+        }
+        if let Some(tree) = self.exact_segment_cache.get(seg_id) {
+            return Ok(tree.root());
+        }
+        let Some(columns) = self.try_get_segment_columns(seg_id) else {
+            return Ok(
+                crate::exact_state_hash::zero_slot_roots(self.effective_log_seg)
+                    [self.effective_log_seg],
+            );
+        };
+        let tree = ExactSegmentTree::from_columns(self.effective_log_seg, columns);
+        let root = tree.root();
+        self.remember_exact_segment_tree(seg_id, tree);
+        Ok(root)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_exact_cache_budget(&mut self, bytes: usize) {
+        self.exact_segment_cache = ExactSegmentCache::with_budget(bytes);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exact_cache_bytes(&self) -> usize {
+        self.exact_segment_cache.bytes()
+    }
+
     /// Directly install pre-loaded column data for a segment.
     ///
     /// Test-only materialized snapshot helper. Production restore/install uses
@@ -765,6 +820,7 @@ impl SegmentedFriState {
             return;
         }
         let live = Self::count_live(&cols);
+        self.exact_segment_cache.remove(seg_id);
         self.live_counts[id] = live;
         // Directly install the column data. All-zero segments are kept virtual so
         // old/stale zero records in MDBX do not inflate RAM or snapshots.
@@ -933,6 +989,7 @@ impl SegmentedFriState {
     /// truly-zero segment.
     pub fn evict_segment(&mut self, seg_id: u16) {
         let id = seg_id as usize;
+        self.exact_segment_cache.remove(seg_id);
         if self.segments[id].is_some() {
             self.segments[id] = None;
             self.evicted.insert(seg_id);
@@ -957,6 +1014,7 @@ impl SegmentedFriState {
         cols: Arc<SegmentColumns>,
     ) {
         let id = seg_id as usize;
+        self.exact_segment_cache.remove(seg_id);
         let live = Self::count_live(&cols);
         self.live_counts[id] = live;
         self.segments[id] = if live == 0 { None } else { Some(cols) };
@@ -990,6 +1048,7 @@ impl SegmentedFriState {
             return Err("persisted segment summary restored while segment is dirty");
         }
 
+        self.exact_segment_cache.remove(seg_id);
         self.segments[id] = None;
         let root = if self.live_counts[id] == 0 {
             self.evicted.remove(&seg_id);
@@ -1032,6 +1091,7 @@ impl SegmentedFriState {
         if id >= self.num_segments || live_count == 0 {
             return Err("invalid durable segment summary");
         }
+        self.exact_segment_cache.remove(seg_id);
         self.segments[id] = None;
         self.live_counts[id] = live_count;
         self.seg_roots[id] = Some(segment_root);
@@ -1059,6 +1119,7 @@ impl SegmentedFriState {
         if id >= self.num_segments || live_count == 0 {
             return Err("invalid durable exact segment summary");
         }
+        self.exact_segment_cache.remove(seg_id);
         self.segments[id] = None;
         self.live_counts[id] = live_count;
         self.seg_roots[id] = None;
@@ -1100,6 +1161,7 @@ impl SegmentedFriState {
         for id in 0..self.num_segments {
             let seg_id = id as u16;
             if self.segments[id].is_some() && !self.mdbx_dirty.contains(&seg_id) {
+                self.exact_segment_cache.remove(seg_id);
                 self.segments[id] = None;
                 self.evicted.insert(seg_id);
                 // seg_roots[id] stays valid.
@@ -1115,10 +1177,33 @@ impl SegmentedFriState {
             self.mdbx_dirty.is_empty(),
             "cannot evict segments before durable dirty tracking is cleared"
         );
+        self.exact_segment_cache.clear();
         for id in 0..self.num_segments {
             if self.segments[id].is_some() && self.live_counts[id] != 0 {
                 self.segments[id] = None;
                 self.evicted.insert(id as u16);
+            }
+        }
+    }
+
+    /// Keep only authenticated hot segments covered by the cache's byte budget.
+    /// Eviction changes residency, never roots, dirty tracking or durable data.
+    pub(crate) fn evict_cold_persisted_segments(&mut self) {
+        assert!(
+            self.mdbx_dirty.is_empty(),
+            "cannot evict uncommitted segments"
+        );
+        assert!(
+            self.exact_dirty.is_empty(),
+            "cannot retain unsealed exact roots"
+        );
+        for id in 0..self.num_segments {
+            let seg_id = id as u16;
+            if self.segments[id].is_some()
+                && self.live_counts[id] != 0
+                && self.exact_segment_cache.get(seg_id).is_none()
+            {
+                self.evict_segment(seg_id);
             }
         }
     }
@@ -1137,6 +1222,7 @@ impl SegmentedFriState {
         cached_segment_root: StateRoot,
     ) {
         let id = seg_id as usize;
+        self.exact_segment_cache.remove(seg_id);
         self.segments[id] = None;
         self.seg_roots[id] = Some(cached_segment_root);
         self.live_counts[id] = 1;
@@ -1173,6 +1259,7 @@ impl SegmentedFriState {
 
         if self.log_slots <= LOG_SEGMENT_SIZE {
             // Still in single-segment territory — just grow the single segment.
+            self.exact_segment_cache.remove(0);
             self.effective_log_seg = self.log_slots;
             let extra = 1 << (self.log_slots - 1); // half the new size
             if let Some(ref mut columns) = self.segments[0] {
@@ -1266,6 +1353,7 @@ impl SegmentedFriState {
                 }
                 self.log_slots -= 1;
                 self.effective_log_seg = self.log_slots;
+                self.exact_segment_cache.remove(0);
                 self.seg_roots[0] = None;
                 self.dirty.insert(0);
                 self.mdbx_dirty.insert(0);
@@ -1288,6 +1376,7 @@ impl SegmentedFriState {
 
             self.log_slots -= 1;
             self.num_segments = new_num_segments;
+            self.exact_segment_cache.truncate_segments(new_num_segments);
             self.segments.truncate(new_num_segments);
             self.seg_roots.truncate(new_num_segments);
             self.live_counts.truncate(new_num_segments);
@@ -1357,6 +1446,8 @@ impl SegmentedFriState {
 
         self.log_slots = target;
         self.num_segments = target_num_segments;
+        self.exact_segment_cache
+            .truncate_segments(target_num_segments);
         self.segments.truncate(target_num_segments);
         self.seg_roots.truncate(target_num_segments);
         self.live_counts.truncate(target_num_segments);
@@ -1723,6 +1814,7 @@ mod tests {
             dirty: HashSet::from([1]),
             mdbx_dirty: HashSet::from([1]),
             exact_dirty: HashSet::from([1]),
+            exact_segment_cache: ExactSegmentCache::default(),
             evicted: HashSet::from([0]),
             dirty_tree_leaves: HashSet::from([1]),
         }

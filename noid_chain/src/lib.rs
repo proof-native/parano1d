@@ -18,6 +18,7 @@ pub mod accepted_block_bundle;
 pub mod block;
 pub mod block_header;
 pub mod consensus;
+mod exact_segment_cache;
 pub mod exact_state_hash;
 pub mod fri_state;
 pub mod header_anchor;

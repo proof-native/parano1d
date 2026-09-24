@@ -1175,10 +1175,10 @@ impl MdbxChainContext {
         if !staged {
             self.state.state.clear_dirty();
             if !retain_persisted_segments {
-                // The exact hierarchy is compact and current. Raw columns have
-                // reached MDBX atomically, so retain no full segment merely because
-                // it was touched by the latest block.
-                self.state.state.evict_all_persisted_segments();
+                // Raw columns reached MDBX atomically. Keep only the bounded
+                // authenticated working set; cold segments still fault in with
+                // full exact-root authentication on their next use.
+                self.state.state.evict_cold_persisted_segments();
             }
         }
 
@@ -2167,7 +2167,7 @@ impl MdbxChainContext {
         }
         let commit_elapsed = commit_started.elapsed();
         self.state.state.clear_dirty();
-        self.state.state.evict_all_persisted_segments();
+        self.state.state.evict_cold_persisted_segments();
         self.finalized = finalized_after_reorg;
         self.defer_finality_updates = false;
 
@@ -2947,6 +2947,68 @@ mod tests {
 
     fn easy_block_context(path: &Path) -> MdbxChainContext {
         test_context_with_log(path, crate::consensus::params::LOG_SLOTS_GENESIS)
+    }
+
+    #[test]
+    fn cached_and_uncached_replay_match_through_rejection_and_restart() {
+        let cached_dir = tempfile::tempdir().unwrap();
+        let uncached_dir = tempfile::tempdir().unwrap();
+        let mut cached = easy_block_context(cached_dir.path());
+        let mut uncached = easy_block_context(uncached_dir.path());
+        uncached.state.state.set_exact_cache_budget(0);
+        for _ in 0..4 {
+            let bundle = test_next_bundle(&cached);
+            accept_test_bundle(&mut cached, &bundle);
+            accept_test_bundle(&mut uncached, &bundle);
+            assert_eq!(cached.tip_hash(), uncached.tip_hash());
+            assert_eq!(
+                cached.state.cached_state_root(),
+                uncached.state.cached_state_root()
+            );
+            assert_eq!(
+                cached.state.circulating_supply_micronoid,
+                uncached.state.circulating_supply_micronoid
+            );
+            assert!(cached.state.state.materialized_segment_ids().count() > 0);
+            assert_eq!(uncached.state.state.materialized_segment_ids().count(), 0);
+        }
+        let parent = cached.tip_hash();
+        let candidate = test_next_bundle(&cached);
+        let block = Block::from_bytes(candidate.block_bytes()).unwrap();
+        let error = cached.apply_next_block(
+            &candidate,
+            block.header.timestamp,
+            |block, state| -> Result<[u8; 32], &'static str> {
+                crate::materialize_accepted_block_state(state, block).unwrap();
+                Err("reject after mutating the cached state")
+            },
+            |_| Ok(()),
+        );
+        assert!(error.is_err());
+        assert_eq!(cached.tip_hash(), parent);
+        assert_eq!(
+            cached.state.cached_state_root(),
+            uncached.state.cached_state_root()
+        );
+        assert_eq!(cached.state.state.exact_cache_bytes(), 0);
+        accept_test_bundle(&mut cached, &candidate);
+        accept_test_bundle(&mut uncached, &candidate);
+        let tip = cached.tip_hash();
+        drop(cached);
+        let mut reopened =
+            MdbxChainContext::restore_from_mdbx(MdbxStore::open(cached_dir.path()).unwrap())
+                .unwrap();
+        assert_eq!(reopened.tip_hash(), tip);
+        assert_eq!(reopened.state.state.materialized_segment_ids().count(), 0);
+        assert_eq!(reopened.state.state.exact_cache_bytes(), 0);
+        let next = test_next_bundle(&uncached);
+        accept_test_bundle(&mut reopened, &next);
+        accept_test_bundle(&mut uncached, &next);
+        assert_eq!(reopened.tip_hash(), uncached.tip_hash());
+        assert_eq!(
+            reopened.state.cached_state_root(),
+            uncached.state.cached_state_root()
+        );
     }
 
     fn unsafe_claimed_coinbase_with_impossible_pow(
