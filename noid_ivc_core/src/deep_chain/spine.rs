@@ -35,20 +35,22 @@ pub const SPINE_TREE_LEAVES: usize = noid_poseidon2b::primitives::TX8X2_LEAF_COU
 pub const SPINE_TREE_SLOTS: usize = 2 * SPINE_TREE_LEAVES;
 /// KID positions `[16, 32)` carry the sixteen raw body leaves.
 pub const SPINE_TREE_KID_LEAF_BASE: usize = SPINE_TREE_LEAVES;
+/// Original one-permutation V1 body wrap.
+pub const SPINE_WRAP_SLOTS: usize = 1;
 /// The construction-specific wrap and the fixed v2 feasibility tail share one
 /// thirty-two-slot sponge family. Slot zero is the existing Tx8x2 wrap. Slots
-/// one through eighteen authenticate an eight-instruction program, its timed
+/// one through twenty authenticate an eight-instruction program, its timed
 /// authority policy, and the old and successor object records. The remaining
 /// slots stay canonical padding. Together with the 32-slot body tree this
 /// still occupies the existing 64-slot Meta-A allocation per transaction.
-pub const SPINE_WRAP_SLOTS: usize = 32;
+pub const SPINE_V2_WRAP_SLOTS: usize = 32;
 pub const SPINE_WRAP_SLOT: usize = 0;
 pub const SPINE_CONTRACT_PROGRAM_STEPS: usize = 8;
 pub const SPINE_CONTRACT_CODE_BASE: usize = 1;
 pub const SPINE_CONTRACT_POLICY_BASE: usize = 9;
-pub const SPINE_CONTRACT_OLD_OBJECT_BASE: usize = 15;
-pub const SPINE_CONTRACT_NEW_OBJECT_BASE: usize = 17;
-pub const SPINE_CONTRACT_END: usize = 19;
+pub const SPINE_CONTRACT_OLD_OBJECT_BASE: usize = 17;
+pub const SPINE_CONTRACT_NEW_OBJECT_BASE: usize = 19;
+pub const SPINE_CONTRACT_END: usize = 21;
 
 pub const SPINE_CONTRACT_CODE_DOMAIN: DomainTag = DomainTag::new(b"CNTCODE_");
 pub const SPINE_CONTRACT_POLICY_DOMAIN: DomainTag = DomainTag::new(b"CNTPOL__");
@@ -108,6 +110,8 @@ pub struct SpineContractInstanceFlat {
     pub deadline: F128,
     pub claim_recipient: [F128; 2],
     pub refund_recipient: [F128; 2],
+    /// Fee cap, retained-value floor, payout cap and mode bits.
+    pub rules: [F128; 4],
 }
 
 impl SpineContractInstanceFlat {
@@ -121,6 +125,7 @@ impl SpineContractInstanceFlat {
             deadline: F128::ZERO,
             claim_recipient: [F128::ZERO; 2],
             refund_recipient: [F128::ZERO; 2],
+            rules: [F128::ZERO; 4],
         }
     }
 }
@@ -160,7 +165,7 @@ pub struct SpineInstanceColumns {
 
 /// Replay the fifteen COMPRESS nodes and the final TAG_TX8X2 wrap.
 pub fn build_spine_instance_columns(inst: &SpineInstanceFlat) -> SpineInstanceColumns {
-    build_spine_instance_columns_with_contract(inst, None)
+    build_spine_instance_columns_profile(inst, None, SPINE_WRAP_SLOTS)
 }
 
 /// Replay the body spine and the fixed contract-commitment tail. A missing
@@ -169,6 +174,14 @@ pub fn build_spine_instance_columns(inst: &SpineInstanceFlat) -> SpineInstanceCo
 pub fn build_spine_instance_columns_with_contract(
     inst: &SpineInstanceFlat,
     contract: Option<&SpineContractInstanceFlat>,
+) -> SpineInstanceColumns {
+    build_spine_instance_columns_profile(inst, contract, SPINE_V2_WRAP_SLOTS)
+}
+
+fn build_spine_instance_columns_profile(
+    inst: &SpineInstanceFlat,
+    contract: Option<&SpineContractInstanceFlat>,
+    wrap_slots: usize,
 ) -> SpineInstanceColumns {
     let iv_comp = spine_compress_iv_flat();
     let iv_wrap = tx8x2_iv_flat();
@@ -223,20 +236,19 @@ pub fn build_spine_instance_columns_with_contract(
     let root = node_digest[1];
 
     let (_, wrap_out) = run_perm([root[0], root[1], iv_wrap[0], iv_wrap[1]]);
-    let mut wrap_c: [Vec<F128>; STATE_SIZE] =
-        std::array::from_fn(|_| vec![F128::ZERO; SPINE_WRAP_SLOTS]);
+    let mut wrap_c: [Vec<F128>; STATE_SIZE] = std::array::from_fn(|_| vec![F128::ZERO; wrap_slots]);
     let mut wrap_s0: [Vec<F128>; STATE_SIZE] =
-        std::array::from_fn(|_| vec![F128::ZERO; SPINE_WRAP_SLOTS]);
+        std::array::from_fn(|_| vec![F128::ZERO; wrap_slots]);
     let mut wrap_s_out: [Vec<F128>; STATE_SIZE] =
-        std::array::from_fn(|_| vec![F128::ZERO; SPINE_WRAP_SLOTS]);
-    for slot in 0..SPINE_WRAP_SLOTS {
+        std::array::from_fn(|_| vec![F128::ZERO; wrap_slots]);
+    for slot in 0..wrap_slots {
         for lane in 0..STATE_SIZE {
             wrap_c[lane][slot] = ghost_out[lane];
             wrap_s0[lane][slot] = ghost_s0[lane];
             wrap_s_out[lane][slot] = ghost_out[lane];
         }
     }
-    let mut wrap_in: [Vec<F128>; 2] = std::array::from_fn(|_| vec![F128::ZERO; SPINE_WRAP_SLOTS]);
+    let mut wrap_in: [Vec<F128>; 2] = std::array::from_fn(|_| vec![F128::ZERO; wrap_slots]);
     let mut store_wrap =
         |slot: usize, absorbed: [F128; 2], previous: Option<[F128; 4]>, iv: [F128; 2]| {
             let raw = previous.map_or([absorbed[0], absorbed[1], iv[0], iv[1]], |prior| {
@@ -259,6 +271,25 @@ pub fn build_spine_instance_columns_with_contract(
         };
     let body_wrap = store_wrap(SPINE_WRAP_SLOT, root, None, iv_wrap);
     debug_assert_eq!(body_wrap, wrap_out);
+
+    if wrap_slots == SPINE_WRAP_SLOTS {
+        return SpineInstanceColumns {
+            tree_c,
+            tree_s0,
+            tree_s_out,
+            tree_kid,
+            wrap_c,
+            wrap_s0,
+            wrap_s_out,
+            wrap_in,
+            root,
+            tx_hash: [wrap_out[0], wrap_out[1]],
+            contract_code_digest: [F128::ZERO; 2],
+            contract_policy_digest: [F128::ZERO; 2],
+            contract_old_object_root: [F128::ZERO; 2],
+            contract_new_object_root: [F128::ZERO; 2],
+        };
+    }
 
     let contract = contract
         .copied()
@@ -317,7 +348,19 @@ pub fn build_spine_instance_columns_with_contract(
         Some(policy4),
         policy_iv,
     );
-    let contract_policy_digest = [policy5[0], policy5[1]];
+    let policy6 = store_wrap(
+        SPINE_CONTRACT_POLICY_BASE + 6,
+        [contract.rules[0], contract.rules[1]],
+        Some(policy5),
+        policy_iv,
+    );
+    let policy7 = store_wrap(
+        SPINE_CONTRACT_POLICY_BASE + 7,
+        [contract.rules[2], contract.rules[3]],
+        Some(policy6),
+        policy_iv,
+    );
+    let contract_policy_digest = [policy7[0], policy7[1]];
 
     let old0 = store_wrap(
         SPINE_CONTRACT_OLD_OBJECT_BASE,
@@ -403,15 +446,27 @@ pub fn spine_tree_fixed_patterns() -> Vec<FixedPattern> {
 /// IV1]`. Slot zero is the Tx8x2 wrap. The four contract chains start at
 /// slots 1, 9, 15 and 17.
 pub fn spine_wrap_fixed_patterns() -> Vec<FixedPattern> {
-    let low_log = SPINE_WRAP_SLOTS.trailing_zeros() as usize;
+    let iv = tx8x2_iv_flat();
+    vec![
+        FixedPattern::new(0, vec![F128::ONE]),
+        FixedPattern::new(0, vec![F128::ZERO]),
+        FixedPattern::new(0, vec![iv[0]]),
+        FixedPattern::new(0, vec![iv[1]]),
+    ]
+}
+
+/// V2 uses its own descriptor and authenticated fixed tables; the V1 recipe
+/// above remains byte-for-byte stable for existing recursive proofs.
+pub fn spine_contract_wrap_fixed_patterns() -> Vec<FixedPattern> {
+    let low_log = SPINE_V2_WRAP_SLOTS.trailing_zeros() as usize;
     let tx_iv = tx8x2_iv_flat();
     let code_iv = iv_flat(SPINE_CONTRACT_CODE_DOMAIN);
     let policy_iv = iv_flat(SPINE_CONTRACT_POLICY_DOMAIN);
     let object_iv = iv_flat(SPINE_CONTRACT_OBJECT_DOMAIN);
-    let mut region = vec![F128::ZERO; SPINE_WRAP_SLOTS];
-    let mut chain = vec![F128::ZERO; SPINE_WRAP_SLOTS];
-    let mut iv0 = vec![F128::ZERO; SPINE_WRAP_SLOTS];
-    let mut iv1 = vec![F128::ZERO; SPINE_WRAP_SLOTS];
+    let mut region = vec![F128::ZERO; SPINE_V2_WRAP_SLOTS];
+    let mut chain = vec![F128::ZERO; SPINE_V2_WRAP_SLOTS];
+    let mut iv0 = vec![F128::ZERO; SPINE_V2_WRAP_SLOTS];
+    let mut iv1 = vec![F128::ZERO; SPINE_V2_WRAP_SLOTS];
     region[..SPINE_CONTRACT_END].fill(F128::ONE);
     chain[SPINE_CONTRACT_CODE_BASE + 1..SPINE_CONTRACT_POLICY_BASE].fill(F128::ONE);
     chain[SPINE_CONTRACT_POLICY_BASE + 1..SPINE_CONTRACT_OLD_OBJECT_BASE].fill(F128::ONE);
@@ -600,8 +655,9 @@ mod tests {
             .count();
         assert_eq!(SPINE_TREE_SLOTS, 32);
         assert_eq!(active_tree, 30);
-        assert_eq!(SPINE_WRAP_SLOTS, 32);
-        let wrap = spine_wrap_fixed_patterns();
+        assert_eq!(SPINE_WRAP_SLOTS, 1);
+        assert_eq!(SPINE_V2_WRAP_SLOTS, 32);
+        let wrap = spine_contract_wrap_fixed_patterns();
         assert_eq!(
             wrap[0]
                 .table

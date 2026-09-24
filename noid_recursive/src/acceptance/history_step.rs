@@ -32,7 +32,8 @@ use noid_ivc_prover::field_prover::{
 
 use super::block_slots::{
     build_block_slots_selected_zk, build_block_slots_selected_zk_prefix,
-    finalize_selected_zk_block_region, ParentSealTrace, SelectedZkBlockSlotsAssembly,
+    finalize_selected_zk_block_region, BlockRelationProfile, ParentSealTrace,
+    SelectedZkBlockSlotsAssembly,
 };
 use super::trace::accepted_claim_batch::digest_lanes;
 use super::trace::flat_of;
@@ -131,6 +132,7 @@ pub struct V2ContractComponentInput {
     pub deadline: u64,
     pub claim_recipient: [noid_core::Block128; 2],
     pub refund_recipient: [noid_core::Block128; 2],
+    pub rules: noid_tx::experimental_object::ObjectRules,
 }
 
 /// Sibling-only exact-state carrier. Merkle topology is verifier-derived from

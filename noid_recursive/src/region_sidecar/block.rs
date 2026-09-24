@@ -207,6 +207,20 @@ impl BlockRegionSidecarVk {
         tier: usize,
         slices: SelectedZkBlockRegionVkSlices,
     ) -> Result<Self, RegionSidecarError> {
+        Self::from_profile_registry_slices(tier, slices, false)
+    }
+
+    pub(crate) fn from_object_registry_slices(
+        slices: SelectedZkBlockRegionVkSlices,
+    ) -> Result<Self, RegionSidecarError> {
+        Self::from_profile_registry_slices(255, slices, true)
+    }
+
+    fn from_profile_registry_slices(
+        tier: usize,
+        slices: SelectedZkBlockRegionVkSlices,
+        objects: bool,
+    ) -> Result<Self, RegionSidecarError> {
         let geometry =
             selected_zk_block_geometry(tier).ok_or(RegionSidecarError::UnsupportedVkShape)?;
         let wallet_a = WalkARegionVk::new_wallet(
@@ -215,7 +229,12 @@ impl BlockRegionSidecarVk {
             SELECTED_ZK_AUTH_QUERY_LOG,
             slices.wallet_a,
         )?;
-        let meta_a = WalkARegionVk::new_meta(
+        let meta_constructor = if objects {
+            WalkARegionVk::new_object_meta
+        } else {
+            WalkARegionVk::new_meta
+        };
+        let meta_a = meta_constructor(
             auth_pcs_meta_a_sidecar_purpose(),
             geometry.tx_log,
             Some(geometry.exact_state_region_log),
@@ -367,6 +386,13 @@ impl BlockRegionSidecarVk {
         &self.meta_a
     }
 
+    pub fn supports_objects(&self) -> bool {
+        matches!(
+            self.meta_a.descriptor(),
+            super::WalkARegionDescriptor::ObjectMeta { .. }
+        )
+    }
+
     pub fn wallet_b(&self) -> &MerkleRegionVk {
         &self.wallet_b
     }
@@ -418,6 +444,19 @@ impl BlockRegionSidecarVk {
             .filter_map(selected_zk_block_geometry)
             .find(|geometry| geometry.tx_log == tx_log)
             .ok_or(RegionSidecarError::UnsupportedVkShape)?;
+        let expected_meta = if self.supports_objects() {
+            WalkARegionDescriptor::ObjectMeta {
+                tx_log: geometry.tx_log,
+                exact_state_region_log: Some(geometry.exact_state_region_log),
+                spine_cap_log: Some(geometry.spine_cap_log),
+            }
+        } else {
+            WalkARegionDescriptor::Meta {
+                tx_log: geometry.tx_log,
+                exact_state_region_log: Some(geometry.exact_state_region_log),
+                spine_cap_log: Some(geometry.spine_cap_log),
+            }
+        };
 
         if self.wallet_a.purpose() != &selected_zk_auth_wallet_a_sidecar_purpose()
             || self.meta_a.purpose() != &auth_pcs_meta_a_sidecar_purpose()
@@ -431,12 +470,7 @@ impl BlockRegionSidecarVk {
                     nq_log: SELECTED_ZK_AUTH_QUERY_LOG,
                 })
             || self.wallet_a.w_log() != geometry.wallet_a_w_log
-            || self.meta_a.descriptor()
-                != (WalkARegionDescriptor::Meta {
-                    tx_log: geometry.tx_log,
-                    exact_state_region_log: Some(geometry.exact_state_region_log),
-                    spine_cap_log: Some(geometry.spine_cap_log),
-                })
+            || self.meta_a.descriptor() != expected_meta
             || self.meta_a.w_log() != geometry.meta_a_w_log
             || self.wallet_b.w_log() != geometry.wallet_b_w_log
             || self.wallet_b.block_log() != 10

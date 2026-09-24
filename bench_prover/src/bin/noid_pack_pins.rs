@@ -123,7 +123,7 @@ fn validate_launch_compatibility(
     Ok((built.class_id(), built.useful_rows()))
 }
 
-fn measure_v2_full_history_step(
+fn measure_legacy_full_history_step(
     runtime: &HistoryStepRuntime,
 ) -> Result<(CanonicalHistoryStepClassId, usize, [u8; 32], bool), String> {
     let mut provider = HonestHistoryStepFixtureProvider::new(FIXTURE_SEED)?;
@@ -139,9 +139,12 @@ fn measure_v2_full_history_step(
         .finish(nonce, &start, &end)
         .map_err(|error| format!("finish honest HistoryStep launch fixture: {error}"))?;
     let built = assemble_frozen_history_step_base(runtime, input)
-        .map_err(|error| format!("assemble research HistoryStep launch witness: {error}"))?;
+        .map_err(|error| format!("assemble frozen legacy HistoryStep witness: {error}"))?;
     let digest = built.matrix().statement_digest();
     let satisfied = built.matrix().satisfies(built.witness());
+    if !satisfied || digest != runtime.bank().entry(built.class_id()).matrix_digest() {
+        return Err("rebuilt legacy relation does not match the pinned matrix".into());
+    }
     Ok((built.class_id(), built.useful_rows(), digest, satisfied))
 }
 
@@ -305,6 +308,10 @@ fn measure_v2_heterogeneous_direct_blocks() -> Result<(), String> {
 
 fn main() {
     noid_ivc_prover::init_perf_thread_pool();
+    assert!(
+        std::env::var_os("NOID_V2_FULL_ONLY").is_none(),
+        "the historical v2-at-genesis probe was removed; scheduled v2 needs its own bank"
+    );
     if std::env::var_os("NOID_V2_DIRECT_ONLY").is_some() {
         measure_v2_heterogeneous_direct_blocks()
             .unwrap_or_else(|error| panic!("v2 heterogeneous direct-block measurement: {error}"));
@@ -374,11 +381,11 @@ fn main() {
         runtime_parts,
     )
     .expect("construct canonical HistoryStep runtime");
-    if std::env::var_os("NOID_V2_FULL_ONLY").is_some() {
-        let (class_id, rows, digest, satisfied) = measure_v2_full_history_step(&runtime)
-            .unwrap_or_else(|error| panic!("v2 full HistoryStep measurement: {error}"));
+    if std::env::var_os("NOID_LEGACY_FULL_MATRIX_AUDIT").is_some() {
+        let (class_id, rows, digest, satisfied) = measure_legacy_full_history_step(&runtime)
+            .unwrap_or_else(|error| panic!("legacy full HistoryStep audit: {error}"));
         println!(
-            "research frozen launch matrix: c{:02}, {rows} useful rows, digest={}, satisfied={satisfied}",
+            "legacy frozen launch matrix: c{:02}, {rows} useful rows, digest={}, satisfied={satisfied}",
             class_id.index(),
             hex::encode(digest),
         );

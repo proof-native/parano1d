@@ -66,6 +66,7 @@ pub enum HistoryStepError {
     },
     Verify(VerifyError),
     InvalidClass,
+    ProtocolProfile,
     InvalidIo,
     ParentBoundary,
     ParentRecording,
@@ -120,6 +121,7 @@ impl core::fmt::Display for HistoryStepError {
             }
             Self::Verify(error) => write!(f, "HistoryStep proof: {error:?}"),
             Self::InvalidClass => f.write_str("HistoryStep class id is not canonical"),
+            Self::ProtocolProfile => f.write_str("legacy HistoryStep cannot carry contract openings"),
             Self::InvalidIo => f.write_str("HistoryStep public IO is not canonical"),
             Self::ParentBoundary => {
                 f.write_str("HistoryStep current start is not the parent terminal")
@@ -296,6 +298,7 @@ impl HistoryStepRuntimeParts {
             )
             .is_none()
                 || vk.version() != crate::region_sidecar::BLOCK_REGION_SELECTED_ZK_SIDECAR_VERSION
+                || vk.supports_objects()
             {
                 return Err(HistoryStepError::RuntimeBlockVk(slot));
             }
@@ -395,6 +398,7 @@ impl HistoryStepMatrixSource for RejectingHistoryStepMatrixSource {
 pub fn derive_history_step_direct_block_vk<const TIER: usize>(
     current: HistoryStepBlockInput<TIER>,
 ) -> Result<BlockRegionSidecarVk, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     if crate::region_sidecar::selected_zk_block_geometry(TIER).is_none() {
         return Err(HistoryStepError::InvalidClass);
     }
@@ -419,6 +423,7 @@ pub fn derive_history_step_direct_block_vk<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_seal.block_id,
+        BlockRelationProfile::LegacyV1,
     );
     Ok(assembly.region_vk().clone())
 }
@@ -569,7 +574,9 @@ impl HistoryStepRuntime {
         for (slot, vk) in direct_block_vks.iter().enumerate() {
             let class =
                 CanonicalHistoryStepClassId::new(slot).expect("runtime block VK slot is canonical");
-            if vk.transcript_digest() != bank.entry(class).direct_block_vk_digest() {
+            if vk.supports_objects()
+                || vk.transcript_digest() != bank.entry(class).direct_block_vk_digest()
+            {
                 return Err(HistoryStepError::RuntimeBlockVk(slot));
             }
         }
@@ -753,6 +760,7 @@ pub fn assemble_frozen_direct_block_research<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_id,
+        BlockRelationProfile::V2,
     );
     let useful_rows = builder.num_wires();
     finalize_selected_zk_block_region(assembly, canonical_history_step_shape(class_id).m).map_err(
@@ -1400,6 +1408,7 @@ fn prepare_history_step_base<'a, const TIER: usize>(
     runtime: &HistoryStepRuntime,
     current: &HistoryStepBlockInput<TIER>,
 ) -> Result<PreparedHistoryStepParent<'a>, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     let genesis = genesis_accumulator();
     if current.start_accumulator != genesis || current.end_accumulator.height != 1 {
         return Err(HistoryStepError::ParentBoundary);
@@ -1446,6 +1455,7 @@ fn prepare_history_step_recursive<'a, const TIER: usize>(
     parent: HistoryStepParent<'a>,
     current: &HistoryStepBlockInput<TIER>,
 ) -> Result<PreparedHistoryStepParent<'a>, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     let bank = runtime.bank();
     let envelope = parent.envelope();
     let selected_class = history_step_bank_tip_class(bank, &envelope.io)?;
@@ -1925,6 +1935,7 @@ fn prepare_history_step_assembly<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_seal.block_id,
+        BlockRelationProfile::LegacyV1,
     );
     let block_slots = block_assembly.slots();
     // The parent header witness sits at the accumulator start height in both
@@ -2806,4 +2817,13 @@ mod tests {
         renonced_genesis.nonce ^= 1;
         assert!(!base_pins_satisfy(&renonced_genesis));
     }
+}
+
+fn validate_legacy_block_profile<const TIER: usize>(
+    current: &HistoryStepBlockInput<TIER>,
+) -> Result<(), HistoryStepError> {
+    if !current.components.v2_contract_inputs.is_empty() {
+        return Err(HistoryStepError::ProtocolProfile);
+    }
+    Ok(())
 }

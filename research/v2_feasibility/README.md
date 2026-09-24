@@ -1,14 +1,16 @@
 # v2 contract feasibility research
 
-Status: integrated feasibility. The generic recursive-verifier and direct-VM
-routes were eliminated. A bounded object-contract relation is now assembled
-inside the actual HistoryStep path with sixteen fixed contract-capable
-positions. Zero, one, four and sixteen calls share one matrix, the complete
-B25 composition remains in 2^22 with 5,505 rows available, and B255 retains all
-255 live authorization positions. No final ABI, frozen matrix pack, production
-consensus rule or new soundness claim has been selected. See the
-[research note](results/2026-09-15/REPORT.md) and the
-[integrated prototype](https://git.parano1d.org/ignotusnemo/parano1d/commit/590b489a2bc5c7c78dfa16241b534fd921227beb).
+Status: rebuilding the scheduled v2 candidate from checked experimental parts.
+The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
+must be included in the next capacity measurements. Mainnet still selects its
+existing v1 and v1.1 rules. No v2 activation, target interval, capacity or number
+of classes is selected.
+
+The September 15 integrated prototype established feasibility for an earlier
+object relation; its row counts are historical and do not describe the current
+core. See the [dated research note](results/2026-09-15/REPORT.md).
+The next gate is a complete scheduled recursive relation and actual terminal
+proofs for medium-capacity candidates, followed by resource measurements.
 
 ## Question
 
@@ -43,16 +45,15 @@ cargo build --release --locked -p bench_prover --bin noid_pack_pins
 NOID_V2_DIRECT_ONLY=1 ./target/release/noid_pack_pins
 ```
 
-The complete B25 composition also needs the existing authenticated HistoryStep
-pack so it can replay the parent relation:
+The legacy B25 relation can be rebuilt and checked against its published matrix:
 
 ```sh
-NOID_V2_FULL_ONLY=1 ./target/release/noid_pack_pins \
+NOID_LEGACY_FULL_MATRIX_AUDIT=1 ./target/release/noid_pack_pins \
   /path/to/history-step-pack-v1
 ```
 
-These modes build and scan the research matrices. They do not freeze a new
-terminal proof.
+The historical `NOID_V2_FULL_ONLY` genesis probe has been removed. It must not
+be mistaken for a scheduled v2 transition or a new terminal proof.
 
 The earlier route-comparison harness builds separately from the root workspace.
 Its release profile matches the root thin-LTO, one-codegen-unit profile.
@@ -107,18 +108,13 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 
 ## Required next gates
 
-The heterogeneous HistoryStep feasibility gate has passed for zero, one, four
-and sixteen calls. The next decisive gate is a frozen terminal proof for the
-selected ABI, followed by a fresh end-to-end soundness calculation. Before
-that freeze, the instruction semantics, object receipt, construction rules,
-code migration and canonical wire representation must be fixed.
+Preserve the published legacy matrix identities, bind the first v2 proof to an
+authenticated legacy terminal, and assemble the complete candidate relation.
+Measure empty, full and mixed blocks, including sustained verification under a
+4 CPU / 8 GiB receiver budget. Compare one medium class with two classes, and
+retain the large class's accumulated obligation in every subsequent measurement
+once that class has appeared.
 
-Also measure cold sync/current-data transfer, live storage and reclamation,
-transaction admission under invalid-proof load, stale-proof retries and
-end-to-end production including propagation. Inspect how proof geometry affects
-blocks with zero contract calls. The present matrix measurements establish
-shape and satisfiability, not production proving latency or throughput.
-
-Preserve ordinary payments and existing security assumptions. These artifacts
-do not define a mainnet activation, release pin, query-count reduction or
-documentation promise.
+Capacity, interval and class count are joint decisions after measurements.
+The final pack requires a fresh soundness calculation and transition checks
+covering reorgs, restart, cold sync, miners and existing RPC integrations.

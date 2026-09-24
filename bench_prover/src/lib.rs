@@ -546,6 +546,9 @@ fn v2_object_root(
     policy.absorb_pair(refund_authority[1], claim_recipient[0]);
     policy.absorb_pair(claim_recipient[1], refund_recipient[0]);
     policy.absorb_pair(refund_recipient[1], Block128::from(2u128));
+    let rules = v2_research_rules().fields();
+    policy.absorb_pair(rules[0], rules[1]);
+    policy.absorb_pair(rules[2], rules[3]);
     let policy = v2_digest_fields(policy.finalize_no_pad());
     let mut object = Poseidon2bSponge::with_iv(capacity_iv(V2_RESEARCH_OBJECT_DOMAIN));
     object.absorb_pair(policy[0], policy[1]);
@@ -1102,11 +1105,12 @@ impl HonestHistoryStepFixtureProvider {
                     deadline: object.deadline,
                     claim_recipient: object.claim_recipient,
                     refund_recipient: object.refund_recipient,
+                    rules: v2_research_rules(),
                 };
                 if tx_index == 0 {
                     match mutation {
                         V2ResearchMutation::InvalidOpcodeOpening => {
-                            component.program[0][0] = Block128::from(4u128);
+                            component.program[0][0] = Block128::from(8u128);
                         }
                         V2ResearchMutation::WrongNextOpening => {
                             component.next += Block128::from(1u128);
@@ -1815,5 +1819,14 @@ mod two_class_history_step_fixture_tests {
         let (block, _) = witness.finish(nonce, &start, &end).unwrap();
         assert_eq!(block.header.height, 1);
         assert_eq!(block.transactions.len(), 1);
+    }
+}
+
+fn v2_research_rules() -> noid_tx::experimental_object::ObjectRules {
+    noid_tx::experimental_object::ObjectRules {
+        max_fee: u64::MAX,
+        min_retained: 0,
+        max_payout: u64::MAX,
+        modes: 31,
     }
 }

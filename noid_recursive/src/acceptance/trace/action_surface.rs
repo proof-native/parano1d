@@ -142,6 +142,17 @@ pub fn bind_user_action_surface(
     spine: &SpineInputsTrace,
     tx_live: &LinExpr,
 ) -> ActionSurfaceTrace {
+    bind_user_action_surface_for_profile(b, spine, tx_live, true)
+}
+
+/// The legacy relation must retain its original twelve-bit page bitmap and
+/// exact row order. This is a matrix-build choice, never a witness selector.
+pub(crate) fn bind_user_action_surface_for_profile(
+    b: &mut FieldR1csBuilder,
+    spine: &SpineInputsTrace,
+    tx_live: &LinExpr,
+    contracts: bool,
+) -> ActionSurfaceTrace {
     // Capacity builds already constrain their shared liveness wires. Keeping
     // this local booleanity also makes the component sound in isolation.
     let tx_live_sq = mul(b, tx_live, tx_live);
@@ -149,19 +160,24 @@ pub fn bind_user_action_surface(
 
     // L15 = [validity_bitmap, is_coinbase]. A physical user page has ten
     // action bits followed by START, END, CONTRACT and TERMINAL.
-    let bits = range_check_bits(b, &spine.leaves[LEAF_FLAGS][0], PAGE_VALIDITY_BITS);
+    let width = ACTION_VALIDITY_BITS + if contracts { 4 } else { 2 };
+    let bits = range_check_bits(b, &spine.leaves[LEAF_FLAGS][0], width);
     pin_zero(b, &spine.leaves[LEAF_FLAGS][1]);
-    let raw: [LinExpr; PAGE_VALIDITY_BITS] = std::array::from_fn(|i| LinExpr::from_wire(bits[i]));
+    let raw: Vec<LinExpr> = bits.into_iter().map(LinExpr::from_wire).collect();
     let raw_inputs: [LinExpr; INPUT_SELECTORS] = std::array::from_fn(|i| raw[i].clone());
     let raw_outputs: [LinExpr; OUTPUT_SELECTORS] =
         std::array::from_fn(|i| raw[INPUT_SELECTORS + i].clone());
     let start = raw[ACTION_VALIDITY_BITS].clone();
     let end = raw[ACTION_VALIDITY_BITS + 1].clone();
-    let contract = raw[ACTION_VALIDITY_BITS + 2].clone();
-    let terminal = raw[ACTION_VALIDITY_BITS + 3].clone();
-    // A terminal marker without a contract marker has no canonical meaning.
-    let terminal_without_contract = mul(b, &terminal, &contract.add_const(F128::ONE));
-    pin_zero(b, &terminal_without_contract);
+    let (contract, terminal) = if contracts {
+        let contract = raw[ACTION_VALIDITY_BITS + 2].clone();
+        let terminal = raw[ACTION_VALIDITY_BITS + 3].clone();
+        let terminal_without_contract = mul(b, &terminal, &contract.add_const(F128::ONE));
+        pin_zero(b, &terminal_without_contract);
+        (contract, terminal)
+    } else {
+        (LinExpr::zero(), LinExpr::zero())
+    };
     for (index, live) in raw_inputs.iter().enumerate() {
         bind_dead_pair(b, live, &spine.leaves[LEAF_INPUT_BASE + index]);
     }
@@ -494,6 +510,45 @@ mod tests {
             r1cs.satisfies(&z)
         }))
         .unwrap_or(false)
+    }
+
+    #[test]
+    fn legacy_bitmap_rejects_contract_flags_without_changing_ordinary_rows() {
+        let mut digest = None;
+        for flag in [
+            0,
+            noid_tx::PAGED_SPEND_CONTRACT_BIT,
+            noid_tx::PAGED_SPEND_TERMINAL_BIT,
+        ] {
+            let mut native_body = body(Address([0x33; 32]));
+            native_body.validity_bitmap |= flag;
+            let native = spine_inputs_from_body(&native_body);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut b = FieldR1csBuilder::new();
+                let spine = SpineInputsTrace::alloc(&mut b, &native);
+                let surface = bind_user_action_surface_for_profile(
+                    &mut b,
+                    &spine,
+                    &const_block(Block128::ONE),
+                    false,
+                );
+                let (matrix, witness) = b.build();
+                assert_eq!(surface.contract.eval(&witness), F128::ZERO);
+                assert_eq!(surface.terminal.eval(&witness), F128::ZERO);
+                (
+                    matrix.structural_statement_digest(),
+                    matrix.satisfies(&witness),
+                )
+            }));
+            match result {
+                Ok((actual, satisfies)) => {
+                    assert_eq!(satisfies, flag == 0);
+                    assert!(digest.is_none_or(|expected| expected == actual));
+                    digest = Some(actual);
+                }
+                Err(_) => assert_ne!(flag, 0),
+            }
+        }
     }
 
     #[test]
