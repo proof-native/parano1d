@@ -27,7 +27,7 @@ pub fn bounded(path: &Path, limit: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn open_matrix(
+pub(super) fn open_matrix(
     path: &Path,
     shape: noid_ivc_core::proof::FieldShape,
     digest: [u8; 32],
@@ -332,7 +332,7 @@ pub fn freeze<const PAGES: usize>(
     Ok((runtime, origin))
 }
 
-fn write_matrix(path: &Path, matrix: &FieldR1cs) -> Result<()> {
+pub(super) fn write_matrix(path: &Path, matrix: &FieldR1cs) -> Result<()> {
     let file = std::fs::File::create(path.with_extension("zst.partial")).map_err(err)?;
     let mut encoder = zstd::stream::write::Encoder::new(file, 3).map_err(err)?;
     matrix.write_artifact(&mut encoder).map_err(err)?;

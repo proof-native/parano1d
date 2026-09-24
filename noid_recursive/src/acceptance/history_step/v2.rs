@@ -19,6 +19,7 @@ use noid_ivc_core::matrix_claim::c1::{
 };
 
 mod bank;
+pub mod banked;
 mod config;
 mod wire;
 use bank::*;

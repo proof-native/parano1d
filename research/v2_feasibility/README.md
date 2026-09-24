@@ -1,23 +1,26 @@
 # v2 contract feasibility research
 
-Status: the earlier measured baseline is one m23 class with 112 user pages and a
-384-input block budget. See the [independent-payment measurements](results/2026-09-24-tps/REPORT.md).
-The expanded integer core changes that relation; its capacity requires new measurements.
-A primary m23 class with a manually selected m24 class is under investigation;
-the [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
-separate the repeated verification cost from the unresolved two-class capacity.
+Status: the [joint-bank measurements](results/2026-09-24-banked-integer-core/REPORT.md)
+now prove a candidate m23 class with 63 user pages and 63 contract-call positions,
+alongside an m24 class with 255 pages and 26 call positions. Both contain the
+expanded integer core. All four class transitions and filled call envelopes
+have actual recursive proofs; production integration and qualification remain.
+The earlier [112-page baseline](results/2026-09-24-tps/REPORT.md) used a different
+single-class core and does not establish capacity for this bank. The
+[carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
+retain the original legacy-bank control experiment.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
 must be included in the next capacity measurements. The development branch
 schedules 30-second v2 blocks at H210537, estimated for October 10, 2026 at
 23:59 PDT. Running mainnet remains on its existing v1.1 release. The final
-joint matrix bank and call capacities still require measurement and qualification.
+joint matrix bank and call capacities still require selection and qualification.
 
 The September 15 integrated prototype established feasibility for an earlier
 object relation; its row counts are historical and do not describe the current
 core. See the [dated research note](results/2026-09-15/REPORT.md).
 The current measurement path builds a scheduled recursive relation and actual
 terminal proofs for medium-capacity candidates. See the
-[single-class measurement procedure](CAPACITY_MEASUREMENTS.md); successful
+[recursive measurement procedure](CAPACITY_MEASUREMENTS.md); successful
 freezing alone does not qualify a candidate for mainnet.
 
 ## Question
@@ -116,14 +119,12 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 
 ## Required next gates
 
-Preserve the published legacy matrix identities, bind the first v2 proof to an
-authenticated legacy terminal, and assemble the complete candidate relation.
-Measure empty, full and mixed blocks, including sustained verification under a
-4 CPU / 8 GiB receiver budget. The measured m23 baseline has one class after
-the boundary. Test both legacy parent classes even if mainnet has so far used
-only B25. A second new class requires a complete two-class relation and capacity
-measurement; its accumulated obligation must remain in later measurements after
-that class has appeared, including cold-cache and restart cases.
+Complete production integration while preserving the published legacy matrix
+identities. Extend the joint-bank qualification to both legacy boundary classes,
+resource-distribution limits and sustained whole-node verification under a
+4 CPU / 8 GiB budget. The first joint sequence retains both accumulated claims
+after the large class appears; cold-cache, restart and real transport tests must
+retain that requirement too.
 
 Capacity, interval and class count are joint decisions after measurements.
 The final pack requires a fresh soundness calculation and transition checks

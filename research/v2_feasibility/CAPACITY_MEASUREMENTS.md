@@ -1,4 +1,48 @@
-# Scheduled single-class measurements
+# Scheduled recursive capacity measurements
+
+The [joint-bank integer-core measurements](results/2026-09-24-banked-integer-core/REPORT.md)
+now contain actual m23/m24 proofs through all four class transitions, including
+63 calls in the small class and 26 calls in a filled 255-page large block.
+These are candidate limits; they have not been selected as release parameters.
+The two classes have independent page, input and call budgets.
+
+## Joint-bank runner
+
+Build the isolated runner as described below, then supply the two limits:
+
+```sh
+RAYON_NUM_THREADS=12 target/release/noid_v2_capacity joint \
+  /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
+  /path/to/verified-legacy-fixtures /path/to/NEW-output \
+  63 504 63 1020 26
+```
+
+The five numbers are small pages, small inputs, small calls, large inputs and
+large calls. The large class always has 255 user pages. `--freeze-only` stops
+after freezing and rechecking both matrices with the final common bank pins.
+The full run tests class switches, filled blocks and the subsequent small tail.
+Contract programs and two-lane recursion remain present in empty blocks.
+
+Run receiver verification separately, with a bank pin supplied independently
+of the candidate files:
+
+```sh
+RAYON_NUM_THREADS=4 NOID_CPU_BACKEND=pclmul \
+  target/release/noid_v2_capacity joint-verify \
+  /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
+  /path/to/verified-legacy-fixtures /path/to/candidate \
+  CANDIDATE_BANK_PIN 13,14,17,31,33,34,37 3
+```
+
+Apply CPU affinity and a real memory limit outside the executable. Matrix
+authentication is separate setup. Each repetition starts with an empty
+checked-claim cache and then verifies the same terminal with that cache warm.
+Fresh claims are always checked; a cached exact carried claim only avoids a
+repeated scan of the other matrix. Independent native fixture replay and
+adversarial terminal checks follow the timed samples. This harness does not
+replace whole-node database, networking, pruning or retained-fork tests.
+
+## Single-class runner and earlier baseline
 
 The earlier measured baseline is one m23 class with 112 user pages and a
 384-input block budget after the v2 boundary. The existing B25/B255 bank

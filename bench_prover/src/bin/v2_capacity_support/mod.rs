@@ -18,6 +18,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+pub mod banked;
 mod boundaries;
 mod legacy_tail;
 mod payments;
@@ -304,44 +305,7 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
         return payments::measure::<PAGES>(&mut run, &mut chain);
     }
 
-    use noid_tx::experimental_object::integer_program::{
-        Instruction, Opcode::*, Operand as O, Register as R, EMPTY_PROGRAM,
-    };
-    let mut program = EMPTY_PROGRAM;
-    // Exercise checked arithmetic, authenticated height, scratch state and
-    // assertions. Every reserved instruction is still present in the relation.
-    for (step, instruction) in [
-        Instruction::new(Move, R::State0, O::Immediate, O::Zero, 5),
-        Instruction::new(Add, R::State0, O::State0, O::Immediate, 2),
-        Instruction::new(Subtract, R::Scratch0, O::State0, O::One, 0),
-        Instruction::new(Min, R::Scratch0, O::Scratch0, O::Immediate, 6),
-        Instruction::new(Max, R::Scratch0, O::Scratch0, O::One, 0),
-        Instruction::new(LessThan, R::Scratch1, O::Scratch0, O::State0, 0),
-        Instruction::new(Equal, R::Scratch1, O::Scratch1, O::One, 0),
-        Instruction::new(AssertEqual, R::State0, O::State0, O::Immediate, 7),
-        Instruction::new(AssertLessOrEqual, R::State0, O::Scratch0, O::State0, 0),
-        Instruction::new(Move, R::State1, O::Height, O::Zero, 0),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        program[step] = instruction.to_fields();
-    }
-    let opening = ObjectOpening {
-        program,
-        state: Block128(3),
-        claim_authority: address(2),
-        recovery_authority: address(3),
-        deadline: 10_000,
-        claim_recipient: address(4),
-        recovery_recipient: address(5),
-        rules: ObjectRules {
-            max_fee: u64::MAX,
-            min_retained: 0,
-            max_payout: u64::MAX,
-            modes: 31,
-        },
-    };
+    let opening = integer_probe_opening();
     let mut ordinary = chain.ordinary_slots();
     let call_capacity = run.settings.config.contract_slots();
     while ordinary.len() < PAGES + call_capacity {
@@ -458,6 +422,48 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
         "samples":run.settings.samples,"tip":chain.parent().height,"memory":memory()})
     );
     Ok(())
+}
+
+fn integer_probe_opening() -> ObjectOpening {
+    use noid_tx::experimental_object::integer_program::{
+        Instruction, Opcode::*, Operand as O, Register as R, EMPTY_PROGRAM,
+    };
+    let mut program = EMPTY_PROGRAM;
+    // Exercise checked arithmetic, authenticated height, scratch state and
+    // assertions. Every reserved instruction is still present in the relation.
+    for (step, instruction) in [
+        Instruction::new(Move, R::State0, O::Immediate, O::Zero, 5),
+        Instruction::new(Add, R::State0, O::State0, O::Immediate, 2),
+        Instruction::new(Subtract, R::Scratch0, O::State0, O::One, 0),
+        Instruction::new(Min, R::Scratch0, O::Scratch0, O::Immediate, 6),
+        Instruction::new(Max, R::Scratch0, O::Scratch0, O::One, 0),
+        Instruction::new(LessThan, R::Scratch1, O::Scratch0, O::State0, 0),
+        Instruction::new(Equal, R::Scratch1, O::Scratch1, O::One, 0),
+        Instruction::new(AssertEqual, R::State0, O::State0, O::Immediate, 7),
+        Instruction::new(AssertLessOrEqual, R::State0, O::Scratch0, O::State0, 0),
+        Instruction::new(Move, R::State1, O::Height, O::Zero, 0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        program[step] = instruction.to_fields();
+    }
+    let opening = ObjectOpening {
+        program,
+        state: Block128(3),
+        claim_authority: address(2),
+        recovery_authority: address(3),
+        deadline: 10_000,
+        claim_recipient: address(4),
+        recovery_recipient: address(5),
+        rules: ObjectRules {
+            max_fee: u64::MAX,
+            min_retained: 0,
+            max_payout: u64::MAX,
+            modes: 31,
+        },
+    };
+    opening
 }
 
 struct Run {

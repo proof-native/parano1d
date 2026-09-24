@@ -477,6 +477,103 @@ impl super::v2::V2RuntimeParts {
     }
 }
 
+impl super::v2::banked::RuntimeParts {
+    pub fn encode_compact(&self) -> Result<Vec<u8>, super::v2::V2Error> {
+        use super::v2::banked::Class;
+        let mut expected = 8 + 8 + 2 * 56;
+        for class in Class::ALL {
+            expected += BLOCK_SLICE_COUNT * SLICE_BYTES
+                + layout_len(self.child_layout(class))?
+                + layout_len(self.parent_layout(class))?;
+        }
+        if expected > HISTORY_STEP_RUNTIME_PARTS_COMPACT_MAX_BYTES {
+            return Err(encoding().into());
+        }
+        let mut out = Vec::with_capacity(expected);
+        out.extend_from_slice(b"O1V2BK01");
+        out.extend_from_slice(&(noid_tx::experimental_object::OBJECT_VERSION as u64).to_le_bytes());
+        for class in Class::ALL {
+            let config = self.config().class(class);
+            for value in [
+                config.outer_m() as u64,
+                config.pages() as u64,
+                config.schedule().v1_1_height().unwrap(),
+                config.activation_height(),
+                config.block_time(),
+                config.max_live_inputs() as u64,
+                config.contract_slots() as u64,
+            ] {
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            put_block_slices(&mut out, self.block_vk(class).selected_registry_slices()?)?;
+            put_layout(&mut out, self.child_layout(class))?;
+            put_layout(&mut out, self.parent_layout(class))?;
+        }
+        if out.len() != expected {
+            return Err(encoding().into());
+        }
+        Ok(out)
+    }
+
+    /// Complete bounded preflight before allocating transcript layouts. The
+    /// caller must additionally authenticate the externally supplied bank pin.
+    pub fn decode_compact(encoded: &[u8]) -> Result<Self, super::v2::V2Error> {
+        use super::v2::{banked::Config, V2Config};
+        let mut preflight = Reader::new(encoded)?;
+        if preflight.take(8)? != b"O1V2BK01"
+            || preflight.take(8)?
+                != (noid_tx::experimental_object::OBJECT_VERSION as u64).to_le_bytes()
+        {
+            return Err(encoding().into());
+        }
+        for _ in 0..2 {
+            preflight.take(56)?;
+            preflight.take(BLOCK_SLICE_COUNT * SLICE_BYTES)?;
+            preflight_layout(&mut preflight)?;
+            preflight_layout(&mut preflight)?;
+        }
+        preflight.finish()?;
+        let mut reader = Reader::new(encoded)?;
+        reader.take(16)?;
+        let mut configs = Vec::new();
+        let mut blocks = Vec::new();
+        let mut children = Vec::new();
+        let mut parents = Vec::new();
+        for _ in 0..2 {
+            let mut values = [0u64; 7];
+            for value in &mut values {
+                *value = u64::from_le_bytes(reader.take(8)?.try_into().map_err(|_| encoding())?);
+            }
+            let activation = noid_chain::consensus::forks::V2Activation::new(values[3], values[4])
+                .ok_or_else(encoding)?;
+            let schedule =
+                noid_chain::consensus::forks::ForkSchedule::new(Some(values[2]), Some(activation))
+                    .ok_or_else(encoding)?;
+            let config = V2Config::with_limits(
+                usize::try_from(values[0]).map_err(|_| encoding())?,
+                usize::try_from(values[1]).map_err(|_| encoding())?,
+                usize::try_from(values[5]).map_err(|_| encoding())?,
+                usize::try_from(values[6]).map_err(|_| encoding())?,
+                schedule,
+            )?;
+            blocks.push(BlockRegionSidecarVk::from_object_registry_slices(
+                config.block_geometry(),
+                read_block_slices(&mut reader)?,
+            )?);
+            children.push(read_layout(&mut reader)?);
+            parents.push(read_layout(&mut reader)?);
+            configs.push(config);
+        }
+        reader.finish()?;
+        Self::new(
+            Config::new(configs[0], configs[1])?,
+            blocks.try_into().map_err(|_| encoding())?,
+            children.try_into().map_err(|_| encoding())?,
+            parents.try_into().map_err(|_| encoding())?,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

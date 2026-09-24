@@ -8,6 +8,41 @@ pub(super) struct Chain {
     cursor: u32,
     distributed_cursor: Option<u32>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn candidate_builder_uses_the_fork_parent_as_asert_anchor() {
+        let schedule = ForkSchedule::new(
+            Some(5),
+            noid_chain::consensus::forks::V2Activation::new(10, 30),
+        )
+        .unwrap();
+        let mut chain = Chain::empty();
+        let genesis = *chain.parent();
+        for height in 1..=9 {
+            let mut header = genesis;
+            header.height = height;
+            header.timestamp += 20 * height;
+            chain.headers.push(header);
+        }
+        let parent = chain.headers.last_mut().unwrap();
+        let mut carry = 0;
+        for byte in parent.difficulty_target.iter_mut().rev() {
+            let next = (*byte & 1) << 7;
+            *byte = (*byte >> 1) | carry;
+            carry = next;
+        }
+        let expected = parent.difficulty_target;
+        assert_ne!(expected, genesis.difficulty_target);
+        let (block, _) = chain.build(&[], schedule).unwrap();
+        assert_eq!(block.header.height, 10);
+        assert_eq!(block.header.timestamp, chain.parent().timestamp + 30);
+        assert_eq!(block.header.difficulty_target, expected);
+    }
+}
 impl Chain {
     fn empty() -> Self {
         Self {
@@ -83,8 +118,13 @@ impl Chain {
             .unwrap_or_default()
     }
     fn anchor(&self) -> AnchorInfo {
-        let h =
-            self.headers[noid_chain::consensus::asert_anchor_height(self.parent().height) as usize];
+        self.anchor_with_schedule(noid_chain::consensus::forks::ACTIVE_SCHEDULE)
+    }
+    fn anchor_with_schedule(&self, schedule: ForkSchedule) -> AnchorInfo {
+        let h = self.headers[noid_chain::consensus::header::asert_anchor_height_with_schedule(
+            self.parent().height,
+            schedule,
+        ) as usize];
         AnchorInfo {
             anchor_height: h.height,
             anchor_timestamp: h.timestamp,
@@ -142,7 +182,7 @@ impl Chain {
             &self.timestamps(),
             &self.counts(),
             Some(block.header.timestamp),
-            &self.anchor(),
+            &self.anchor_with_schedule(schedule),
             true,
             schedule,
         )
@@ -248,7 +288,7 @@ impl Chain {
                 start_accumulator: &self.accumulator,
                 previous_timestamps: &self.timestamps(),
                 finalized_active_counts: &self.counts(),
-                asert_anchor: &self.anchor(),
+                asert_anchor: &self.anchor_with_schedule(config.schedule()),
                 local_time: block.header.timestamp,
             },
             batch.proofs.clone(),
@@ -391,7 +431,7 @@ impl Chain {
             noid_chain::state::apply_tx_at(&mut state, &tx.body, height).map_err(err)?;
         }
         let timestamp = self.parent().timestamp + schedule.block_time(height);
-        let a = self.anchor();
+        let a = self.anchor_with_schedule(schedule);
         let header = BlockHeader {
             prev_block_hash: anchor,
             state_root: state.state_root(),

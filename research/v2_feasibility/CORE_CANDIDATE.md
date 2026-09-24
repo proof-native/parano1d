@@ -80,6 +80,9 @@ identity. The measurement driver accepts `--calls=N`, including all eligible
 user positions; a mandatory system record consumes one shared position.
 Compare 16, 32 and full envelopes in the complete recursive relation before
 choosing the final limit. Changing a witness cannot change the reserved work.
+The [joint-bank candidate](results/2026-09-24-banked-integer-core/REPORT.md)
+has now proved 63 calls in an m23 block and 26 calls in a full 255-page m24
+block. These are explicit measured envelopes, not final release limits.
 The sixteen-instruction execution component alone occupies 12,275 wires; this
 excludes object commitments, authorization, State, recursion and other block
 checks, so it is neither a block-size nor a performance measurement.

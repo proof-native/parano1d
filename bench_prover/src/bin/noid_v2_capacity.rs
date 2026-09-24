@@ -13,6 +13,12 @@ use v2_capacity_support::*;
 
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|s| s == "joint") {
+        return banked::run(&args[1..]);
+    }
+    if args.first().is_some_and(|s| s == "joint-verify") {
+        return banked::verify_saved(&args[1..]);
+    }
     if args
         .first()
         .is_some_and(|s| s == "legacy-tail" || s == "legacy-tail-verify")
