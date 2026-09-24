@@ -78,6 +78,7 @@ tikv-jemallocator = { version = "0.6", features = ["background_threads"] }
 
 [dev-dependencies]
 bench_prover = { path = "../bench_prover" }
+libmdbx = "0.6"
 tempfile = "3"
 static_assertions = "1.1"
 

@@ -100,7 +100,15 @@ Operator-токен может расходовать средства акти�
 | `getBlockDetails` | `[height: u64]` | `BlockDetailsInfo \| null` |
 | `getRecentTransactions` | `[page: u32, page_size: u32, address: string \| null]` | `RecentTransactionsPage` |
 
-`getRecentTransactions` сканирует только сохранённые полные блоки. Нумерация
+`getBlockDetails.retained` описывает каноническое тело, пока оно хранится на узле.
+Сюда входят промежуточные блоки многоблочного коммита, чья валидность покрывается
+терминальным доказательством вершины суффикса. Для них `history_step_bytes` и
+`bundle_bytes` равны нулю: отдельного proof bundle нет, но `block_bytes` и
+`transactions` описывают доступное тело. После удаления тела `getBlock` возвращает
+`null`, а `getBlockDetails` — постоянный заголовок с `retained: null`.
+
+`getRecentTransactions` сканирует сохранённые канонические тела, включая
+промежуточные блоки многоблочных коммитов. Нумерация
 страниц начинается с единицы, размер ограничен диапазоном 1–32. Переданный
 адрес добавляет точные суммы расходования и получения этого владельца.
 

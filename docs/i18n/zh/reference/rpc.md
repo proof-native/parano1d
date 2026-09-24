@@ -96,7 +96,14 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 | `getBlockDetails` | `[height: u64]` | `BlockDetailsInfo \| null` |
 | `getRecentTransactions` | `[page: u32, page_size: u32, address: string \| null]` | `RecentTransactionsPage` |
 
-`getRecentTransactions` 只扫描仍保留的完整区块。页码从 1 开始，页面大小
+`getBlockDetails.retained` 在规范区块体仍被保留时描述其内容。这包括多区块提交中的
+中间区块，其有效性由后缀末端的终结证明覆盖。由于没有独立的证明包，这些区块的
+`history_step_bytes` 和 `bundle_bytes` 为零，但 `block_bytes` 和 `transactions`
+仍描述可用的区块体。区块体被剪枝后，`getBlock` 返回 `null`，而 `getBlockDetails`
+仍返回永久区块头，并将 `retained` 设为 `null`。
+
+`getRecentTransactions` 扫描仍保留的规范区块体，包括多区块提交中的中间区块。
+页码从 1 开始，页面大小
 限制在 1–32。提供地址后，会为该所有者附加精确的已花费和已接收聚合值。
 
 如果索引超出当前 `2^log_slots` 域，`getSlot` 返回错误。范围内的空槽位

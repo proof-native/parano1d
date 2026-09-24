@@ -1073,6 +1073,9 @@ mod config;
 mod embedded_history_step_pack;
 mod sync_phase_telemetry;
 mod wallet;
+
+#[cfg(test)]
+mod retained_rpc_tests;
 use config::NodeConfig;
 use sync_phase_telemetry::{SnapshotSyncTelemetry, SyncPhase, SyncPhaseMeasurement};
 use wallet::{SharedWallet, WalletHandle, WalletState};

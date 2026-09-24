@@ -96,9 +96,17 @@ Generate independent tokens with `openssl rand -hex 32`. Command-line tokens rem
 | `getBlockDetails` | `[height: u64]` | `BlockDetailsInfo \| null` |
 | `getRecentTransactions` | `[page: u32, page_size: u32, address: string \| null]` | `RecentTransactionsPage` |
 
-`getRecentTransactions` scans only retained complete blocks. Page numbering
-starts at one; page size is clamped to 1–32. Supplying an address adds exact
-spent and received aggregates for that owner.
+`getBlockDetails.retained` describes the canonical body while that body is
+retained. Intermediate blocks of a multi-block commit are included even when
+their validity is carried by the suffix tip's terminal. For those blocks,
+`history_step_bytes` and `bundle_bytes` are zero because no standalone proof
+bundle is available; `block_bytes` and `transactions` still describe the body.
+Once the body is pruned, `getBlock` returns `null` and `getBlockDetails` keeps
+the permanent header with `retained: null`.
+
+`getRecentTransactions` scans retained canonical bodies, including intermediate
+blocks of multi-block commits. Page numbering starts at one; page size is clamped
+to 1–32. Supplying an address adds exact spent and received aggregates for that owner.
 
 `getSlot` returns an error for an index outside the current `2^log_slots`
 domain. An in-range empty slot returns `empty: true`, zero value and an empty

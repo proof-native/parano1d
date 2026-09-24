@@ -4087,6 +4087,7 @@ dependencies = [
  "futures",
  "hex",
  "libc",
+ "libmdbx",
  "libp2p",
  "noid-ivc-core",
  "noid_block",

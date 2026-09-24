@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, HashSet};
 use noid_poseidon2b::primitives::Digest;
 use noid_tx::TxBody;
 
+use crate::exact_segment_cache::ExactSegmentTree;
 use crate::exact_state_hash::{slot_leaf_hash, state_node_hash, zero_slot_roots, StateHash};
 use crate::fri_state::{SlotValue, StateError, LOG_SEGMENT_SIZE, STATE_LOG_SLOTS};
 use crate::segmented_state::{
@@ -642,16 +643,15 @@ impl ChainState {
         if self.exact_roots.log_slots > self.state.log_slots() {
             self.exact_roots.shrink_to(self.state.log_slots());
         }
-        let dirty: Vec<u16> = self.state.exact_dirty_segment_ids().collect();
+        let mut dirty: Vec<u16> = self.state.exact_dirty_segment_ids().collect();
+        // Consume already-current trees before cold builds can evict them.
+        // This also benefits blocks whose working set exceeds the byte budget.
+        dirty.sort_unstable_by_key(|id| self.state.cached_exact_segment_tree(*id).is_none());
         for segment_id in dirty {
             if self.state.is_evicted(segment_id) {
                 return Err(ExactStateReadError::EvictedSegment { seg_id: segment_id });
             }
-            let root = exact_segment_root_with_updates(
-                self.state.effective_log_segment_size(),
-                self.state.try_get_segment_columns(segment_id),
-                &BTreeMap::new(),
-            );
+            let root = self.state.exact_segment_root(segment_id)?;
             self.exact_roots.set_segment_root(segment_id, root);
         }
         self.state.clear_exact_dirty();
@@ -707,21 +707,19 @@ impl ChainState {
         if usize::try_from(self.state.segment_live_count(segment_id)).ok() != Some(actual_live) {
             return Err(ExactStateReadError::SegmentRootMismatch { seg_id: segment_id });
         }
-        let actual = exact_segment_root_with_updates(
-            self.state.effective_log_segment_size(),
-            Some(&columns),
-            &BTreeMap::new(),
-        );
+        let tree =
+            ExactSegmentTree::from_columns(self.state.effective_log_segment_size(), &columns);
         if self
             .exact_roots
             .segment_roots
             .get(segment_id as usize)
             .copied()
-            != Some(actual)
+            != Some(tree.root())
         {
             return Err(ExactStateReadError::SegmentRootMismatch { seg_id: segment_id });
         }
         self.state.restore_evicted_segment(segment_id, columns);
+        self.state.remember_exact_segment_tree(segment_id, tree);
         Ok(())
     }
 
@@ -773,6 +771,14 @@ impl ChainState {
             }
             let local_node_mask = (1u64 << nodes_per_segment_shift) - 1;
             let local_node = position.node_index & local_node_mask;
+            if let Some(root) = self
+                .state
+                .cached_exact_segment_tree(segment_id)
+                .and_then(|tree| tree.subtree_root(level, local_node))
+            {
+                siblings.push(root);
+                continue;
+            }
             let local_start = (local_node << level) as usize;
             siblings.push(exact_local_subtree_root(
                 self.state.try_get_segment_columns(segment_id),
@@ -825,11 +831,17 @@ impl ChainState {
                     ExactStateReadError::EvictedSegment { seg_id: segment_id },
                 ));
             }
-            let root = exact_segment_root_with_updates(
-                self.state.effective_log_segment_size(),
-                self.state.try_get_segment_columns(segment_id),
-                &BTreeMap::new(),
-            );
+            let root = self
+                .state
+                .cached_exact_segment_tree(segment_id)
+                .map(|tree| tree.root())
+                .unwrap_or_else(|| {
+                    exact_segment_root_with_updates(
+                        self.state.effective_log_segment_size(),
+                        self.state.try_get_segment_columns(segment_id),
+                        &BTreeMap::new(),
+                    )
+                });
             exact_roots.set_segment_root(segment_id, root);
         }
         if exact_roots.root() != self.utxo_root {
@@ -850,8 +862,14 @@ impl ChainState {
                 }
                 self.state.try_get_segment_columns(segment_id)
             };
-            let root =
-                exact_segment_root_with_updates(target_effective_log, columns, &local_updates);
+            let root = self
+                .state
+                .cached_exact_segment_tree(segment_id)
+                .filter(|tree| tree.log_slots() == target_effective_log)
+                .map(|tree| tree.root_with_updates(&local_updates))
+                .unwrap_or_else(|| {
+                    exact_segment_root_with_updates(target_effective_log, columns, &local_updates)
+                });
             exact_roots.set_segment_root(segment_id, root);
         }
         Ok(exact_roots.root())
@@ -1139,6 +1157,10 @@ pub(crate) fn apply_tx_checked_deferred_root(
     state.circulating_supply_micronoid = circulating_supply_micronoid;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "state_cache_tests.rs"]
+mod cache_tests;
 
 #[cfg(test)]
 mod tests {
