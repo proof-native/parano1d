@@ -2,10 +2,9 @@
 // Copyright (C) 2026 Paranoid Zero.
 
 //! Candidate-height rule selection. A schedule neither authenticates a proof
-//! bank nor selects its capacity. Research callers supply their own schedule;
-//! the running network has no v2 activation or interval selected yet.
+//! bank nor selects its capacity. Isolated callers may supply a local schedule.
 
-use super::params::{BLOCK_TIME, V1_1_ACTIVATION_HEIGHT};
+use super::params::{BLOCK_TIME, V1_1_ACTIVATION_HEIGHT, V2_ACTIVATION_HEIGHT, V2_BLOCK_TIME};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProtocolVersion {
@@ -98,10 +97,13 @@ impl ForkSchedule {
     }
 }
 
-/// Preserve the existing mainnet and isolated-v1.1 activation verbatim.
+/// Preserve the existing v1.1 activation and add the scheduled v2 successor.
 pub const ACTIVE_SCHEDULE: ForkSchedule = ForkSchedule {
     v1_1: V1_1_ACTIVATION_HEIGHT,
-    v2: None,
+    v2: match V2_ACTIVATION_HEIGHT {
+        Some(height) => V2Activation::new(height, V2_BLOCK_TIME),
+        None => None,
+    },
 };
 
 #[cfg(test)]
@@ -126,15 +128,36 @@ mod tests {
     }
 
     #[test]
-    fn active_schedule_preserves_legacy_rules_and_has_no_v2() {
-        assert_eq!(ACTIVE_SCHEDULE.v2(), None);
+    fn active_schedule_preserves_legacy_rules_and_selects_v2_at_its_height() {
+        assert_eq!(
+            ACTIVE_SCHEDULE.v2().map(V2Activation::height),
+            V2_ACTIVATION_HEIGHT
+        );
         let activation = V1_1_ACTIVATION_HEIGHT.unwrap();
         for height in [0, activation - 1, activation, activation + 1, u64::MAX] {
             assert_eq!(
                 ACTIVE_SCHEDULE.version(height) != ProtocolVersion::V1,
                 super::super::params::v1_1_active_with(height, V1_1_ACTIVATION_HEIGHT)
             );
-            assert_eq!(ACTIVE_SCHEDULE.block_time(height), BLOCK_TIME);
+            assert_eq!(
+                ACTIVE_SCHEDULE.block_time(height),
+                if matches!(V2_ACTIVATION_HEIGHT, Some(at) if height >= at) {
+                    V2_BLOCK_TIME
+                } else {
+                    BLOCK_TIME
+                }
+            );
+        }
+        if let Some(at) = ACTIVE_SCHEDULE.v2() {
+            assert_eq!(
+                ACTIVE_SCHEDULE.version(at.height() - 1),
+                ProtocolVersion::V1_1
+            );
+            assert_eq!(ACTIVE_SCHEDULE.version(at.height()), ProtocolVersion::V2);
+            assert_eq!(
+                ACTIVE_SCHEDULE.ideal_elapsed(at.height() - 2, at.height()),
+                50
+            );
         }
     }
 

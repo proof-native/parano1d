@@ -7,6 +7,7 @@ license = "Apache-2.0"
 [features]
 # Isolated live fork tests only. Never enable for a public-network release.
 isolated-v1-1-testnet = []
+isolated-v2-fork-testnet = ["isolated-v1-1-testnet"]
 
 [dependencies]
 tracing = { workspace = true }

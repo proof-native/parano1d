@@ -466,7 +466,9 @@ fn user_page_limit_with_activation(
         noid_chain::consensus::paged_spend::BlockProofClass::B25.page_capacity()
     };
     let system_positions = usize::from(
-        noid_chain::consensus::development_allocation::development_payout_due(child_height),
+        noid_chain::consensus::development_allocation::development_payout_due_at_height(
+            child_height,
+        ),
     );
     Some(
         max_effective_pages

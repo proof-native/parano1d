@@ -495,11 +495,14 @@ fn validate_block_checks_inner(
                 .expect("mandatory coinbase has output zero live")
                 .1
                 .amount;
-            let max_allowed = max_coinbase_value_from_claimable_fee_sum(
-                block.header.height,
-                block.header.log_slots,
-                claimable_fee_sum,
-            );
+            let max_allowed =
+                super::emission::max_coinbase_value_from_claimable_fee_sum_with_schedule(
+                    block.header.height,
+                    block.header.log_slots,
+                    claimable_fee_sum,
+                    schedule.unwrap_or(super::forks::ACTIVE_SCHEDULE),
+                )
+                .map_err(|_| ConsensusError::BadDevelopmentPayout)?;
             if u128::from(cb_value) > max_allowed {
                 return Err(ConsensusError::InflatedCoinbase);
             }
@@ -767,19 +770,29 @@ mod tests {
     #[test]
     fn scheduled_development_payout_is_mandatory_and_exact() {
         use crate::consensus::development_allocation::{
-            development_allocation, development_share_each, TARGET_BLOCKS_PER_DAY,
+            development_allocation_at_height, development_share_each,
         };
-        use crate::consensus::emission::block_reward;
+        use crate::consensus::emission::block_reward_at_height;
 
-        let parent = header(TARGET_BLOCKS_PER_DAY - 1);
-        let share = development_share_each(block_reward(parent.log_slots)).unwrap();
-        let allocation = development_allocation(TARGET_BLOCKS_PER_DAY, parent.log_slots).unwrap();
+        let period = if crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+            2880
+        } else {
+            4320
+        };
+        let due = if crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+            10 + period - 1
+        } else {
+            period
+        };
+        let parent = header(due - 1);
+        let share = development_share_each(block_reward_at_height(due, parent.log_slots)).unwrap();
+        let allocation = development_allocation_at_height(due, parent.log_slots).unwrap();
         let amount = allocation.payout_each.unwrap();
         let block = Block {
-            header: header(TARGET_BLOCKS_PER_DAY),
+            header: header(due),
             transactions: vec![coinbase(&parent), development_payout(&parent, amount)],
         };
-        assert_eq!(amount, share * TARGET_BLOCKS_PER_DAY);
+        assert_eq!(amount, share * period);
         assert_eq!(validate_mandatory_coinbase(&block, &parent), Ok(()));
 
         let mut missing = block.clone();
@@ -815,5 +828,80 @@ mod tests {
             validate_mandatory_coinbase(&block, &parent),
             Err(ConsensusError::UnexpectedDevelopmentPayout)
         );
+    }
+
+    #[test]
+    fn explicit_fork_schedule_binds_the_coinbase_ceiling_and_system_records() {
+        use crate::consensus::development_allocation::{
+            development_allocation_end_height_with_schedule, development_allocation_with_schedule,
+        };
+        use crate::consensus::forks::{ForkSchedule, V2Activation};
+        // This intentionally differs from the network schedule so a hidden
+        // use of ACTIVE_SCHEDULE cannot pass the explicit validation path.
+        let h = 4320;
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(h, 30)).unwrap();
+        let end = development_allocation_end_height_with_schedule(schedule);
+        for height in [h - 1, h, h + 2878, h + 2879, end, end + 1] {
+            for level in 24..=32 {
+                let mut parent = header(height - 1);
+                parent.log_slots = level;
+                let allocation =
+                    development_allocation_with_schedule(height, level, schedule).unwrap();
+                let mut child = header(height);
+                child.log_slots = level;
+                child.prev_block_hash = block_id(&parent);
+                child.timestamp = parent.timestamp + schedule.block_time(height);
+                let anchor = AnchorInfo {
+                    anchor_height: parent.height,
+                    anchor_timestamp: parent.timestamp,
+                    anchor_target: parent.difficulty_target,
+                };
+                let mut body = coinbase(&parent).body;
+                body.outputs[0].amount = allocation.miner_subsidy;
+                let mut transactions = vec![Transaction::new(body)];
+                if let Some(amount) = allocation.payout_each {
+                    transactions.push(development_payout(&parent, amount));
+                }
+                let block = Block {
+                    header: child,
+                    transactions,
+                };
+                let check = |block: &Block| {
+                    validate_block_checks_with_schedule(
+                        block,
+                        &parent,
+                        &[parent.timestamp],
+                        &[],
+                        None,
+                        &anchor,
+                        false,
+                        schedule,
+                    )
+                };
+                assert_eq!(check(&block), Ok(()), "height={height}, level={level}");
+                let mut inflated = block.clone();
+                let mut body = inflated.transactions[0].body.clone();
+                body.outputs[0].amount += 1;
+                inflated.transactions[0] = Transaction::new(body);
+                assert_eq!(check(&inflated), Err(ConsensusError::InflatedCoinbase));
+
+                let mut wrong_records = block;
+                if allocation.payout_due {
+                    wrong_records.transactions.pop();
+                    assert_eq!(
+                        check(&wrong_records),
+                        Err(ConsensusError::MissingDevelopmentPayout)
+                    );
+                } else {
+                    wrong_records
+                        .transactions
+                        .push(development_payout(&parent, 1));
+                    assert_eq!(
+                        check(&wrong_records),
+                        Err(ConsensusError::UnexpectedDevelopmentPayout)
+                    );
+                }
+            }
+        }
     }
 }

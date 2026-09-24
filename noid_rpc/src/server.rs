@@ -2137,13 +2137,13 @@ impl ParanoidApiServer for RpcHandler {
     // -----------------------------------------------------------------------
 
     async fn get_mining_info(&self) -> RpcResult<MiningInfo> {
-        use noid_chain::consensus::emission::block_reward;
+        use noid_chain::consensus::emission::block_reward_at_height;
         let chain = self.chain.read().await;
         let tip = chain.tip_header();
         let height = chain.tip_height();
         let diff = tip.difficulty_target;
         let diff_bits = noid_chain::consensus::target_leading_zero_bits(&diff);
-        let reward = block_reward(tip.log_slots);
+        let reward = block_reward_at_height(tip.height, tip.log_slots);
         Ok(MiningInfo {
             height,
             difficulty_bits: diff_bits,

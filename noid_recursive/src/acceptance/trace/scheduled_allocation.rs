@@ -4,7 +4,8 @@
 //! Exact in-circuit stateless development-allocation schedule.
 
 use noid_chain::consensus::development_allocation::{
-    development_allocation_with_schedule, DEVELOPMENT_ALLOCATION_END_HEIGHT, TARGET_BLOCKS_PER_DAY,
+    development_allocation_end_height_with_schedule, development_allocation_with_schedule,
+    TARGET_BLOCKS_PER_DAY,
 };
 use noid_chain::consensus::forks::{ForkSchedule, V2Activation};
 use noid_core::Block128;
@@ -16,9 +17,9 @@ use super::{
 };
 
 const HEIGHT_BITS: usize = 64;
-// The daily interval changes with the target, while the allocation end height
-// stays fixed. Four shifted terms cover each supported divisor without adding
-// an integer multiplier; v2 needs one more quotient bit for full u64 heights.
+// Both daily boundaries and the final height account for the target interval.
+// Shifted terms multiply by the constant divisor in ordinary integer
+// arithmetic; field multiplication would give the wrong monetary result.
 
 pub struct DevelopmentAllocationTrace {
     /// Canonical range-check bits of the accepted child height. Consumers
@@ -256,24 +257,25 @@ fn payout_rules(
     let interval = 86_400 / activation.block_time();
     let before = less_than_bits(b, bits, &constant_bits(at, HEIGHT_BITS));
     let after = before.add_const(F128::ONE);
-    let old_boundary = payout_boundary_for(b, height, native_height, 4_320);
+    let old_boundary = payout_boundary_for(b, height, native_height, TARGET_BLOCKS_PER_DAY);
     let old_due = mul(b, &before, &old_boundary);
-    let elapsed = alloc_block(b, Block128::from(native_height.saturating_sub(at)));
+    // H is accrual block one, matching its new-rule target interval.
+    let elapsed_native = native_height.saturating_sub(at - 1);
+    let elapsed = alloc_block(b, Block128::from(elapsed_native));
     let selected_height = mul(b, &after, height);
-    let origin = after.scale(flat_const(at as u128));
+    let origin = after.scale(flat_const((at - 1) as u128));
     let recomposed = integer_add_no_overflow(b, &elapsed, &origin, HEIGHT_BITS);
     pin_eq(b, &selected_height, &recomposed);
-    let boundary = payout_boundary_for(b, &elapsed, native_height.saturating_sub(at), interval);
+    let boundary = payout_boundary_for(b, &elapsed, elapsed_native, interval);
     let first = equals_constant(b, bits, at);
     let regular = mul(b, &after, &first.add_const(F128::ONE));
     let regular = mul(b, &regular, &boundary);
-    let mut rules = vec![(old_due, 4_320), (regular, interval)];
-    let final_blocks = DEVELOPMENT_ALLOCATION_END_HEIGHT.saturating_sub(at) % interval;
-    if final_blocks != 0 {
-        rules.push((
-            equals_constant(b, bits, DEVELOPMENT_ALLOCATION_END_HEIGHT),
-            final_blocks,
-        ));
+    let mut rules = vec![(old_due, TARGET_BLOCKS_PER_DAY), (regular, interval)];
+    let schedule = ForkSchedule::new(Some(0), Some(activation)).expect("checked schedule");
+    let end = development_allocation_end_height_with_schedule(schedule);
+    let final_blocks = end.saturating_sub(at - 1) % interval;
+    if end > at && final_blocks != 0 {
+        rules.push((equals_constant(b, bits, end), final_blocks));
     }
     (after, rules)
 }
@@ -297,11 +299,9 @@ fn bind_development_allocation_with_schedule(
         .map(LinExpr::from_wire)
         .collect::<Vec<_>>();
 
-    let below_end = less_than_bits(
-        b,
-        &height_bits,
-        &constant_bits(DEVELOPMENT_ALLOCATION_END_HEIGHT + 1, HEIGHT_BITS),
-    );
+    let schedule = ForkSchedule::new(Some(0), activation).expect("checked schedule");
+    let end = development_allocation_end_height_with_schedule(schedule);
+    let below_end = less_than_bits(b, &height_bits, &constant_bits(end + 1, HEIGHT_BITS));
     let height_is_zero = height_bits
         .iter()
         .fold(LinExpr::constant(F128::ONE), |zero, bit| {
@@ -315,44 +315,45 @@ fn bind_development_allocation_with_schedule(
         .fold(LinExpr::zero(), |sum, (selector, _)| sum.add(selector));
     let payout_due = mul(b, &active, &interval_boundary);
 
-    let rewards = (MIN_EXACT_STATE_DEPTH..=MAX_EXACT_STATE_DEPTH)
+    let legacy_rewards = (MIN_EXACT_STATE_DEPTH..=MAX_EXACT_STATE_DEPTH)
         .map(|depth| noid_chain::consensus::emission::block_reward(depth as u32))
         .collect::<Vec<_>>();
-    let shares = rewards.iter().map(|reward| reward / 20).collect::<Vec<_>>();
-    let miner_active = rewards
-        .iter()
-        .zip(&shares)
-        .map(|(reward, share)| reward - 2 * share)
+    let v2_rewards = (MIN_EXACT_STATE_DEPTH..=MAX_EXACT_STATE_DEPTH)
+        .map(|depth| noid_chain::consensus::emission::v2_block_reward(depth as u32))
         .collect::<Vec<_>>();
-    let full_subsidy = selected_depth_constant(child_depth, &rewards);
-    let share_each = selected_depth_constant(child_depth, &shares);
+    // All products are computed on fixed integer tables, then selected by
+    // authenticated depth and height. No integer amount is multiplied in F128.
+    let selected_amount = |b: &mut FieldR1csBuilder, amount: &dyn Fn(u64) -> u64| {
+        let old_values = legacy_rewards
+            .iter()
+            .copied()
+            .map(amount)
+            .collect::<Vec<_>>();
+        let new_values = v2_rewards.iter().copied().map(amount).collect::<Vec<_>>();
+        let old = selected_depth_constant(child_depth, &old_values);
+        let new = selected_depth_constant(child_depth, &new_values);
+        old.add(&mul(b, &v2_active, &old.add(&new)))
+    };
+    let full_subsidy = selected_amount(b, &|reward| reward);
+    let share_each = selected_amount(b, &|reward| reward / 20);
     let fork_schedule = activation.is_some();
     let selected_payout_each = if fork_schedule {
         payout_rules
             .iter()
             .fold(LinExpr::zero(), |sum, (selector, blocks)| {
-                let amounts = shares
-                    .iter()
-                    .map(|share| share.checked_mul(*blocks).expect("payout fits u64"))
-                    .collect::<Vec<_>>();
-                sum.add(&mul(
-                    b,
-                    selector,
-                    &selected_depth_constant(child_depth, &amounts),
-                ))
+                let amount = selected_amount(b, &|reward| {
+                    (reward / 20).checked_mul(*blocks).expect("payout fits u64")
+                });
+                sum.add(&mul(b, selector, &amount))
             })
     } else {
-        let amounts = shares
-            .iter()
-            .map(|share| {
-                share
-                    .checked_mul(TARGET_BLOCKS_PER_DAY)
-                    .expect("payout fits u64")
-            })
-            .collect::<Vec<_>>();
-        selected_depth_constant(child_depth, &amounts)
+        selected_amount(b, &|reward| {
+            (reward / 20)
+                .checked_mul(TARGET_BLOCKS_PER_DAY)
+                .expect("payout fits u64")
+        })
     };
-    let active_miner = selected_depth_constant(child_depth, &miner_active);
+    let active_miner = selected_amount(b, &|reward| reward - 2 * (reward / 20));
     let miner_subsidy = full_subsidy.add(&mul(b, &active, &full_subsidy.add(&active_miner)));
 
     let current_share = mul(b, &active, &share_each);
@@ -371,7 +372,6 @@ fn bind_development_allocation_with_schedule(
         let tower = flat_to_tower_u128((flat.lo as u128) | ((flat.hi as u128) << 64));
         u32::try_from(tower).expect("state depth fits u32")
     };
-    let schedule = ForkSchedule::new(Some(0), activation).expect("checked schedule");
     let native_payout = development_allocation_with_schedule(native_height, native_depth, schedule)
         .expect("checked candidate schedule")
         .payout_each
@@ -406,20 +406,32 @@ fn alloc_block_value(value: u64) -> F128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use noid_chain::consensus::development_allocation::DEVELOPMENT_ALLOCATION_END_HEIGHT;
 
     #[test]
     fn explicit_schedule_matches_native_boundaries_and_rejects_changed_height() {
         for interval in [20, 30, 40] {
             let period = 86_400 / interval;
-            for activation in [10, 4_320, DEVELOPMENT_ALLOCATION_END_HEIGHT, u64::MAX] {
+            for activation in [
+                1,
+                10,
+                4_320,
+                219_177,
+                DEVELOPMENT_ALLOCATION_END_HEIGHT,
+                u64::MAX,
+            ] {
                 let at = V2Activation::new(activation, interval).unwrap();
-                let schedule = ForkSchedule::new(Some(5), Some(at)).unwrap();
+                let schedule = ForkSchedule::new(Some(0), Some(at)).unwrap();
+                let end = development_allocation_end_height_with_schedule(schedule);
                 let mut digest = None;
                 for height in [
                     activation - 1,
                     activation,
                     activation.saturating_add(1),
+                    activation.saturating_add(period - 1),
                     activation.saturating_add(period),
+                    end,
+                    end + 1,
                     DEVELOPMENT_ALLOCATION_END_HEIGHT,
                     DEVELOPMENT_ALLOCATION_END_HEIGHT + 1,
                     u64::MAX,
@@ -437,6 +449,18 @@ mod tests {
                         &mut b, &h_expr, &depth, &amount, schedule,
                     );
                     let trace = prepared.trace();
+                    let reserved = [
+                        &trace.v2_active,
+                        &trace.active,
+                        &trace.payout_due,
+                        &trace.share_each,
+                        &trace.miner_subsidy,
+                        &trace.payout_each,
+                    ]
+                    .map(|value| {
+                        assert_eq!(value.terms.len(), 1);
+                        value.terms[0].0 as usize
+                    });
                     assert_eq!(
                         trace.payout_each.eval(b.values()),
                         alloc_block_value(native.payout_each.unwrap_or(0))
@@ -454,9 +478,44 @@ mod tests {
                     let actual = matrix.structural_statement_digest();
                     assert!(digest.is_none_or(|expected| expected == actual));
                     digest = Some(actual);
+                    for output in reserved {
+                        witness[output] += F128::ONE;
+                        assert!(
+                            !matrix.satisfies(&witness),
+                            "unbound schedule output {output}"
+                        );
+                        witness[output] += F128::ONE;
+                    }
                     witness[h.0 as usize] += F128::ONE;
                     assert!(!matrix.satisfies(&witness));
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn every_state_level_matches_at_fork_daily_and_final_boundaries() {
+        let h = noid_chain::consensus::params::MAINNET_V2_ACTIVATION_HEIGHT;
+        let at = V2Activation::new(h, 30).unwrap();
+        let schedule = ForkSchedule::new(Some(95_125), Some(at)).unwrap();
+        let end = development_allocation_end_height_with_schedule(schedule);
+        let mut digest = None;
+        for level in 24..=32 {
+            for height in [h - 1, h, h + 2878, h + 2879, end, end + 1] {
+                let native = development_allocation_with_schedule(height, level, schedule).unwrap();
+                let mut b = FieldR1csBuilder::new();
+                let height = alloc_block(&mut b, Block128::from(height));
+                let depth_value = alloc_block(&mut b, Block128::from(u64::from(level)));
+                let depth = StateDepthTrace::bind(&mut b, &depth_value);
+                let amount = alloc_block(&mut b, Block128::from(native.payout_each.unwrap_or(0)));
+                let prepared =
+                    PreparedDevelopmentAllocation::new(&mut b, &height, &depth, &amount, schedule);
+                prepared.finish(&mut b);
+                let (matrix, witness) = b.build();
+                assert!(matrix.satisfies(&witness), "level={level}");
+                let actual = matrix.structural_statement_digest();
+                assert!(digest.is_none_or(|expected| expected == actual));
+                digest = Some(actual);
             }
         }
     }

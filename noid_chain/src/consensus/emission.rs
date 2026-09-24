@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Block reward schedule.
+//! Height-selected block reward schedules. The table below is the legacy rule;
+//! v2 uses the exact [`V2_REWARDS_MICRONOID`] table from its activation height.
 //!
 //! Reward halves with every state expansion (`log_slots += 1`), floored at 1 NOID.
 //!
@@ -27,7 +28,39 @@ use crate::consensus::params::{
 };
 use noid_tx::types::TxBody;
 
-/// Compute the block reward in μNOID for the given `log_slots` value.
+/// Exact gross subsidy for State levels 24 through 32, before allocation.
+/// These decimal amounts are consensus constants, not a floating-point formula.
+pub const V2_REWARDS_MICRONOID: [u64; 9] = [
+    16_000_000, 11_300_000, 8_000_000, 5_650_000, 4_000_000, 2_830_000, 2_000_000, 1_410_000,
+    1_000_000,
+];
+
+pub fn v2_block_reward(log_slots: u32) -> u64 {
+    V2_REWARDS_MICRONOID
+        .get(log_slots.saturating_sub(LOG_SLOTS_GENESIS) as usize)
+        .copied()
+        .unwrap_or(FLOOR_REWARD_MICRONOID)
+}
+
+pub fn block_reward_with_schedule(
+    height: u64,
+    log_slots: u32,
+    schedule: super::forks::ForkSchedule,
+) -> u64 {
+    if matches!(schedule.version(height), super::forks::ProtocolVersion::V2) {
+        v2_block_reward(log_slots)
+    } else {
+        block_reward(log_slots)
+    }
+}
+
+pub fn block_reward_at_height(height: u64, log_slots: u32) -> u64 {
+    block_reward_with_schedule(height, log_slots, super::forks::ACTIVE_SCHEDULE)
+}
+
+/// Compute the legacy block reward in μNOID for the given `log_slots` value.
+/// Frozen legacy relations retain this function; network callers use
+/// [`block_reward_at_height`].
 ///
 /// `log_slots` is the current state capacity exponent from the block header.
 /// Halves once per state expansion, never below `FLOOR_REWARD_MICRONOID`.
@@ -98,10 +131,27 @@ pub fn max_coinbase_value_from_claimable_fee_sum(
     child_log_slots: u32,
     claimable_fee_sum: u128,
 ) -> u128 {
-    u128::from(crate::consensus::development_allocation::miner_subsidy(
+    max_coinbase_value_from_claimable_fee_sum_with_schedule(
         child_height,
         child_log_slots,
-    )) + claimable_fee_sum
+        claimable_fee_sum,
+        super::forks::ACTIVE_SCHEDULE,
+    )
+    .expect("release emission and daily intervals are exact")
+}
+
+pub fn max_coinbase_value_from_claimable_fee_sum_with_schedule(
+    child_height: u64,
+    child_log_slots: u32,
+    claimable_fee_sum: u128,
+    schedule: super::forks::ForkSchedule,
+) -> Result<u128, super::development_allocation::DevelopmentAllocationError> {
+    let allocation = super::development_allocation::development_allocation_with_schedule(
+        child_height,
+        child_log_slots,
+        schedule,
+    )?;
+    Ok(u128::from(allocation.miner_subsidy) + claimable_fee_sum)
 }
 
 /// Format a μNOID amount as a human-readable string (not consensus-critical).
@@ -140,6 +190,28 @@ mod tests {
             block_reward(LOG_SLOTS_GENESIS + 100),
             FLOOR_REWARD_MICRONOID
         );
+    }
+
+    #[test]
+    fn exact_v2_gross_rewards_switch_at_the_candidate_height() {
+        use crate::consensus::forks::{ForkSchedule, V2Activation};
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let expected = [
+            16_000_000, 11_300_000, 8_000_000, 5_650_000, 4_000_000, 2_830_000, 2_000_000,
+            1_410_000, 1_000_000,
+        ];
+        for (level, reward) in (24..=32).zip(expected) {
+            for height in [0, 4, 5, 9] {
+                assert_eq!(
+                    block_reward_with_schedule(height, level, schedule),
+                    block_reward(level)
+                );
+            }
+            for height in [10, 11, u64::MAX] {
+                assert_eq!(block_reward_with_schedule(height, level, schedule), reward);
+            }
+        }
+        assert_eq!(v2_block_reward(u32::MAX), 1_000_000);
     }
 
     #[test]

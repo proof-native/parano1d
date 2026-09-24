@@ -3169,7 +3169,8 @@ mod tests {
         ));
 
         context.recent_headers.insert(2, occupancy_header(2, 0));
-        context.recent_headers.remove(&6);
+        let anchor_height = crate::consensus::header::asert_anchor_height(context.tip_height);
+        context.recent_headers.remove(&anchor_height);
         assert!(matches!(
             context.anchor_info(),
             Err(MdbxContextError::Corrupt(

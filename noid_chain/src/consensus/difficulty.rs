@@ -22,9 +22,9 @@
 //!
 //! All arithmetic uses u64/u128 integers. NO FLOATS.
 
-use crate::consensus::params::{
-    BLOCK_TIME, GENESIS_TARGET, HALFLIFE, MAX_TARGET, MIN_TARGET, V1_1_ACTIVATION_HEIGHT,
-};
+#[cfg(test)]
+use crate::consensus::params::V1_1_ACTIVATION_HEIGHT;
+use crate::consensus::params::{BLOCK_TIME, GENESIS_TARGET, HALFLIFE, MAX_TARGET, MIN_TARGET};
 
 /// Fractional factor committed by the v1 mainnet consensus rule.
 fn legacy_fractional_factor(frac: u16) -> u64 {
@@ -73,13 +73,13 @@ pub fn next_target(
     height: u64,
     timestamp: u64,
 ) -> [u8; 32] {
-    next_target_with_activation(
+    next_target_with_schedule(
         anchor_height,
         anchor_timestamp,
         anchor_target,
         height,
         timestamp,
-        V1_1_ACTIVATION_HEIGHT,
+        super::forks::ACTIVE_SCHEDULE,
     )
 }
 
@@ -592,7 +592,8 @@ mod tests {
     #[test]
     fn on_time_target_unchanged() {
         for h in [1u64, 6, 100] {
-            let new = next_target(0, 0, &GENESIS_TARGET, h, h * BLOCK_TIME);
+            let elapsed = super::super::forks::ACTIVE_SCHEDULE.ideal_elapsed(0, h) as u64;
+            let new = next_target(0, 0, &GENESIS_TARGET, h, elapsed);
             assert_eq!(new, GENESIS_TARGET, "on-time target changed at h={h}");
         }
     }
@@ -670,7 +671,7 @@ mod tests {
     #[cfg(feature = "isolated-v1-1-testnet")]
     fn isolated_profile_activates_all_rules_at_height_five() {
         assert_eq!(V1_1_ACTIVATION_HEIGHT, Some(5));
-        for height in [1, 4, 5, 6, 23] {
+        for height in [1, 4, 5, 6, 9] {
             let time = height * BLOCK_TIME - 1;
             let schedule = if height < 5 { None } else { Some(0) };
             assert_eq!(

@@ -3,12 +3,45 @@
 
 //! All consensus constants.
 
-/// Target inter-block interval in seconds.
+/// Legacy target inter-block interval in seconds.
 ///
 /// ASERT adjusts PoW difficulty so all hardware converges to this target.
 /// Bounded below by `prove_block_time` on the miner's hardware; PoW is
 /// ordering-only, not security-critical.
 pub const BLOCK_TIME: u64 = 20;
+
+/// V2 target interval, selected by candidate height.
+pub const V2_BLOCK_TIME: u64 = 30;
+
+/// Nominal activation estimate for 2026-10-10 23:59 PDT (October 11 06:59 UTC).
+/// Two mainnet seeds agreed on H139327, timestamp 1790277759, on September 24.
+/// H = 139327 + ceil((1791701940 - 1790277759) / 20). Actual time may differ.
+pub const MAINNET_V2_ACTIVATION_HEIGHT: u64 = 210_537;
+
+/// Local v2 tests include both upgrades; the v1.1-only profile stays separate.
+pub const ISOLATED_V2_FORK_TESTNET: bool = cfg!(feature = "isolated-v2-fork-testnet");
+pub const V2_ACTIVATION_HEIGHT: Option<u64> = if ISOLATED_V2_FORK_TESTNET {
+    Some(10)
+} else if ISOLATED_V1_1_TESTNET {
+    None
+} else {
+    Some(MAINNET_V2_ACTIVATION_HEIGHT)
+};
+
+#[inline]
+pub const fn v2_active(height: u64) -> bool {
+    matches!(V2_ACTIVATION_HEIGHT, Some(at) if height >= at)
+}
+
+#[inline]
+pub const fn block_time_at_height(height: u64) -> u64 {
+    super::forks::ACTIVE_SCHEDULE.block_time(height)
+}
+
+#[inline]
+pub const fn halflife_at_height(height: u64) -> u64 {
+    EPOCH_LENGTH * block_time_at_height(height)
+}
 
 /// Number of blocks per ASERT epoch.
 pub const EPOCH_LENGTH: u64 = 6;
