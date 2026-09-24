@@ -35,7 +35,10 @@ pub const ISOLATED_V1_1_TESTNET: bool = cfg!(feature = "isolated-v1-1-testnet");
 /// Whether one candidate block height is governed by the v1.1 consensus rules.
 #[inline]
 pub const fn v1_1_active(height: u64) -> bool {
-    v1_1_active_with(height, V1_1_ACTIVATION_HEIGHT)
+    !matches!(
+        super::forks::ACTIVE_SCHEDULE.version(height),
+        super::forks::ProtocolVersion::V1
+    )
 }
 
 #[inline]

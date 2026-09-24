@@ -48,6 +48,7 @@ pub mod emission;
 pub mod epoch_anchor;
 pub mod fees;
 pub mod fork_choice;
+pub mod forks;
 pub mod genesis;
 pub mod header;
 pub mod params;

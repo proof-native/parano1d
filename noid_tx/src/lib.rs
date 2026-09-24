@@ -10,6 +10,7 @@
 
 pub mod body_hash;
 pub mod claims;
+pub mod experimental_object;
 pub mod owner_auth;
 pub mod paged_spend;
 pub mod public_logic;
