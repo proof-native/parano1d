@@ -1044,7 +1044,7 @@ fn embedded_history_step_runtime(
     let (bank, runtime_parts) = metadata.into_parts();
     let runtime = noid_recursive::acceptance::history_step::HistoryStepRuntime::new(
         bank,
-        Box::new(matrix_source),
+        matrix_source,
         runtime_parts,
     )
     .map_err(|error| format!("embedded HistoryStep runtime rejected: {error}"))?;
