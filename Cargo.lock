@@ -493,6 +493,7 @@ dependencies = [
  "noid_recursive",
  "noid_tx",
  "rayon",
+ "serde_json",
  "tracing-subscriber",
  "zstd",
 ]

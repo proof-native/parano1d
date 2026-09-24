@@ -9,8 +9,10 @@ of classes is selected.
 The September 15 integrated prototype established feasibility for an earlier
 object relation; its row counts are historical and do not describe the current
 core. See the [dated research note](results/2026-09-15/REPORT.md).
-The next gate is a complete scheduled recursive relation and actual terminal
-proofs for medium-capacity candidates, followed by resource measurements.
+The current measurement path builds a scheduled recursive relation and actual
+terminal proofs for medium-capacity candidates. See the
+[single-class measurement procedure](CAPACITY_MEASUREMENTS.md); successful
+freezing alone does not qualify a candidate for mainnet.
 
 ## Question
 
@@ -111,9 +113,10 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 Preserve the published legacy matrix identities, bind the first v2 proof to an
 authenticated legacy terminal, and assemble the complete candidate relation.
 Measure empty, full and mixed blocks, including sustained verification under a
-4 CPU / 8 GiB receiver budget. Compare one medium class with two classes, and
-retain the large class's accumulated obligation in every subsequent measurement
-once that class has appeared.
+4 CPU / 8 GiB receiver budget. The primary candidate uses one m23 class after
+the boundary. Test both legacy parent classes even if mainnet has so far used
+only B25. If a second new class is reconsidered, its accumulated obligation
+must remain in later measurements after that class has appeared.
 
 Capacity, interval and class count are joint decisions after measurements.
 The final pack requires a fresh soundness calculation and transition checks
