@@ -1,7 +1,10 @@
 # v2 contract feasibility research
 
-Status: the current working candidate is one m23 class with 112 user pages
-and a 384-input block budget. See the [independent-payment measurements](results/2026-09-24-tps/REPORT.md).
+Status: the measured baseline is one m23 class with 112 user pages and a
+384-input block budget. See the [independent-payment measurements](results/2026-09-24-tps/REPORT.md).
+A primary m23 class with a manually selected m24 class is under investigation;
+the [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
+separate the repeated verification cost from the unresolved two-class capacity.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
 must be included in the next capacity measurements. Mainnet still selects its
 existing v1 and v1.1 rules. The candidate is not a release selection; no v2
@@ -114,10 +117,11 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 Preserve the published legacy matrix identities, bind the first v2 proof to an
 authenticated legacy terminal, and assemble the complete candidate relation.
 Measure empty, full and mixed blocks, including sustained verification under a
-4 CPU / 8 GiB receiver budget. The primary candidate uses one m23 class after
+4 CPU / 8 GiB receiver budget. The measured m23 baseline has one class after
 the boundary. Test both legacy parent classes even if mainnet has so far used
-only B25. If a second new class is reconsidered, its accumulated obligation
-must remain in later measurements after that class has appeared.
+only B25. A second new class requires a complete two-class relation and capacity
+measurement; its accumulated obligation must remain in later measurements after
+that class has appeared, including cold-cache and restart cases.
 
 Capacity, interval and class count are joint decisions after measurements.
 The final pack requires a fresh soundness calculation and transition checks

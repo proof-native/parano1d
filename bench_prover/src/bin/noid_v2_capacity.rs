@@ -15,6 +15,12 @@ fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args
         .first()
+        .is_some_and(|s| s == "legacy-tail" || s == "legacy-tail-verify")
+    {
+        return legacy_tail(&args[1..], args[0] == "legacy-tail-verify");
+    }
+    if args
+        .first()
         .is_some_and(|s| s == "verify" || s == "verify-state")
     {
         return verify_saved(&args[1..], args[0] == "verify-state");

@@ -1,6 +1,6 @@
 # Scheduled single-class measurements
 
-The current working candidate is one m23 class with 112 user pages and a
+The measured baseline is one m23 class with 112 user pages and a
 384-input block budget after the v2 boundary. The existing B25/B255 bank
 remains responsible for blocks before that boundary. Target interval and
 activation height have not been selected; this is not a release-qualified bank.
@@ -11,7 +11,10 @@ adds an explicit 384-input candidate and real distributed-State boundary blocks.
 The [independent-payment measurements](results/2026-09-24-tps/REPORT.md)
 record the 112-page candidate, larger failed shapes and constrained receiver
 results. The [network budget audit](NETWORK_BUDGETS.md) distinguishes terminal,
-body, bundle and response limits from production protocol admission.
+body, bundle and response limits from production protocol admission. A proposed
+second class is investigated in the
+[carried-claim report](results/2026-09-24-carried-claims/REPORT.md); its legacy
+control experiment does not establish two-class v2 capacity.
 
 `noid_v2_capacity` builds the complete recursive relation, including the
 contract core described in [CORE_CANDIDATE.md](CORE_CANDIDATE.md). It checks

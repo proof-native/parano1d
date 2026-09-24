@@ -19,9 +19,11 @@ use std::{
     time::Instant,
 };
 mod boundaries;
+mod legacy_tail;
 mod payments;
 mod proof;
 mod state;
+pub use legacy_tail::measure as legacy_tail;
 use state::*;
 
 pub type Result<T> = std::result::Result<T, String>;

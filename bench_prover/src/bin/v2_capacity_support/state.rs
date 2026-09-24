@@ -258,6 +258,37 @@ impl Chain {
         )
         .map_err(err)
     }
+
+    pub fn legacy_empty_input(
+        &self,
+        block: Block,
+        ghost: &PreparedHistoryStepGhostAuthorization,
+    ) -> Result<noid_recursive::HistoryStepBlockInput<25>> {
+        let end = self
+            .accumulator
+            .advance(self.parent(), &block.header)
+            .map_err(err)?;
+        let local_time = block.header.timestamp;
+        noid_block::prepare_history_step_input_witness::<25>(
+            block,
+            noid_block::HistoryStepPreparationContext {
+                parent_header: self.parent(),
+                tx_epoch_anchor_header: &self.epoch(),
+                parent_state: &self.state,
+                start_accumulator: &self.accumulator,
+                previous_timestamps: &self.timestamps(),
+                finalized_active_counts: &self.counts(),
+                asert_anchor: &self.anchor(),
+                local_time,
+            },
+            Vec::new(),
+            ghost,
+        )
+        .map_err(err)?
+        .finish_template(&self.accumulator, &end)
+        .map(|(_, input)| input)
+        .map_err(err)
+    }
     /// Measurement fixture constructor. Uses the real native transitions in
     /// fixed input order and checks the complete result again before proving.
     /// Its per-page rooting cost is recorded separately from HistoryStep.

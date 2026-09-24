@@ -55,6 +55,34 @@ struct LegacySource {
     digests: [[u8; 32]; 2],
     cache: Mutex<[Option<Arc<CompactFieldR1cs>>; 2]>,
 }
+
+struct SharedLegacySource(Arc<LegacySource>);
+impl HistoryStepMatrixSource for SharedLegacySource {
+    fn load(
+        &self,
+        class: CanonicalHistoryStepClassId,
+    ) -> std::result::Result<HistoryStepMatrixLease, HistoryStepMatrixSourceError> {
+        self.0.load(class)
+    }
+}
+
+/// Independent verifier runtimes sharing only authenticated matrix storage.
+/// Recreating a runtime drops its checked-claim cache, not its matrix image.
+pub struct LegacyRuntimeFactory {
+    bank: noid_recursive::acceptance::history_step_bank::PinnedHistoryStepClassBank,
+    parts: noid_recursive::HistoryStepRuntimeParts,
+    source: Arc<LegacySource>,
+}
+impl LegacyRuntimeFactory {
+    pub fn runtime(&self) -> Result<HistoryStepRuntime> {
+        HistoryStepRuntime::new(
+            self.bank.clone(),
+            Box::new(SharedLegacySource(Arc::clone(&self.source))),
+            self.parts.clone(),
+        )
+        .map_err(err)
+    }
+}
 impl HistoryStepMatrixSource for LegacySource {
     fn load(
         &self,
@@ -117,6 +145,10 @@ pub fn open_candidate(output: &Path, expected_bank: [u8; 32]) -> Result<v2::V2Ru
 }
 
 pub fn legacy_runtime(pack: &Path, pin: [u8; 32]) -> Result<HistoryStepRuntime> {
+    legacy_runtime_factory(pack, pin)?.runtime()
+}
+
+pub fn legacy_runtime_factory(pack: &Path, pin: [u8; 32]) -> Result<LegacyRuntimeFactory> {
     let root = pack.join(HISTORY_STEP_PACK_VERSION_DIRECTORY);
     let bytes = bounded(
         &root.join(HISTORY_STEP_RUNTIME_METADATA_FILE),
@@ -125,16 +157,15 @@ pub fn legacy_runtime(pack: &Path, pin: [u8; 32]) -> Result<HistoryStepRuntime> 
     let metadata = decode_history_step_runtime_metadata_pinned(&bytes, pin).map_err(err)?;
     let (bank, parts) = metadata.into_parts();
     let digests = std::array::from_fn(|i| bank.entries()[i].matrix_digest());
-    HistoryStepRuntime::new(
+    Ok(LegacyRuntimeFactory {
         bank,
-        Box::new(LegacySource {
+        source: Arc::new(LegacySource {
             root,
             digests,
             cache: Mutex::new([None, None]),
         }),
         parts,
-    )
-    .map_err(err)
+    })
 }
 
 pub fn freeze<const PAGES: usize>(
@@ -218,33 +249,48 @@ pub fn freeze<const PAGES: usize>(
     }
     if config.max_live_inputs() != noid_chain::consensus::params::block_class_spend_capacity(PAGES)
     {
+        let mut decode_rejected = 0;
+        let mut pin_rejected = 0;
+        let mut reject_substitution =
+            |result: std::result::Result<v2::V2RuntimeParts, v2::V2Error>| -> Result<()> {
+                match result {
+                    Err(_) => decode_rejected += 1,
+                    Ok(other) => {
+                        // Different input limits can have identical padded
+                        // column layouts. Recipe parsing alone is not a release
+                        // authority: the independently supplied bank pin must
+                        // still reject the changed configuration.
+                        let other_bank = v2::V2Bank::pin(runtime.bank().matrix_digest(), &other);
+                        if other_bank.digest() == runtime.bank().digest() {
+                            return Err(
+                                "altered input budget retained the original bank identity".into()
+                            );
+                        }
+                        pin_rejected += 1;
+                    }
+                }
+                Ok(())
+            };
         for budget in [0u64, 385, 768, u64::MAX] {
             let mut changed = encoded.clone();
             changed[48..56].copy_from_slice(&budget.to_le_bytes());
-            if v2::V2RuntimeParts::decode_compact(&changed).is_ok() {
-                return Err("altered input budget was accepted by the compact recipe".into());
-            }
+            reject_substitution(v2::V2RuntimeParts::decode_compact(&changed))?;
         }
         let mut downgraded = encoded.clone();
         downgraded[..8].copy_from_slice(b"O1V2PT02");
         downgraded.drain(48..56);
-        if v2::V2RuntimeParts::decode_compact(&downgraded).is_ok() {
-            return Err("bounded-input slices were reinterpreted as the original geometry".into());
-        }
+        reject_substitution(v2::V2RuntimeParts::decode_compact(&downgraded))?;
         let wider = v2::V2Config::new(config.outer_m(), PAGES, config.schedule()).map_err(err)?;
-        if v2::V2RuntimeParts::new(
+        reject_substitution(v2::V2RuntimeParts::new(
             wider,
             parts.block_vk().clone(),
             parts.child_layout().clone(),
             parts.parent_layout().clone(),
-        )
-        .is_ok()
-        {
-            return Err("bounded VK accepted under the wider input configuration".into());
-        }
+        ))?;
         println!(
             "{}",
-            json!({"phase":"input_budget_recipe_checks","rejected":6})
+            json!({"phase":"input_budget_recipe_checks","rejected":decode_rejected+pin_rejected,
+                "decode_rejected":decode_rejected,"bank_pin_rejected":pin_rejected})
         );
     }
     std::fs::write(settings.output.join("candidate.parts"), encoded).map_err(err)?;

@@ -550,6 +550,7 @@ pub struct HistoryStepRuntime {
     parent_recursion_vk: LinkRegionSidecarVk,
     direct_block_vks: [BlockRegionSidecarVk; HISTORY_STEP_TIER_SLOT_COUNT],
     parent_geometry: HistoryStepParentGeometry,
+    matrix_claim_cache: super::super::history_step_bank::HistoryStepMatrixClaimCache,
 }
 
 impl HistoryStepRuntime {
@@ -586,6 +587,7 @@ impl HistoryStepRuntime {
             parent_recursion_vk,
             direct_block_vks,
             parent_geometry,
+            matrix_claim_cache: Default::default(),
         })
     }
 
@@ -640,7 +642,10 @@ impl HistoryStepRuntime {
         pending: PendingHistoryStepBankDecision,
     ) -> Result<AcceptedHistoryStepBankTip, HistoryStepError> {
         pending
-            .finish_with_matrix_loader(|class| self.load_matrix(class))
+            .finish_with_matrix_loader_cached(
+                |class| self.load_matrix(class),
+                &self.matrix_claim_cache,
+            )
             .map_err(Into::into)
     }
 }
