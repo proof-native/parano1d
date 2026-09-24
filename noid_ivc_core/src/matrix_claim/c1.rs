@@ -1029,6 +1029,22 @@ impl FactoredC1EqTable {
         }
     }
 
+    fn with_prefix(point: &[F256], prefix: &[F256]) -> Self {
+        assert!(prefix.len().is_power_of_two());
+        let mut table = Self::new(point);
+        // Column weights reuse this product for every matrix entry. Folding
+        // the small prefix into the low table removes one extension-field
+        // multiplication per entry, without materializing a full 2^m table.
+        table.low = table
+            .low
+            .iter()
+            .flat_map(|&weight| prefix.iter().map(move |&value| value * weight))
+            .collect();
+        table.low_bits += prefix.len().trailing_zeros() as usize;
+        table.low_mask = (1usize << table.low_bits) - 1;
+        table
+    }
+
     #[inline(always)]
     fn value(&self, index: usize) -> F256 {
         self.low[index & self.low_mask] * self.high[index >> self.low_bits]
@@ -1050,7 +1066,7 @@ impl<'a> CompactC1FreshWeights<'a> {
             mask: (1usize << shape.k_skip) - 1,
             lambda: lagrange_weights(shape.k_skip, claim.z_skip, 0),
             row_rest: FactoredC1EqTable::new(&claim.x_inner_rest),
-            column_rest: FactoredC1EqTable::new(&claim.r_inner_rest),
+            column_rest: FactoredC1EqTable::with_prefix(&claim.r_inner_rest, &claim.z_partial),
         }
     }
 
@@ -1058,8 +1074,8 @@ impl<'a> CompactC1FreshWeights<'a> {
         self.lambda[row & self.mask] * self.row_rest.value(row >> k_skip)
     }
 
-    fn column_weight(&self, column: usize, k_skip: usize) -> F256 {
-        self.claim.z_partial[column & self.mask] * self.column_rest.value(column >> k_skip)
+    fn column_weight(&self, column: usize) -> F256 {
+        self.column_rest.value(column)
     }
 }
 
@@ -1119,9 +1135,8 @@ fn compact_matrix_claim_values_c1(
                             }
                             let column = column as usize;
                             if let Some(weights) = &fresh_weights {
-                                fresh_sum += (fresh_row
-                                    * weights.column_weight(column, shape.k_skip))
-                                .scale_base(coefficient);
+                                fresh_sum += (fresh_row * weights.column_weight(column))
+                                    .scale_base(coefficient);
                             }
                             if let Some(weights) = &accumulated_weights {
                                 accumulated_sum += (accumulated_row * weights.column.value(column))
@@ -1204,6 +1219,83 @@ mod tests {
             F128::new(seed, seed.rotate_left(7)),
             F128::new(!seed, seed ^ 0xC1),
         )
+    }
+
+    #[test]
+    fn prefixed_factored_weights_match_dense_weights() {
+        for rest_bits in 0..=10 {
+            let point = (0..rest_bits)
+                .map(|i| value(0xC100 + i as u64))
+                .collect::<Vec<_>>();
+            let dense = build_eq_table(&point);
+            for prefix_bits in [0, 1, 6] {
+                let prefix = (0..1usize << prefix_bits)
+                    .map(|i| match i % 4 {
+                        0 => F256::ZERO,
+                        1 => F256::ONE,
+                        _ => value(0xC200 + i as u64),
+                    })
+                    .collect::<Vec<_>>();
+                let table = FactoredC1EqTable::with_prefix(&point, &prefix);
+                for (rest, &weight) in dense.iter().enumerate() {
+                    for (low, &prefix_weight) in prefix.iter().enumerate() {
+                        assert_eq!(
+                            table.value(rest * prefix.len() + low),
+                            prefix_weight * weight,
+                            "rest_bits={rest_bits}, prefix_bits={prefix_bits}, index={rest}:{low}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compact_c1_claim_modes_match_resident_evaluation() {
+        for k_log in [7, 8, 12] {
+            let (mut resident, _) = synthetic_satisfiable(k_log, k_log, 0xC1C01);
+            let mut bytes = Vec::new();
+            resident.write_artifact(&mut bytes).unwrap();
+            let compact = CompactFieldR1cs::open_packed(
+                bytes.into_boxed_slice(),
+                FieldShape::of(&resident),
+                resident.structural_statement_digest(),
+            )
+            .unwrap();
+            let rest = k_log - resident.k_skip;
+            let mut fresh = C1FreshLincheckClaim {
+                alpha: value(1),
+                z_skip: value(2),
+                x_inner_rest: (0..rest).map(|i| value(10 + i as u64)).collect(),
+                r_inner_rest: (0..rest).map(|i| value(50 + i as u64)).collect(),
+                z_partial: (0..1usize << resident.k_skip)
+                    .map(|i| value(100 + i as u64))
+                    .collect(),
+                value: F256::ZERO,
+            };
+            let accumulated = C1MatrixAccClaim {
+                point: (0..2 * k_log + 1).map(|i| value(200 + i as u64)).collect(),
+                value: F256::ZERO,
+            };
+            for alpha in [F256::ZERO, F256::ONE, value(1)] {
+                fresh.alpha = alpha;
+                for (fresh, accumulated) in [
+                    (None, None),
+                    (Some(&fresh), None),
+                    (None, Some(&accumulated)),
+                    (Some(&fresh), Some(&accumulated)),
+                ] {
+                    assert_eq!(
+                        compact
+                            .evaluate_matrix_claims_c1_authenticated(fresh, accumulated)
+                            .unwrap(),
+                        resident
+                            .evaluate_matrix_claims_c1(fresh, accumulated)
+                            .unwrap()
+                    );
+                }
+            }
+        }
     }
 
     #[test]
