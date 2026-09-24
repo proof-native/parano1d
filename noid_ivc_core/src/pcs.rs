@@ -435,6 +435,26 @@ pub fn open_batch_quirky_direct_c1<Ch: Challenger>(
     claims: &[C1QuirkyDirectClaim],
     challenger: &mut Ch,
 ) -> C1BaseFoldProof {
+    open_batch_quirky_direct_c1_slices(
+        packed_witness,
+        &prover_data.codeword,
+        &prover_data.merkle_tree,
+        commitment,
+        claims,
+        challenger,
+    )
+}
+
+/// The same opening protocol over immutable resident or disk-backed slices.
+/// This changes storage ownership, not the transcript or verifier.
+pub(crate) fn open_batch_quirky_direct_c1_slices<Ch: Challenger>(
+    packed_witness: &[F128],
+    codeword: &[F128],
+    merkle_tree: &[crate::merkle::Hash],
+    commitment: &Commitment,
+    claims: &[C1QuirkyDirectClaim],
+    challenger: &mut Ch,
+) -> C1BaseFoldProof {
     use rayon::prelude::*;
 
     assert!(!claims.is_empty(), "need at least one C1 claim");
@@ -526,8 +546,8 @@ pub fn open_batch_quirky_direct_c1<Ch: Challenger>(
         packed_witness,
         combined,
         target,
-        &prover_data.codeword,
-        &prover_data.merkle_tree,
+        codeword,
+        merkle_tree,
         &ntt,
         commitment.params.log_inv_rate,
         commitment.params.log_batch_size,

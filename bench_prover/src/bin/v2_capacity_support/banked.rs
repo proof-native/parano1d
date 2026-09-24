@@ -51,29 +51,28 @@ impl joint::MatrixSource for SharedSource {
     }
 }
 
-/// Run separately under the receiver CPU/memory envelope. Matrix decoding
-/// and authentication are setup; cold means an empty checked-claim cache.
-pub fn verify_saved(args: &[String]) -> Result<()> {
-    if args.len() != 7 || noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
-        return Err("usage: noid_v2_capacity joint-verify PACK PIN LEGACY_FIXTURES CANDIDATE BANK_PIN HEIGHT[,HEIGHT...] REPEATS (isolated-v1-1-testnet required)".into());
-    }
-    let digest = |s: &str| -> Result<[u8; 32]> {
-        hex::decode(s)
-            .map_err(err)?
-            .try_into()
-            .map_err(|_| "pin length".into())
-    };
-    let output = PathBuf::from(&args[3]);
-    let setup = Instant::now();
+fn digest(s: &str) -> Result<[u8; 32]> {
+    hex::decode(s)
+        .map_err(err)?
+        .try_into()
+        .map_err(|_| "pin length".into())
+}
+
+fn read_candidate(
+    output: &Path,
+    supplied_pin: [u8; 32],
+) -> Result<(joint::RuntimeParts, joint::Bank, [PathBuf; 2])> {
     let parts = joint::RuntimeParts::decode_compact(&proof::bounded(
         &output.join("joint.parts"),
         noid_recursive::HISTORY_STEP_RUNTIME_PARTS_COMPACT_MAX_BYTES,
     )?)
     .map_err(err)?;
-    let config = parts.config();
     let pins: serde_json::Value =
         serde_json::from_slice(&proof::bounded(&output.join("joint.pins.json"), 64 * 1024)?)
             .map_err(err)?;
+    if pins["entries"].as_array().map(Vec::len) != Some(2) {
+        return Err("joint bank requires exactly two entries".into());
+    }
     let mut digests = [[0; 32]; 2];
     let mut paths = [PathBuf::new(), PathBuf::new()];
     for class in Class::ALL {
@@ -83,7 +82,7 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
         }
         digests[class.index()] = digest(entry["matrix"].as_str().ok_or("matrix pin")?)?;
         let name = entry["file"].as_str().ok_or("matrix filename")?;
-        if std::path::Path::new(name).components().count() != 1
+        if Path::new(name).components().count() != 1
             || !name.ends_with(".field-r1cs.zst")
             || name.contains(['/', '\\'])
         {
@@ -92,9 +91,23 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
         paths[class.index()] = output.join(name);
     }
     let bank = joint::Bank::pin(digests, &parts);
-    if bank.digest() != digest(&args[4])? {
+    if bank.digest() != supplied_pin {
         return Err("joint bank differs from supplied pin".into());
     }
+    Ok((parts, bank, paths))
+}
+
+/// Run separately under the receiver CPU/memory envelope. Matrix decoding
+/// and authentication are setup; cold means an empty checked-claim cache.
+pub fn verify_saved(args: &[String]) -> Result<()> {
+    if args.len() != 7 || noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
+        return Err("usage: noid_v2_capacity joint-verify PACK PIN LEGACY_FIXTURES CANDIDATE BANK_PIN HEIGHT[,HEIGHT...] REPEATS (isolated-v1-1-testnet required)".into());
+    }
+    let output = PathBuf::from(&args[3]);
+    let setup = Instant::now();
+    let (parts, bank, paths) = read_candidate(&output, digest(&args[4])?)?;
+    let config = parts.config();
+    let digests = Class::ALL.map(|class| bank.matrix_digest(class));
     let source = Arc::new(Source {
         paths,
         config,
@@ -214,6 +227,152 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
         );
         audit_terminal(&runtime, &origin, &bytes, &header, &epoch)?;
     }
+    Ok(())
+}
+
+/// Exercise the production artifact loader against an already proved isolated
+/// candidate, then stage a NEW pack for local node integration.
+pub fn stage_saved(args: &[String]) -> Result<()> {
+    use noid_miner::v2_artifacts as pack;
+    if args.len() != 7 || noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
+        return Err("usage: noid_v2_capacity joint-stage PACK PIN LEGACY_FIXTURES CANDIDATE BANK_PIN NEW_PACK HEIGHT (isolated-v1-1-testnet required)".into());
+    }
+    let candidate = PathBuf::from(&args[3]);
+    let output = PathBuf::from(&args[5]);
+    if output.exists() {
+        return Err("a new staging directory is required".into());
+    }
+    let bank_pin = digest(&args[4])?;
+    let (parts, bank, paths) = read_candidate(&candidate, bank_pin)?;
+    let config = bank.config();
+    let encoded = pack::encode_v2_runtime_metadata(&bank, &parts)?;
+    let metadata = pack::decode_v2_runtime_metadata_pinned(&encoded, bank_pin)?;
+    if metadata.bank().config() != config {
+        return Err("production metadata changed the joint limits".into());
+    }
+    let mut wrong_pin = bank_pin;
+    wrong_pin[0] ^= 1;
+    if pack::decode_v2_runtime_metadata_pinned(&encoded, wrong_pin).is_ok() {
+        return Err("production metadata accepted an unpinned bank".into());
+    }
+    for cut in [0, 8, 75, encoded.len() - 1] {
+        if pack::decode_v2_runtime_metadata_pinned(&encoded[..cut], bank_pin).is_ok() {
+            return Err("truncated production metadata accepted".into());
+        }
+    }
+    let compressed = [
+        proof::bounded(&paths[0], pack::V2_MATRIX_MAX_BYTES)?,
+        proof::bounded(&paths[1], pack::V2_MATRIX_MAX_BYTES)?,
+    ];
+    for class in Class::ALL {
+        if metadata
+            .preflight_build_matrix(class, &compressed[1 - class.index()])
+            .is_ok()
+        {
+            return Err("production loader accepted swapped matrix classes".into());
+        }
+    }
+    let preflight = |class: Class| -> Result<_> {
+        let start = Instant::now();
+        let seal = metadata.preflight_build_matrix(class, &compressed[class.index()])?;
+        println!(
+            "{}",
+            json!({"phase":"production_matrix_preflight","class":class.wire_id(),"ms":elapsed(start),"memory":memory()})
+        );
+        Ok(seal)
+    };
+    let seals = [preflight(Class::Small)?, preflight(Class::Large)?];
+    // This process models executable embedding. The exact preflighted bytes
+    // become immutable for its lifetime, without reopening either source file.
+    let embedded: [&'static [u8]; 2] =
+        compressed.map(|bytes| &*Box::leak(bytes.into_boxed_slice()));
+    let runtime = unsafe {
+        // SAFETY: each immutable slice above is the exact blob authenticated
+        // by the matching class's seal immediately above.
+        metadata.into_embedded_runtime(embedded, seals)?
+    };
+    let start = Instant::now();
+    for class in Class::ALL {
+        runtime.prepare_matrix_cache(class).map_err(err)?;
+    }
+    println!(
+        "{}",
+        json!({"phase":"production_embedded_matrix_load","ms":elapsed(start),"memory":memory()})
+    );
+    let settings = Settings {
+        pack: PathBuf::from(&args[0]),
+        pin: digest(&args[1])?,
+        fixtures: PathBuf::from(&args[2]),
+        output: candidate.clone(),
+        config: config.class(Class::Small),
+        samples: 1,
+        freeze_only: false,
+        transition_only: false,
+        payments_only: false,
+    };
+    let old_runtime = proof::legacy_runtime(&settings.pack, settings.pin)?;
+    let (old_chain, old_tip) = Chain::load(&settings, &old_runtime)?;
+    let certificate = joint::LegacyOriginCertificate::new(
+        *old_chain.parent(),
+        old_chain.epoch(),
+        legacy::encode_history_step_terminal(&old_runtime, &old_tip).map_err(err)?,
+    )
+    .map_err(err)?;
+    let origin = certificate
+        .verify(&old_runtime, runtime.bank())
+        .map_err(err)?;
+    drop(old_tip);
+    drop(old_chain);
+    drop(old_runtime);
+    let height: u64 = args[6].parse().map_err(err)?;
+    if height < config.activation_height() {
+        return Err("staged endpoint must belong to v2".into());
+    }
+    let mut parent = Chain::replay_for_receiver(
+        &settings.fixtures,
+        &candidate,
+        config.class(Class::Small),
+        height - 1,
+    )?;
+    let block = Block::from_bytes(&proof::bounded(
+        &candidate.join(format!("h{height:06}.block")),
+        16 * 1024 * 1024,
+    )?)
+    .map_err(err)?;
+    let bytes = proof::bounded(&candidate.join(format!("h{height:06}.terminal")), 1_100_000)?;
+    let terminal = joint::decode_terminal(&runtime, &bytes).map_err(err)?;
+    let accepted =
+        joint::verify_terminal(&runtime, &origin, &terminal, &block.header, &parent.epoch())
+            .map_err(err)?;
+    parent.check_native(&block, config.schedule())?;
+    if accepted.accumulator()
+        != &parent
+            .accumulator
+            .advance(parent.parent(), &block.header)
+            .map_err(err)?
+    {
+        return Err("production artifact verifier differs from native replay".into());
+    }
+    noid_chain::materialize_accepted_block_state(&mut parent.state, &block).map_err(err)?;
+    std::fs::create_dir(&output).map_err(err)?;
+    std::fs::write(output.join(pack::V2_METADATA_FILE), &encoded).map_err(err)?;
+    for class in Class::ALL {
+        std::fs::write(
+            output.join(pack::v2_matrix_file_name(class)),
+            embedded[class.index()],
+        )
+        .map_err(err)?;
+    }
+    std::fs::write(output.join("legacy-v2-origin.bin"), certificate.to_bytes()).map_err(err)?;
+    let report = json!({"status":"local candidate staged and verified","bank":hex::encode(bank_pin),
+        "origin_binding":hex::encode(origin.origin().request_binding()),"height":height,"memory":memory(),
+        "mainnet_release":false,"metadata_negative_checks":5,"swapped_class_rejections":2});
+    std::fs::write(
+        output.join("stage.json"),
+        serde_json::to_vec_pretty(&report).map_err(err)?,
+    )
+    .map_err(err)?;
+    println!("{report}");
     Ok(())
 }
 

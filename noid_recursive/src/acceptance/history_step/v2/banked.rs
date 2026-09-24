@@ -11,7 +11,9 @@ mod assembly;
 mod bank;
 mod config;
 mod decision;
+mod origin_codec;
 mod parent;
+mod retirement_codec;
 mod wire;
 pub use assembly::{assemble_frozen, prepare_for_pow, prove_built, Built, PreparedForPow};
 use bank::install_claim;
@@ -21,6 +23,10 @@ use config::{
     Lane, ACC, BANK, BASE, IO_LEN, MATRIX, ORIGIN, ORIGIN_ACC, ORIGIN_ID, POINT, POST, TIP_CLASS,
 };
 pub use decision::{verify_terminal, AcceptedTerminal};
+pub use origin_codec::{LegacyOriginCertificate, MAX_LEGACY_ORIGIN_BYTES};
+pub use retirement_codec::{
+    PinnedRetirementKeys, RetirementOriginCertificate, MAX_RETIREMENT_ORIGIN_BYTES,
+};
 pub use wire::{decode_terminal, encode_terminal, terminal_max_bytes, TERMINAL_VERSION};
 
 const PROOF_DOMAIN: &[u8] = b"history-step-banked-v2";

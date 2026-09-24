@@ -39,6 +39,7 @@ pub enum V2Error {
     Io,
     Boundary,
     Origin,
+    Retirement(String),
     Layout,
     Shape { used: usize, limit: usize },
     Cancelled,

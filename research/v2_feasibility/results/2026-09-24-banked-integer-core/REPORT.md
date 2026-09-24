@@ -83,6 +83,48 @@ All observations are retained in [proving.jsonl](proving.jsonl); executable and
 source hashes are recorded in [proving-source.json](proving-source.json).
 Constrained receiver measurements are separate from these prover-process results.
 
+## Constrained receiver
+
+The separate receiver used the same laptop, affinity to CPUs `0,2,4,6`
+(two P cores and two E cores), four Rayon threads, `NOID_CPU_BACKEND=pclmul`,
+an 8 GiB cgroup memory limit and no swap. This is a resource-constrained laptop
+proxy, not a measurement of a particular four-core server. No build, test or
+other project benchmark ran alongside it.
+
+Each row contains three cold-cache and three warm-cache samples. Cold means
+an empty checked-claim cache after matrix authentication; it does not include
+artifact decompression or initial authentication. Warm repeats still verify
+the proof and fresh tip matrix claim.
+
+| Height / case | Cold claim cache, median | Warm claim cache, median | Warm range |
+|---|---:|---:|---:|
+| 13 / empty large | 8.259 s | 7.466 s | 6.890–7.527 s |
+| 14 / first small after large | 5.966 s | 2.793 s | 2.759–3.300 s |
+| 17 / later empty small | 6.516 s | 2.961 s | 2.800–3.004 s |
+| 31 / 63 small calls | 6.172 s | 2.867 s | 2.852–2.973 s |
+| 33 / 255 pages, 26 calls | 9.531 s | 8.038 s | 6.868–8.643 s |
+| 34 / 63 calls after large | 5.920 s | 2.771 s | 2.744–2.809 s |
+| 37 / final empty small | 5.982 s | 2.793 s | 2.777–2.893 s |
+
+All 42 timed verifications succeeded. Independent native replay agreed with
+every accepted accumulator, including the explicit schedule's ASERT anchor.
+Each of the seven terminal audits rejected 245 mutations or malformed inputs
+(1,715 rejections total). These counts supplement the circuit-level tests;
+byte mutations alone are not a soundness argument.
+
+Peak process RSS was **1,508,964 KiB (1.44 GiB)**, including setup; RSS during
+steady verification was about **1.16 GiB**. Matrix authentication and legacy
+origin setup took **790.657 s**, separately from the table. This harness performs
+full semantic scans of file-loaded artifacts. An executable-embedded loader may
+reuse an exact immutable artifact/seal pair authenticated at build time, but an
+adjacent untrusted checksum cannot substitute for that scan.
+
+The receiver dropped its old runtime after verifying the origin. It does not
+include a full daemon's simultaneous legacy caches, database, networking,
+retained forks or wallet workload. Its results therefore do not qualify the
+whole seed process. See [raw receiver samples](receiver-4cpu8g.jsonl) and
+[source and resource settings](receiver-source.json).
+
 ## Identity and remaining qualification
 
 - Source baseline: `7e04b528`, with the joint-bank changes recorded in the
@@ -102,6 +144,8 @@ this replay is a fixture audit, not an archive requirement for proof verificatio
 
 Final capacities remain a separate decision. Required production work includes
 both legacy boundary classes, resource-distribution boundaries, the live node's
-combined caches/database/P2P workload, reorg/restart/cold-sync/pruning, authenticated
-legacy retirement and the final bank's soundness inventory. Successful local
+combined caches/database/P2P workload, reorg/restart/cold-sync/pruning, both-class
+legacy retirement and the final bank's soundness inventory. The subsequent
+[fork-origin check](../2026-09-25-fork-origin/REPORT.md) covers a B25-only old
+boundary and a recreated protocol context without old rows. Successful local
 proofs do not establish that this bank is ready for release.

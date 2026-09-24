@@ -1,0 +1,69 @@
+{
+  "stage-retirement-source.json": {
+    "base": "1ac4912379cfc5cf54a3a01eebe8d0c73ccc380d",
+    "dirty": true,
+    "features": [
+      "noid_chain/isolated-v1-1-testnet"
+    ],
+    "rayon_threads": 12,
+    "files": {
+      "Cargo.lock": "ce4f84ea3a3067b634d3ef382f6269503440652bc8b129bde4334705dc886425",
+      "bench_prover/src/bin/noid_retire_history.rs": "bf7fccb3a596a8ae0f6e519e66bcd014c8ee5fd86ba654ddbef6f0476945c274",
+      "bench_prover/src/bin/noid_v2_capacity.rs": "2ebfbc5b500251f98c2dd214c95fcadd201af67adaafcfdb70291ec611a1cea2",
+      "bench_prover/src/bin/v2_capacity_support/banked.rs": "77725bb4a690f2d89c949b7551ba3cf0a8b10172eaa860cd312065ab747cc225",
+      "noid_chain/src/consensus/wire_limits.rs": "d62e08697f0d9eaabb70e525ebcc89d1db1611799b50f8d4dfc1e01854996fcb",
+      "noid_ivc_core/Cargo.toml": "d9e416904d5201f0f4c0b3b070792f02343c9ff5655a5b822899d7e241730933",
+      "noid_ivc_core/src/matrix_claim.rs": "373f93cb1e03198198782bff88e199cdc0e25ad66800048f72399c62ce120f6d",
+      "noid_ivc_core/src/matrix_claim/sparse_c1.rs": "24f1ad28c0231085101062e47b6efbfc418baf0285d246da782225ff81cc7926",
+      "noid_ivc_core/src/matrix_claim/sparse_c1/preprocess.rs": "957a9635da172d77c2220249ba2b219b49e0801ce374847f0c9567febdb22549",
+      "noid_ivc_core/src/matrix_claim/sparse_c1/sumcheck.rs": "ee9510d0c576302c0de3871aa8c65b0b2f74f86aa0a169f3fc9bf6b971f77dc6",
+      "noid_ivc_core/src/matrix_claim/sparse_c1/tests.rs": "2539b3dc91db6f97e9ca236235bfdba2491233bee344346abfe4ff012dd41924",
+      "noid_ivc_core/src/matrix_claim/sparse_c1/wire.rs": "41b9704ebdacb50d3e9ffdda918c2af4aca072e352d9d4e24e4c4e5b9ef9637c",
+      "noid_ivc_core/src/matrix_claim/sparse_c1/workspace.rs": "826b73f56d0b1472c5ec2c641e1621b73fdb8dfab9ec5b207ad0be4240950af9",
+      "noid_ivc_core/src/pcs.rs": "c5aafef7f478ac426c58417603f710efbc4784531f6f6763641e934b494d35e4",
+      "noid_miner/src/lib.rs": "95bd48f49563b88d8de37871d4006d79d73ca730f7252781de94736b855630ec",
+      "noid_miner/src/v2_artifacts.rs": "fb4dc8e476d0b34cd607bd9fc9b030206a38c522d8a816ded1e6f21f61c03410",
+      "noid_recursive/src/acceptance/history_step.rs": "2985fa1a95f9f4b1c494b813df2c3fcc395a3bd5459f7d56ca6e6675523406b5",
+      "noid_recursive/src/acceptance/history_step/relation.rs": "6ed2e381387083b477274bcab1a2d45085226df4016047a5fe0ffb9ccbd027b9",
+      "noid_recursive/src/acceptance/history_step/v2.rs": "06d241935c06887b3cf8259259b34b1fffdd88002a11dc1b8fb395e26de265ed",
+      "noid_recursive/src/acceptance/history_step/v2/banked.rs": "eb640a9829c10b9a8b24aca6f5f49e2637e3cda0a16ee5b2131cf547e3f5012c",
+      "noid_recursive/src/acceptance/history_step/v2/banked/bank.rs": "270793c8ad70be07082732f3fd6987384826cfa0db6bd02d07e155021fd531a8",
+      "noid_recursive/src/acceptance/history_step/v2/banked/origin_codec.rs": "195569e3793924564998c676877687101ef1544041f933fa3d3d14b151fa805f",
+      "noid_recursive/src/acceptance/history_step/v2/banked/retirement_codec.rs": "e96813d08a82498e007bb7421590cd70c8857fbde41f7ad02f6ba09db280c47e",
+      "noid_recursive/src/acceptance/history_step_bank.rs": "5f7f4ca854faceb152b9368996a4fbc82f561dd9ddce7ef818d5a08b60e4c4e1",
+      "noid_recursive/src/acceptance/history_step_bank/retirement.rs": "15b64763e33587ea7750b6952b897d9ecf71295bdc5cefcda416654ce70afa7e",
+      "noid_recursive/src/acceptance/history_step_bank/retirement/evaluation.rs": "7b6a55f4423637d60a9886055030cd16b7bffed2811b807033de49f814be754b",
+      "noid_recursive/src/acceptance/history_step_bank/retirement/tests.rs": "3c49ff7dfd4d0b88d7faa8a89e1736ad71e4d0c1358893e213560dbed4426260",
+      "noid_recursive/src/acceptance/history_step_bank/retirement/trace.rs": "a8b4033ec2d283b3f595c90a2aab5d214415aff1a6702c14793858fdb32351e3"
+    },
+    "binaries": {
+      "target/release/noid_v2_capacity": "b8cb7bed35d50fe5d81dd7cbb9c5b10a31f1d9c0c9d1f506736102cb67257428",
+      "target/release/noid_retire_history": "a043eca136a26e967ac7a0db502d8a2a9055ef3aaa379febae69245243387b6f"
+    }
+  },
+  "joint-retirement-small-source.json": {
+    "git_head": "1ac4912379cfc5cf54a3a01eebe8d0c73ccc380d",
+    "qualification": "isolated joint retirement; B25 legacy boundary",
+    "sha256": {
+      "bench_prover/src/bin/noid_retire_history.rs": "5ce699fd265553b4b0d1da9a0ce21f8064bdc8d966a61007047d75d240cb3395",
+      "target/release/noid_retire_history": "077da125bee92fc4c91167e8a59ca84fea897c2e6b5bbcc9dc7d8d807b56f911"
+    },
+    "library_source_manifest": "stage-retirement-source.json"
+  },
+  "retirement-protocol-verify-source.json": {
+    "head": "1ac4912379cfc5cf54a3a01eebe8d0c73ccc380d",
+    "features": [
+      "noid_chain/isolated-v2-fork-testnet"
+    ],
+    "sha256": {
+      "target/release/noid_retire_history": "3a52f8d5a9bdb7b0576af23ec3d1fa9a9901fb223d1dd3b2e94abc1c0ff190d8",
+      "bench_prover/src/bin/noid_retire_history.rs": "07cabb31c1ce66f85d92edb641cb05cfb620a7cf4a8d43b7d94030171031e01f",
+      "noid_miner/src/history_protocol.rs": "0375b3e0a79fe7ffb21e43811fbd8922d7e3fb0a7a42aae871207bbb41dcba19",
+      "noid_chain/src/history_step.rs": "0af740236d62fb7b9a23d1be1fc1d00d9d4c986e7fc935abc6647bab0ef2e3f7",
+      "noid_recursive/src/acceptance/history_step/relation.rs": "209ac9076996fcca596ebb7dcf9c2cb5b4f40f7d5b5d5986a9038f78bce79032",
+      "noid_recursive/src/acceptance/history_step/v2/banked/origin_codec.rs": "8df9274369779eb44b9d1602b10286f0924d2c12a968e429d4562b06ef6191f0",
+      "noid_recursive/src/acceptance/history_step/v2/banked/wire.rs": "539414396681496da52094470d2a984ec4509fef1ffe8b65f122736a76f5754b"
+    },
+    "additional_source_manifest": "stage-retirement-source.json"
+  }
+}

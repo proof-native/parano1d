@@ -93,6 +93,7 @@ pub struct NodeBehaviour {
 
     /// Fused HistoryStep terminal for O(1) snapshot sync.
     pub history_step_sync: request_response::Behaviour<HistoryStepTerminalCodec>,
+    pub fork_origin_sync: request_response::Behaviour<crate::fork_origin::ForkOriginCodec>,
 
     /// Kademlia DHT — primary peer discovery mechanism.
     ///
@@ -341,6 +342,16 @@ impl NodeBehaviour {
                 .with_max_concurrent_streams(4),
         );
 
+        let fork_origin_sync = request_response::Behaviour::new(
+            [(
+                StreamProtocol::try_from_owned(format!("{}/sync/fork-origin/1", protocol_id))?,
+                ProtocolSupport::Full,
+            )],
+            request_response::Config::default()
+                .with_request_timeout(Duration::from_secs(45))
+                .with_max_concurrent_streams(4),
+        );
+
         // Manifest v7 carries only fixed metadata and <=64 page identities.
         let state_manifest_sync = request_response::Behaviour::new(
             [(
@@ -533,6 +544,7 @@ impl NodeBehaviour {
             availability_sync,
             chain_sync,
             history_step_sync,
+            fork_origin_sync,
             kad,
             mdns,
             identify,

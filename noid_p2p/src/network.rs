@@ -3091,6 +3091,11 @@ fn snapshot_header_request_is_superseded(
 /// Commands sent to the P2P network event loop.
 #[derive(Debug)]
 pub enum NetworkCommand {
+    FetchForkOrigin {
+        peer: PeerId,
+        request: [u8; 32],
+        reply: tokio::sync::oneshot::Sender<Result<crate::fork_origin::ForkOriginResponse, String>>,
+    },
     /// Announce one complete accepted-block bundle. The event loop chooses
     /// inline gossip or header-only gossip from its canonical encoded size.
     AnnounceBlock { bundle: AcceptedBlockBundle },
@@ -3781,6 +3786,7 @@ async fn run_swarm(
     // enter the same bounded automatic manager as DNS bootstrap sources, so a
     // restart cannot create a second untracked dial burst.
     let mut successful_peer_cache = crate::peer_store::load(&data_dir);
+    let mut fork_origins = crate::fork_origin::ForkOriginTransfers::new(data_dir.join("fork-origins"));
     let local_peer_id = *swarm.local_peer_id();
     let mut automatic_peers = AutomaticPeerState::new(local_peer_id);
     for peer in successful_peer_cache.entries() {
@@ -3930,6 +3936,7 @@ async fn run_swarm(
             };
             handle_network_command(
                 &mut swarm,
+                &mut fork_origins,
                 cmd,
                 &topics,
                 &mut mempool_recovery,
@@ -3956,6 +3963,7 @@ async fn run_swarm(
             event = swarm.select_next_some() => {
                 handle_swarm_event(
                     &mut swarm,
+                    &mut fork_origins,
                     event,
                     &gossip_event_tx,
                     &required_event_tx,
@@ -4004,6 +4012,12 @@ async fn run_swarm(
                     &mut successful_peer_cache,
                 )
                 .await;
+            }
+
+            prepared = fork_origins.receiver.recv() => {
+                if let Some(prepared) = prepared {
+                    let _ = swarm.behaviour_mut().fork_origin_sync.send_response(prepared.channel, prepared.response);
+                }
             }
 
             prepared = header_response_rx.recv() => {
@@ -4428,6 +4442,7 @@ async fn run_swarm(
                 match cmd {
                     Some(cmd) => handle_network_command(
                         &mut swarm,
+                        &mut fork_origins,
                         cmd,
                         &topics,
                         &mut mempool_recovery,
@@ -5650,6 +5665,7 @@ fn announce_availability_to_mesh(
 /// pending commands can be drained via `try_recv` before blocking.
 async fn handle_network_command(
     swarm: &mut libp2p::Swarm<NodeBehaviour>,
+    fork_origins: &mut crate::fork_origin::ForkOriginTransfers,
     cmd: NetworkCommand,
     topics: &NetworkTopics,
     mempool_recovery: &mut MempoolRecovery<request_response::OutboundRequestId>,
@@ -5690,6 +5706,9 @@ async fn handle_network_command(
     sync_paths: &PeerSyncPaths,
 ) {
     match cmd {
+        NetworkCommand::FetchForkOrigin { peer, request, reply } => {
+            fork_origins.request(swarm, peer, request, reply, sync_paths.is_dispatchable(peer));
+        }
         NetworkCommand::AnnounceBlock { bundle } => {
             let height = bundle.height();
             let announcement = match HeaderAnnouncement::from_accepted_bundle(
@@ -6277,6 +6296,7 @@ async fn handle_network_command(
 #[allow(clippy::too_many_arguments)]
 async fn handle_swarm_event(
     swarm: &mut libp2p::Swarm<NodeBehaviour>,
+    fork_origins: &mut crate::fork_origin::ForkOriginTransfers,
     event: SwarmEvent<NodeBehaviourEvent>,
     gossip_event_tx: &tokio::sync::broadcast::Sender<NetworkEvent>,
     required_event_tx: &RequiredEventSender,
@@ -6375,6 +6395,9 @@ async fn handle_swarm_event(
     }
 
     match event {
+        SwarmEvent::Behaviour(NodeBehaviourEvent::ForkOriginSync(event)) => {
+            fork_origins.event(swarm, event, |peer| sync_paths.is_dispatchable(peer));
+        }
         // --- GossipSub: received broadcast ---
         SwarmEvent::Behaviour(NodeBehaviourEvent::Gossipsub(gossipsub::Event::Message {
             propagation_source,

@@ -14,7 +14,7 @@ use crate::region_sidecar::{
     encode_joint_c1_region_sidecar_canonical,
 };
 
-pub const TERMINAL_VERSION: u8 = 7;
+pub const TERMINAL_VERSION: u8 = noid_chain::history_step::HISTORY_STEP_TERMINAL_V2_VERSION;
 const PREFIX: usize = 42;
 
 pub fn terminal_max_bytes(runtime: &Runtime, class: Class) -> Result<usize, V2Error> {

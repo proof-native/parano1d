@@ -2,6 +2,9 @@
 // Copyright (C) 2026 Paranoid Zero.
 
 use super::*;
+use crate::acceptance::history_step_bank::retirement::{
+    CheckedHistoryStepRetirementMatrices, HistoryStepRetirementRequest,
+};
 use noid_core::Block128;
 use noid_ivc_core::field_circuit::f128_to_u128;
 use noid_poseidon2b::native::poseidon2b_hash_byte_slices;
@@ -238,6 +241,59 @@ pub struct Origin {
     next_bank: [u8; 32],
 }
 impl Origin {
+    fn from_boundary(
+        legacy_bank: [u8; 32],
+        next: &Bank,
+        parent: &BlockHeader,
+        epoch: &BlockHeader,
+        boundary: &ChainAccumulator,
+    ) -> Result<Self, V2Error> {
+        if parent.height.checked_add(1) != Some(next.config.activation_height()) {
+            return Err(V2Error::Boundary);
+        }
+        boundary
+            .validate_local_header_boundary(parent, epoch)
+            .map_err(|_| V2Error::Boundary)?;
+        let mut boundary_bytes = Vec::new();
+        parent.encode(&mut boundary_bytes);
+        epoch.encode(&mut boundary_bytes);
+        for lane in boundary.to_lanes() {
+            boundary_bytes.extend_from_slice(&lane.0.to_le_bytes());
+        }
+        let request_binding = poseidon2b_hash_byte_slices(
+            b"NOID/HISTORY-STEP/BANKED-VERIFIED-ORIGIN/V2",
+            &[
+                &legacy_bank,
+                &next.digest,
+                &next.config.identity_bytes(),
+                &boundary_bytes,
+            ],
+        );
+        let origin = Self {
+            request_binding,
+            parent_id: noid_chain::hash_block_header(parent),
+            boundary: boundary.clone(),
+            next_bank: next.digest,
+        };
+        origin.check(next)?;
+        Ok(origin)
+    }
+
+    /// Supply a hypothetical boundary witness when freezing a scheduled bank
+    /// before its real predecessor exists. This returns only an untrusted
+    /// statement, never `VerifiedOrigin` or terminal acceptance authority.
+    /// The resulting matrix must be rechecked under its final pins and used
+    /// with an independently verified real origin on the live chain.
+    pub fn for_matrix_freezing(
+        legacy_bank: [u8; 32],
+        next: &Bank,
+        parent: &BlockHeader,
+        epoch: &BlockHeader,
+        boundary: &ChainAccumulator,
+    ) -> Result<Self, V2Error> {
+        Self::from_boundary(legacy_bank, next, parent, epoch, boundary)
+    }
+
     pub fn boundary(&self) -> &ChainAccumulator {
         &self.boundary
     }
@@ -286,28 +342,43 @@ impl VerifiedOrigin {
             return Err(V2Error::Boundary);
         }
         let accepted = verify_history_step_terminal(legacy, terminal, parent_header, epoch_header)?;
-        let mut boundary_bytes = Vec::new();
-        parent_header.encode(&mut boundary_bytes);
-        epoch_header.encode(&mut boundary_bytes);
-        for lane in accepted.accumulator().to_lanes() {
-            boundary_bytes.extend_from_slice(&lane.0.to_le_bytes());
+        let origin = Origin::from_boundary(
+            legacy.bank().digest(),
+            next,
+            parent_header,
+            epoch_header,
+            accepted.accumulator(),
+        )?;
+        Ok(Self(origin))
+    }
+
+    /// Retire the old rows only after every legacy obligation is closed under
+    /// independent release-pinned preprocessing keys. A checked proof under a
+    /// caller-labeled matrix key alone cannot mint this capability.
+    pub fn from_retirement(
+        request: &HistoryStepRetirementRequest,
+        checked: CheckedHistoryStepRetirementMatrices,
+        next: &Bank,
+        keys: &PinnedRetirementKeys,
+    ) -> Result<Self, V2Error> {
+        noid_chain::consensus::pow::validate_pow(request.parent_header())
+            .map_err(|_| V2Error::Origin)?;
+        if checked.request_binding() != request.binding()
+            || checked.target() != request.target()
+            || checked.boundary() != request.boundary()
+            || request.target().next_bank_digest() != next.digest()
+            || request.target().schedule() != next.config().schedule()
+        {
+            return Err(V2Error::Origin);
         }
-        let request_binding = poseidon2b_hash_byte_slices(
-            b"NOID/HISTORY-STEP/BANKED-VERIFIED-ORIGIN/V2",
-            &[
-                &legacy.bank().digest(),
-                &next.digest,
-                &next.config.identity_bytes(),
-                &boundary_bytes,
-            ],
-        );
-        let origin = Origin {
-            request_binding,
-            parent_id: noid_chain::hash_block_header(parent_header),
-            boundary: accepted.accumulator().clone(),
-            next_bank: next.digest,
-        };
-        origin.check(next)?;
+        keys.check_evaluations(&checked)?;
+        let origin = Origin::from_boundary(
+            request.target().legacy_bank_digest(),
+            next,
+            request.parent_header(),
+            request.epoch_anchor_header(),
+            checked.boundary(),
+        )?;
         Ok(Self(origin))
     }
 }
@@ -367,6 +438,51 @@ pub(super) fn fixture() -> (Bank, Origin, ChainAccumulator) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn freezing_statement_preserves_the_boundary_binding_and_grants_no_capability() {
+        let (bank, _, _) = fixture();
+        let epoch = noid_chain::consensus::genesis_header();
+        let mut parent = epoch;
+        parent.height = bank.config.activation_height() - 1;
+        parent.timestamp += parent.height * 20;
+        let boundary = ChainAccumulator {
+            height: parent.height,
+            tip_semantic_id: noid_chain::block_header::semantic_header_id(&parent),
+            state_root: parent.state_root,
+            log_slots: parent.log_slots,
+            active_slot_count: parent.active_slot_count,
+            alloc_counter: parent.alloc_counter,
+            epoch_anchor_id: noid_chain::hash_block_header(&epoch),
+        };
+        let raw = Origin::for_matrix_freezing([99; 32], &bank, &parent, &epoch, &boundary).unwrap();
+        let mut bytes = Vec::new();
+        parent.encode(&mut bytes);
+        epoch.encode(&mut bytes);
+        for lane in boundary.to_lanes() {
+            bytes.extend_from_slice(&lane.0.to_le_bytes());
+        }
+        // Same encoding as the already measured legacy-verification path.
+        assert_eq!(
+            raw.request_binding(),
+            poseidon2b_hash_byte_slices(
+                b"NOID/HISTORY-STEP/BANKED-VERIFIED-ORIGIN/V2",
+                &[
+                    &[99; 32],
+                    &bank.digest(),
+                    &bank.config.identity_bytes(),
+                    &bytes
+                ],
+            )
+        );
+        let mut wrong = boundary;
+        wrong.state_root[0] ^= 1;
+        assert!(Origin::for_matrix_freezing([99; 32], &bank, &parent, &epoch, &wrong).is_err());
+        parent.height += 1;
+        assert!(Origin::for_matrix_freezing([99; 32], &bank, &parent, &epoch, &wrong).is_err());
+        // `raw` is deliberately only an Origin: there is no conversion to
+        // VerifiedOrigin without legacy proof verification or pinned retirement.
+    }
 
     #[test]
     fn base_cannot_import_claims_or_change_any_bank_pin() {

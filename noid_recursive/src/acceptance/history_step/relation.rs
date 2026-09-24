@@ -865,7 +865,10 @@ impl HistoryStepTerminal {
     }
 
     pub const fn wire_version(&self) -> u8 {
-        noid_chain::history_step::history_step_terminal_wire_version(self.height)
+        noid_chain::history_step::history_step_terminal_wire_version_with_activation(
+            self.height,
+            noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT,
+        )
     }
 
     pub const fn height(&self) -> u64 {
@@ -1706,6 +1709,39 @@ pub fn verify_history_step_terminal(
         class_id: terminal.class_id,
         accumulator,
     })
+}
+
+/// Replay the pre-fork terminal without discharging any matrix claims from
+/// a local cache. A certificate must close every resulting obligation.
+pub fn prepare_history_step_retirement(
+    runtime: &HistoryStepRuntime,
+    terminal: &HistoryStepTerminal,
+    expected_header: &BlockHeader,
+    epoch_anchor_header: &BlockHeader,
+    target: crate::acceptance::history_step_bank::retirement::HistoryStepRetirementTarget,
+) -> Result<
+    crate::acceptance::history_step_bank::retirement::HistoryStepRetirementRequest,
+    crate::acceptance::history_step_bank::retirement::HistoryStepRetirementError,
+> {
+    use crate::acceptance::history_step_bank::retirement::{
+        HistoryStepRetirementError, HistoryStepRetirementRequest,
+    };
+    target.check_parent_height(expected_header.height)?;
+    target.check_legacy_bank(runtime.bank().digest())?;
+    validate_terminal_metadata(
+        runtime,
+        terminal,
+        Some((expected_header, epoch_anchor_header)),
+    )
+    .map_err(HistoryStepRetirementError::Replay)?;
+    let pending = verify_history_step_pending(runtime, terminal.class_id, &terminal.proof)
+        .map_err(HistoryStepRetirementError::Replay)?;
+    HistoryStepRetirementRequest::from_pending(
+        pending,
+        target,
+        expected_header,
+        epoch_anchor_header,
+    )
 }
 
 #[derive(Clone, Copy)]

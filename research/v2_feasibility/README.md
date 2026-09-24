@@ -9,8 +9,11 @@ The earlier [112-page baseline](results/2026-09-24-tps/REPORT.md) used a differe
 single-class core and does not establish capacity for this bank. The
 [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
 retain the original legacy-bank control experiment.
+The [fork-origin check](results/2026-09-25-fork-origin/REPORT.md) verifies the
+same post-fork history without loading either legacy matrix, including recovery
+of the authenticated certificate from disk in a fresh protocol context.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
-must be included in the next capacity measurements. The development branch
+are included in the joint-bank measurements. The development branch
 schedules 30-second v2 blocks at H210537, estimated for October 10, 2026 at
 23:59 PDT. Running mainnet remains on its existing v1.1 release. The final
 joint matrix bank and call capacities still require selection and qualification.

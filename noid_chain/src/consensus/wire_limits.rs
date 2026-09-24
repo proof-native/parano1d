@@ -62,6 +62,10 @@ pub const V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES: usize = 1_100_000;
 /// binary. Consensus still selects the smaller height-dependent cap below.
 pub const MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES: usize = V1_1_MAX_HISTORY_STEP_TERMINAL_BYTES;
 
+/// One-time authenticated v2 origin transport, separate from block and
+/// terminal limits. Covers both legacy matrix evaluation certificates.
+pub const MAX_V2_FORK_ORIGIN_TRANSPORT_BYTES: usize = 48 * 1024 * 1024;
+
 /// Active consensus cap for a terminal belonging to `height`.
 #[inline]
 pub const fn history_step_terminal_bytes_limit(height: u64) -> usize {

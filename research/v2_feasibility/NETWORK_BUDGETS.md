@@ -1,7 +1,7 @@
 # Size and admission limits relevant to v2 capacity
 
-Audit date: September 24, 2026. These are the existing v1/v1.1 limits and the
-current research implementation. No production limit is raised by this audit.
+Audit updated September 25, 2026. Existing transaction, block and terminal
+limits remain unchanged. V2 adds a separately bounded fork-origin protocol.
 Fitting m23 does not imply fitting transport, and fitting bytes does not imply
 that the production node accepts the research v2 protocol.
 
@@ -15,10 +15,12 @@ that the production node accepts the research v2 protocol.
 | Exact objects requested together | 8 | A count limit, not permission to send eight maximum-size terminals. |
 | One wallet authorization bundle | 262,144 bytes | Enforced separately from the containing transaction intent. |
 | PagedSpend intent | 303,495 bytes | Up to 128 pages belonging to one logical transaction plus authorization. |
+| ABI 3 object intent | 263,181 bytes | One page, its opening and authorization; fits the existing global intent cap. |
 | Active GossipSub message size | 303,495 bytes | Configured from maximum intent/header announce size; not the unused 2 MiB constant. |
 | Mempool | 1,024 transactions / 384 MiB | Burst/backlog limits, separate from block capacity. |
 | Mempool-sync response | 128 transactions / 16 MiB | Both bounds apply. |
 | P2P response allocation budgets | 64 MiB inbound and 64 MiB outbound | Concurrency cannot multiply payload memory without bound. |
+| Fork-origin certificate | 48 MiB | Separate protocol, sharing the same process-wide response allocation budgets. |
 | Block resource weight | 64 MiB | Includes weighted transaction, input, output and frontier work; not just wire bytes. |
 | User pages / live inputs / user outputs | 255 / 1,020 / 510 | Existing native global limits; research profiles impose tighter page/input limits. |
 | Distinct State segments in one block | 256 | A high-TPS candidate must include distributed State cases. |
@@ -34,20 +36,29 @@ Sources: [shared wire limits](../../noid_chain/src/consensus/wire_limits.rs),
 [semantic budgets](../../noid_chain/src/consensus/params.rs),
 [snapshot tail staging](../../noid_node/src/snapshot_tail_staging.rs).
 
-## Current candidate caveat
+## Candidate formats and integration
 
-The research [v2 codec](../../noid_recursive/src/acceptance/history_step/v2/wire.rs)
-uses version 6 and a runtime-derived `terminal_max_bytes`. It bounds its own
-decode, but does **not** impose the production 1,100,000-byte cap independently.
-The [production metadata decoder](../../noid_chain/src/history_step.rs) still
-selects versions 4/5 by the v1.1 height. The candidate benchmark verifies version
-6 directly; that does not exercise production P2P admission, storage, RPC or sync.
+The earlier single-class [research codec](../../noid_recursive/src/acceptance/history_step/v2/wire.rs)
+uses version 6. It is not the scheduled node format. The
+[joint codec](../../noid_recursive/src/acceptance/history_step/v2/banked/wire.rs)
+uses version 7 and derives its decoding bound from the pinned runtime.
+The [shared metadata decoder](../../noid_chain/src/history_step.rs) now selects
+4/5/7 by terminal height, with two valid class ids after the v2 boundary.
+Pre-fork formats and their metadata class range are preserved.
 
-The benchmark now reports the runtime-derived terminal bound, actual encoded
-length, body/bundle sizes and whether the combined payload fits one current
-object response. Receiver runs also exercise the production bundle constructor
-and report its rejection of the research wire version. This is a recorded
-integration gap, not a reason to relax the production decoder prematurely.
+The joint candidate's terminal bounds are 1,014,132 bytes for m23 and
+1,081,396 bytes for m24. Both fit 1,100,000 bytes, but the existing exact-object
+response budget may require fetching the body and terminal separately.
+Metadata/transport support does not establish full node integration or qualify
+the live synchronization and mining paths. Historical single-class receiver
+reports retain their recorded rejection of version 6.
+
+The [fork-origin codec](../../noid_p2p/src/fork_origin.rs) acquires a shared memory
+permit before allocating its payload and retains the permit through consumption.
+It bounds request concurrency and serves certificates outside the control loop.
+Its request hash is a lookup key; only proof verification authenticates an origin.
+The first [retirement check](results/2026-09-25-fork-origin/REPORT.md) covers an
+old B25-only boundary, not the full network lifecycle.
 
 For 112 independent one-page payments, the body is 36,716 bytes. At 223 and 255
 such payments it would be 72,569 and 82,905 bytes. The measured proof sizes and

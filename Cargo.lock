@@ -494,6 +494,7 @@ dependencies = [
  "noid_tx",
  "rayon",
  "serde_json",
+ "tempfile",
  "tracing-subscriber",
  "zstd",
 ]
@@ -3912,11 +3913,13 @@ name = "noid-ivc-core"
 version = "1.1.0"
 dependencies = [
  "bincode",
+ "memmap2",
  "noid_core",
  "noid_poseidon2b",
  "rayon",
  "serde",
  "serde_json",
+ "tempfile",
  "toml",
 ]
 

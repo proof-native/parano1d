@@ -41,6 +41,8 @@ use super::trace::flat_of;
 use super::trace::self_verify::flat_digest_lanes;
 use crate::accumulator::{ChainAccumulator, CHAIN_ACCUMULATOR_LANES};
 
+pub mod retirement;
+
 pub const ACC_LANES: usize = CHAIN_ACCUMULATOR_LANES;
 const HISTORY_STEP_PCS_LOG_INV_RATE: usize = 2;
 const HISTORY_STEP_PCS_LOG_BATCH_SIZE: usize = 5;

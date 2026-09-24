@@ -26,13 +26,16 @@
 
 pub mod block_production;
 mod cpu_budget;
+pub mod history_protocol;
 pub mod history_step_artifacts;
 pub mod miner;
 pub mod pow;
 pub mod proof_capacity;
 pub mod template;
+pub mod v2_artifacts;
 
 pub use block_production::{CommittedBlock, PreparedBlockAttempt, ProvedBlock};
+pub use history_protocol::HistoryProtocolRuntime;
 pub use cpu_budget::{
     configure_process_cpu_budget, configure_process_cpu_budget_with_threads,
     configured_process_cpu_budget, install_history_step_phase_cpu, install_inbound_verifier_cpu,

@@ -1,0 +1,57 @@
+[
+  {
+    "case": "retirement-cert-verify-4cpu8g",
+    "rayon_threads": 4,
+    "affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "backend": "pclmul",
+    "memory_max_gib": 8,
+    "swap_max_bytes": 0,
+    "process_peak_rss_kib": 86468,
+    "wall_seconds": 6.55,
+    "checks": [
+      {
+        "origin_binding": "1b526c5af7edf1b349a0708b1ad18088f99e7a90a0069e8f593bd1be4c7b852e",
+        "status": "verified",
+        "verification_without_legacy_rows": true,
+        "verify_ms": 801
+      }
+    ]
+  },
+  {
+    "case": "retired-protocol-h37",
+    "rayon_threads": 12,
+    "backend": "automatic",
+    "memory_max_gib": 8,
+    "swap_max_bytes": 0,
+    "process_peak_rss_kib": 1572820,
+    "wall_seconds": 194.8,
+    "checks": [
+      {
+        "origin_binding": "1b526c5af7edf1b349a0708b1ad18088f99e7a90a0069e8f593bd1be4c7b852e",
+        "status": "verified",
+        "verification_without_legacy_rows": true,
+        "verify_ms": 228
+      },
+      {
+        "class": 0,
+        "height": 37,
+        "status": "post_fork_terminal_verified",
+        "verification_without_legacy_rows": true,
+        "verify_including_new_matrix_setup_ms": 189986
+      },
+      {
+        "height": 37,
+        "legacy_transport_without_rows_rejected": true,
+        "missing_certificate_rejected": true,
+        "status": "protocol_origin_restart_verified",
+        "tampered_terminal_rejected": true,
+        "verification_without_legacy_rows": true
+      }
+    ]
+  }
+]

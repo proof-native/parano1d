@@ -1057,7 +1057,7 @@ fn read_history_step_proof_object(
     semantic_id: [u8; 32],
     proof_class: u8,
 ) -> Result<Option<Vec<u8>>, StoreError> {
-    if proof_class >= crate::history_step::HISTORY_STEP_CLASS_COUNT {
+    if proof_class >= crate::history_step::history_step_class_count(height) {
         return Ok(None);
     }
     let table = txn.open_table(Some(T_HISTORY_STEP_PROOF_OBJECTS))?;
