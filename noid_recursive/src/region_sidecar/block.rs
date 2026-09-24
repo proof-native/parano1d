@@ -151,7 +151,10 @@ pub(crate) const fn selected_zk_block_geometry(tier: usize) -> Option<SelectedZk
             tx_root_paths_per_block: 1,
             wallet_overflow_bases: [464, 474],
         },
-        63 | 64 | 96 | 127 | 128 => return Some(candidate_block_geometry(tier)),
+        63 | 64 | 96 | 127 | 128 => {
+            let inputs = if tier * 8 > 1_020 { 1_020 } else { tier * 8 };
+            return Some(candidate_block_geometry(tier, inputs));
+        }
         _ => return None,
     };
     Some(geometry)
@@ -160,10 +163,29 @@ pub(crate) const fn selected_zk_block_geometry(tier: usize) -> Option<SelectedZk
 /// Isolated candidate geometry. These capacities are not legacy consensus
 /// classes. Include the coinbase when sizing the shared body/authentication
 /// tile axis, so a power-of-two user capacity cannot overrun that axis.
-const fn candidate_block_geometry(tier: usize) -> SelectedZkBlockGeometry {
+pub(crate) const fn selected_zk_block_geometry_with_inputs(
+    tier: usize,
+    inputs: usize,
+) -> Option<SelectedZkBlockGeometry> {
+    if tier == 96 && inputs == 384 {
+        return Some(candidate_block_geometry(tier, inputs));
+    }
+    match selected_zk_block_geometry(tier) {
+        Some(geometry) if inputs == geometry.touched_capacity - 2 * tier - 1 => Some(geometry),
+        _ => None,
+    }
+}
+
+pub(crate) fn object_block_geometries() -> impl Iterator<Item = SelectedZkBlockGeometry> {
+    [25, 63, 64, 96, 127, 128, 255]
+        .into_iter()
+        .filter_map(selected_zk_block_geometry)
+        .chain(selected_zk_block_geometry_with_inputs(96, 384))
+}
+
+const fn candidate_block_geometry(tier: usize, inputs: usize) -> SelectedZkBlockGeometry {
     let auth_tiles = (tier + 1).next_power_of_two();
     let tx_log = auth_tiles.trailing_zeros() as usize;
-    let inputs = if tier * 8 > 1_020 { 1_020 } else { tier * 8 };
     let touched = inputs + 2 * tier + 1;
     let segments = if touched > 256 { 256 } else { touched };
     let exact_slots = (4 * touched).next_power_of_two();
@@ -258,23 +280,25 @@ impl BlockRegionSidecarVk {
         tier: usize,
         slices: SelectedZkBlockRegionVkSlices,
     ) -> Result<Self, RegionSidecarError> {
-        Self::from_profile_registry_slices(tier, slices, false)
+        Self::from_profile_registry_slices(
+            selected_zk_block_geometry(tier).ok_or(RegionSidecarError::UnsupportedVkShape)?,
+            slices,
+            false,
+        )
     }
 
     pub(crate) fn from_object_registry_slices(
-        tier: usize,
+        geometry: SelectedZkBlockGeometry,
         slices: SelectedZkBlockRegionVkSlices,
     ) -> Result<Self, RegionSidecarError> {
-        Self::from_profile_registry_slices(tier, slices, true)
+        Self::from_profile_registry_slices(geometry, slices, true)
     }
 
     fn from_profile_registry_slices(
-        tier: usize,
+        geometry: SelectedZkBlockGeometry,
         slices: SelectedZkBlockRegionVkSlices,
         objects: bool,
     ) -> Result<Self, RegionSidecarError> {
-        let geometry =
-            selected_zk_block_geometry(tier).ok_or(RegionSidecarError::UnsupportedVkShape)?;
         let wallet_a = WalkARegionVk::new_wallet(
             selected_zk_auth_wallet_a_sidecar_purpose(),
             geometry.tx_log,
@@ -491,15 +515,8 @@ impl BlockRegionSidecarVk {
             } => tx_log,
             _ => return Err(RegionSidecarError::UnsupportedVkShape),
         };
-        let tiers: &[usize] = if self.supports_objects() {
-            &[25, 63, 64, 96, 127, 128, 255]
-        } else {
-            &noid_chain::consensus::params::BLOCK_PAGE_CLASS_TIERS
-        };
-        let geometry = tiers
-            .iter()
-            .copied()
-            .filter_map(selected_zk_block_geometry)
+        let geometry = object_block_geometries()
+            .filter(|geometry| self.supports_objects() || [25, 255].contains(&geometry.tier))
             .find(|geometry| {
                 geometry.tx_log == tx_log
                     && matches!(self.meta_b.families().first(),

@@ -65,6 +65,7 @@ pub fn prepare_candidate_input<const PAGES: usize>(
     }
     let stream = noid_chain::validate_block_page_stream(&block.transactions)
         .map_err(|e| ConsensusError::InvalidPagedSpend(e.to_string()))?;
+    validate_candidate_resources(&stream, config)?;
     let base = stream.user_start_index;
     let mut contracts = Vec::with_capacity(openings.len());
     for (index, transaction) in block.transactions.iter().enumerate() {
@@ -133,4 +134,65 @@ pub fn prepare_candidate_input<const PAGES: usize>(
         context.parent_header,
     )
     .map_err(HistoryStepWitnessError::RecursiveInput)
+}
+
+fn validate_candidate_resources(
+    stream: &noid_chain::BlockPageStreamFacts,
+    config: V2Config,
+) -> Result<(), ConsensusError> {
+    use noid_chain::consensus::paged_spend::PagedSpendStreamError;
+    let error = if stream.effective_page_count() > config.pages() {
+        Some(PagedSpendStreamError::BlockPageLimit {
+            actual: stream.effective_page_count(),
+            capacity: config.pages(),
+        })
+    } else if usize::from(stream.live_inputs) > config.max_live_inputs() {
+        Some(PagedSpendStreamError::BlockInputLimit {
+            actual: usize::from(stream.live_inputs),
+            capacity: config.max_live_inputs(),
+        })
+    } else {
+        None
+    };
+    match error {
+        Some(error) => Err(ConsensusError::InvalidPagedSpend(error.to_string())),
+        None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use noid_chain::consensus::{
+        forks::{ForkSchedule, V2Activation},
+        paged_spend::BlockProofClass,
+    };
+
+    #[test]
+    fn candidate_budget_rejects_extra_inputs_even_with_spare_touched_slots() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let config = V2Config::with_input_budget(23, 96, 384, schedule).unwrap();
+        let mut stream = noid_chain::BlockPageStreamFacts {
+            proof_class: BlockProofClass::B255,
+            groups: Vec::new(),
+            page_count: 96,
+            logical_count: 96,
+            live_inputs: 384,
+            live_outputs: 96,
+            has_development_payout: false,
+            user_start_index: 1,
+        };
+        assert!(validate_candidate_resources(&stream, config).is_ok());
+        stream.live_inputs = 385;
+        assert!(usize::from(stream.live_inputs + stream.live_outputs) + 1 < 577);
+        assert!(validate_candidate_resources(&stream, config).is_err());
+        // The original candidate and old B255 allowance remain unchanged.
+        assert!(
+            validate_candidate_resources(&stream, V2Config::new(23, 96, schedule).unwrap()).is_ok()
+        );
+        assert_eq!(BlockProofClass::B255.input_capacity(), 1020);
+        stream.live_inputs = 96;
+        stream.has_development_payout = true;
+        assert!(validate_candidate_resources(&stream, config).is_err());
+    }
 }

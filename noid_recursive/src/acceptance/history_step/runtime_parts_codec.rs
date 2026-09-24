@@ -405,8 +405,10 @@ impl HistoryStepRuntimeParts {
 
 impl super::v2::V2RuntimeParts {
     pub fn encode_compact(&self) -> Result<Vec<u8>, super::v2::V2Error> {
+        let config = self.config();
+        let bounded = config.has_bounded_inputs();
         let expected = 8
-            + 40
+            + if bounded { 48 } else { 40 }
             + BLOCK_SLICE_COUNT * SLICE_BYTES
             + layout_len(self.child_layout())?
             + layout_len(self.parent_layout())?;
@@ -414,8 +416,7 @@ impl super::v2::V2RuntimeParts {
             return Err(encoding().into());
         }
         let mut out = Vec::with_capacity(expected);
-        out.extend_from_slice(b"O1V2PT02");
-        let config = self.config();
+        out.extend_from_slice(if bounded { b"O1V2PT03" } else { b"O1V2PT02" });
         for value in [
             config.outer_m() as u64,
             config.pages() as u64,
@@ -424,6 +425,9 @@ impl super::v2::V2RuntimeParts {
             config.block_time(),
         ] {
             out.extend_from_slice(&value.to_le_bytes());
+        }
+        if bounded {
+            out.extend_from_slice(&(config.max_live_inputs() as u64).to_le_bytes());
         }
         put_block_slices(&mut out, self.block_vk().selected_registry_slices()?)?;
         put_layout(&mut out, self.child_layout())?;
@@ -438,10 +442,12 @@ impl super::v2::V2RuntimeParts {
     /// old Meta tables as object tables or old two-arm transcripts as v2.
     pub fn decode_compact(encoded: &[u8]) -> Result<Self, super::v2::V2Error> {
         let mut preflight = Reader::new(encoded)?;
-        if preflight.take(8)? != b"O1V2PT02" {
-            return Err(encoding().into());
-        }
-        preflight.take(40)?;
+        let bounded = match preflight.take(8)? {
+            b"O1V2PT02" => false,
+            b"O1V2PT03" => true,
+            _ => return Err(encoding().into()),
+        };
+        preflight.take(if bounded { 48 } else { 40 })?;
         preflight.take(BLOCK_SLICE_COUNT * SLICE_BYTES)?;
         preflight_layout(&mut preflight)?;
         preflight_layout(&mut preflight)?;
@@ -457,13 +463,25 @@ impl super::v2::V2RuntimeParts {
         let schedule =
             noid_chain::consensus::forks::ForkSchedule::new(Some(values[2]), Some(activation))
                 .ok_or_else(encoding)?;
-        let config = super::v2::V2Config::new(
+        let mut config = super::v2::V2Config::new(
             usize::try_from(values[0]).map_err(|_| encoding())?,
             usize::try_from(values[1]).map_err(|_| encoding())?,
             schedule,
         )?;
+        if bounded {
+            let budget = u64::from_le_bytes(reader.take(8)?.try_into().map_err(|_| encoding())?);
+            config = super::v2::V2Config::with_input_budget(
+                config.outer_m(),
+                config.pages(),
+                usize::try_from(budget).map_err(|_| encoding())?,
+                schedule,
+            )?;
+            if !config.has_bounded_inputs() {
+                return Err(encoding().into());
+            }
+        }
         let block = BlockRegionSidecarVk::from_object_registry_slices(
-            config.pages(),
+            config.block_geometry(),
             read_block_slices(&mut reader)?,
         )?;
         let child = read_layout(&mut reader)?;

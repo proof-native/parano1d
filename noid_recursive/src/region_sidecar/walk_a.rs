@@ -1012,14 +1012,11 @@ fn canonical_meta_protocol(
         (tx_log, exact_state_region_log, spine_cap_log),
         (5, Some(10), Some(0)) | (8, Some(13), Some(0))
     ) || (objects
-        && [63, 64, 96, 127, 128]
-            .into_iter()
-            .filter_map(super::block::selected_zk_block_geometry)
-            .any(|geometry| {
-                tx_log == geometry.tx_log
-                    && exact_state_region_log == Some(geometry.exact_state_region_log)
-                    && spine_cap_log == Some(geometry.spine_cap_log)
-            }));
+        && super::block::object_block_geometries().any(|geometry| {
+            tx_log == geometry.tx_log
+                && exact_state_region_log == Some(geometry.exact_state_region_log)
+                && spine_cap_log == Some(geometry.spine_cap_log)
+        }));
     let overflow_family_slots = if wallet_overflow {
         tx_count
             .checked_mul(C1_CAPSULE_LEAF_STRIDE)

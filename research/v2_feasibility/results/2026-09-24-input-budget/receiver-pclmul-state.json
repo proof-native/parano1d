@@ -1,0 +1,432 @@
+{
+  "source": {
+    "head": "685cebbb9262a5bc31ae0a7c9d411b2d3f622414",
+    "files": {
+      "bench_prover/src/bin/noid_v2_capacity.rs": "aad773960d0b921c256000cf5ae6f90048d032570e2226950f4ca0d736bcf26b",
+      "bench_prover/src/bin/v2_capacity_support/mod.rs": "ca13e9cf45d1de8a5824f16cfd9af7d0eb03728a08d5e6aba2d78773a2d9c60c",
+      "bench_prover/src/bin/v2_capacity_support/proof.rs": "6881da52396f6f8defd4db8e6548eb0f11d10694c1443d6a12a8fc67df869d28",
+      "bench_prover/src/bin/v2_capacity_support/state.rs": "5581c1c862334f297361a267b9c84b833b9a10f3286ead2d4bbcb0c06a01b9d1",
+      "noid_block/src/candidate_history.rs": "50376bc11b397973d051158af8b24db3f8ebba3b5c808c42c5df5043d3b09bff",
+      "noid_recursive/src/acceptance/block_slots.rs": "911a40917a2a97710c4367b15622a5e795e4ec7e6e4553c1d3a42e5230db8cce",
+      "noid_recursive/src/acceptance/history_step/runtime_parts_codec.rs": "a05a269ebcac271ba463b00450e2e59a610e5c3147eadfb117e43f2b8a3ab32f",
+      "noid_recursive/src/acceptance/history_step/v2.rs": "b9d7382f12431776e9070337a752def2febcdb931883e8ae7d9d69ff447fc2b4",
+      "noid_recursive/src/acceptance/history_step/v2/config.rs": "154aca47722900661941f350a73902aa1b54608346a4572a65b1160b3338a76a",
+      "noid_recursive/src/acceptance/trace/region_source_binding.rs": "a3fc1f61e6218dfe54c1c6cd717beaa0dbddc4d2c943e09dab24b590d0281078",
+      "noid_recursive/src/acceptance/trace/zk_authorization_candidate.rs": "1de6702de7a99840e726b799a1f3b6faf847ffdedf5522ab86b9459c252558cd",
+      "noid_recursive/src/region_sidecar/block.rs": "47736a0a915c4d73d53635b827167ad63097229a8d58642b1bbd7bfe33e6b1d5",
+      "noid_recursive/src/region_sidecar/walk_a.rs": "8a7f1a5302d5dd553681b68f10fa2c740050e4fed96ee3968c87f010fcedf000",
+      "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "b819090ff73cc02ea39c03092bea0cdf4ff52445662f78846e96998bb6cb5dff"
+    },
+    "binary_sha256": "9677211d678236997cf0db55a3ac494cd94cbb6e67ec3c58dd7219f9608590c8"
+  },
+  "environment": {
+    "unit": "noid-v2-i384-receiver-20260924.scope",
+    "systemd": {
+      "ControlGroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/noid-v2-i384-receiver-20260924.scope",
+      "MemoryMax": "8589934592",
+      "MemorySwapMax": "0",
+      "ActiveState": "active"
+    },
+    "cpu_affinity": "0,2,4,6",
+    "rayon_threads": 4,
+    "cpu_backend": "pclmul",
+    "heights": [
+      30,
+      34,
+      37,
+      38
+    ],
+    "measured_repeats_per_height": 5,
+    "warmup_per_height": 1,
+    "mode": "verify-state",
+    "cpu_model": "13th Gen Intel(R) Core(TM) i7-1365U"
+  },
+  "records": [
+    {
+      "cpu_backend": "pclmul",
+      "m": 23,
+      "max_live_inputs": 384,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 424428
+      },
+      "pages": 96,
+      "phase": "receiver_setup",
+      "rayon_threads": 4,
+      "setup_ms": 779959.409618
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441116
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 6273.336077
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441120
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 61.158307,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3288.4510130000003,
+      "verify_ms": 3227.292706,
+      "warmup": true
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441128
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 72.34525599999999,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3336.3472500000003,
+      "verify_ms": 3264.001994,
+      "warmup": false
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441128
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 63.120022,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3342.989386,
+      "verify_ms": 3279.869364,
+      "warmup": false
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441132
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 63.847476,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3352.3228339999996,
+      "verify_ms": 3288.4753579999997,
+      "warmup": false
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441132
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 71.855737,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3377.684276,
+      "verify_ms": 3305.828539,
+      "warmup": false
+    },
+    {
+      "height": 30,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 441132
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "state_apply_ms": 71.510876,
+      "terminal_bytes": 931252,
+      "verify_apply_ms": 3368.1185199999995,
+      "verify_ms": 3296.6076439999997,
+      "warmup": false
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1694644,
+        "rss_kib": 1693880
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 3559.407415
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810260,
+        "rss_kib": 1694008
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 366.417981,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3636.8991410000003,
+      "verify_ms": 3270.4811600000003,
+      "warmup": true
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810264,
+        "rss_kib": 1694016
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 374.410053,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3672.297188,
+      "verify_ms": 3297.887135,
+      "warmup": false
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1694024
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 354.98163500000004,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3660.028259,
+      "verify_ms": 3305.046624,
+      "warmup": false
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1694028
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 382.76853,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3712.6394439999995,
+      "verify_ms": 3329.8709139999996,
+      "warmup": false
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1694028
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 371.645756,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3705.806194,
+      "verify_ms": 3334.160438,
+      "warmup": false
+    },
+    {
+      "height": 34,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1694028
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "state_apply_ms": 374.136317,
+      "terminal_bytes": 932404,
+      "verify_apply_ms": 3716.551675,
+      "verify_ms": 3342.415358,
+      "warmup": false
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784012
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 4580.608596
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784012
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 227.384847,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3562.508434,
+      "verify_ms": 3335.123587,
+      "warmup": true
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784012
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 238.558358,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3574.0150329999997,
+      "verify_ms": 3335.456675,
+      "warmup": false
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784012
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 239.64275099999998,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3599.734459,
+      "verify_ms": 3360.091708,
+      "warmup": false
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784012
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 233.65896,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3585.9618950000004,
+      "verify_ms": 3352.302935,
+      "warmup": false
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784016
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 248.21047399999998,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3606.7916339999997,
+      "verify_ms": 3358.5811599999997,
+      "warmup": false
+    },
+    {
+      "height": 37,
+      "memory": {
+        "process_peak_rss_kib": 1810320,
+        "rss_kib": 1784016
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "state_apply_ms": 244.243161,
+      "terminal_bytes": 932052,
+      "verify_apply_ms": 3577.9922329999995,
+      "verify_ms": 3333.7490719999996,
+      "warmup": false
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_state_setup",
+      "replay_ms": 4946.907956999999
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "state_apply_ms": 4.087416,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3335.324832,
+      "verify_ms": 3331.237416,
+      "warmup": true
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "state_apply_ms": 8.057217999999999,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3326.538442,
+      "verify_ms": 3318.481224,
+      "warmup": false
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "state_apply_ms": 6.593967,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3384.901133,
+      "verify_ms": 3378.307166,
+      "warmup": false
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "state_apply_ms": 4.36388,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3370.524098,
+      "verify_ms": 3366.160218,
+      "warmup": false
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "state_apply_ms": 4.401917,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3376.516982,
+      "verify_ms": 3372.115065,
+      "warmup": false
+    },
+    {
+      "height": 38,
+      "memory": {
+        "process_peak_rss_kib": 1813380,
+        "rss_kib": 1794256
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "state_apply_ms": 4.701754,
+      "terminal_bytes": 934452,
+      "verify_apply_ms": 3410.0954340000003,
+      "verify_ms": 3405.39368,
+      "warmup": false
+    }
+  ],
+  "exit_status": 0
+}

@@ -6,8 +6,54 @@ pub(super) struct Chain {
     headers: Vec<BlockHeader>,
     outputs: BTreeSet<u32>,
     cursor: u32,
+    distributed_cursor: Option<u32>,
 }
 impl Chain {
+    fn empty() -> Self {
+        Self {
+            state: ChainState::new(),
+            accumulator: noid_recursive::genesis_accumulator(),
+            headers: vec![noid_chain::consensus::genesis_header()],
+            outputs: BTreeSet::new(),
+            cursor: 2_000_000,
+            distributed_cursor: None,
+        }
+    }
+
+    /// Reconstruct a benchmark's parent State from bounded block bodies.
+    /// The receiver first verifies its complete endpoint terminal, then
+    /// checks this replay's parent ID against that authenticated endpoint.
+    pub fn replay_for_receiver(
+        fixtures: &Path,
+        output: &Path,
+        config: v2::V2Config,
+        height: u64,
+    ) -> Result<Self> {
+        let mut chain = Self::empty();
+        for next in 1..=height {
+            let root = if next < config.activation_height() {
+                fixtures
+            } else {
+                output
+            };
+            let block = Block::from_bytes(&proof::bounded(
+                &root.join(format!("h{next:06}.block")),
+                16 * 1024 * 1024,
+            )?)
+            .map_err(err)?;
+            if block.header.height != next {
+                return Err("receiver fixture height mismatch".into());
+            }
+            chain.check_native(&block, config.schedule())?;
+            let end = chain
+                .accumulator
+                .advance(chain.parent(), &block.header)
+                .map_err(err)?;
+            noid_chain::materialize_accepted_block_state(&mut chain.state, &block).map_err(err)?;
+            chain.accept(block, end);
+        }
+        Ok(chain)
+    }
     pub fn parent(&self) -> &BlockHeader {
         self.headers.last().unwrap()
     }
@@ -49,13 +95,7 @@ impl Chain {
         settings: &Settings,
         runtime: &noid_recursive::HistoryStepRuntime,
     ) -> Result<(Self, noid_recursive::HistoryStepTerminal)> {
-        let mut chain = Self {
-            state: ChainState::new(),
-            accumulator: noid_recursive::genesis_accumulator(),
-            headers: vec![noid_chain::consensus::genesis_header()],
-            outputs: BTreeSet::new(),
-            cursor: 2_000_000,
-        };
+        let mut chain = Self::empty();
         let mut tip = None;
         for height in 1..settings.config.activation_height() {
             let block = Block::from_bytes(&proof::bounded(
@@ -152,6 +192,20 @@ impl Chain {
         let mut slots = [0; N];
         for slot in &mut slots {
             loop {
+                if let Some(cursor) = self.distributed_cursor.as_mut() {
+                    // Cover all 256 segments of the authenticated depth-24
+                    // fixture without injecting State or changing its root.
+                    let value = ((*cursor % 256) << 16) | (4096 + *cursor / 256);
+                    *cursor = cursor.checked_add(1).ok_or("distributed cursor overflow")?;
+                    if *cursor / 256 >= 60_000 || self.parent().log_slots < 24 {
+                        return Err("distributed fixture slot range".into());
+                    }
+                    if self.state.state.slot(value).is_empty() {
+                        *slot = value;
+                        break;
+                    }
+                    continue;
+                }
                 if u64::from(self.cursor) >= 1u64 << self.parent().log_slots {
                     return Err("fixture slot range exhausted".into());
                 }
@@ -164,6 +218,9 @@ impl Chain {
             }
         }
         Ok(slots)
+    }
+    pub fn distribute_outputs(&mut self) {
+        self.distributed_cursor = Some(0);
     }
     pub fn fee(&self, outputs: u64) -> u64 {
         noid_chain::consensus::fee_breakdown(

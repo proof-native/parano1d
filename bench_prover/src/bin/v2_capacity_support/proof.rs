@@ -174,7 +174,8 @@ pub fn freeze<const PAGES: usize>(
         println!(
             "{}",
             json!({"phase":"freeze", "pass":pass, "m":config.outer_m(),
-            "pages":PAGES, "rows":frozen.matrix().useful_rows, "satisfied":true,
+            "pages":PAGES, "max_live_inputs":config.max_live_inputs(),
+            "rows":frozen.matrix().useful_rows, "satisfied":true,
             "matrix":hex::encode(frozen.matrix().statement_digest()),
             "build_scan_ms":elapsed(scan), "memory":memory()})
         );
@@ -215,9 +216,41 @@ pub fn freeze<const PAGES: usize>(
     {
         return Err("runtime recipe round trip".into());
     }
+    if config.max_live_inputs() != noid_chain::consensus::params::block_class_spend_capacity(PAGES)
+    {
+        for budget in [0u64, 385, 768, u64::MAX] {
+            let mut changed = encoded.clone();
+            changed[48..56].copy_from_slice(&budget.to_le_bytes());
+            if v2::V2RuntimeParts::decode_compact(&changed).is_ok() {
+                return Err("altered input budget was accepted by the compact recipe".into());
+            }
+        }
+        let mut downgraded = encoded.clone();
+        downgraded[..8].copy_from_slice(b"O1V2PT02");
+        downgraded.drain(48..56);
+        if v2::V2RuntimeParts::decode_compact(&downgraded).is_ok() {
+            return Err("bounded-input slices were reinterpreted as the original geometry".into());
+        }
+        let wider = v2::V2Config::new(config.outer_m(), PAGES, config.schedule()).map_err(err)?;
+        if v2::V2RuntimeParts::new(
+            wider,
+            parts.block_vk().clone(),
+            parts.child_layout().clone(),
+            parts.parent_layout().clone(),
+        )
+        .is_ok()
+        {
+            return Err("bounded VK accepted under the wider input configuration".into());
+        }
+        println!(
+            "{}",
+            json!({"phase":"input_budget_recipe_checks","rejected":6})
+        );
+    }
     std::fs::write(settings.output.join("candidate.parts"), encoded).map_err(err)?;
     let manifest = json!({"status":"research; no release parameters selected", "m":config.outer_m(),
-        "pages":PAGES, "block_seconds":config.block_time(), "activation":config.activation_height(),
+        "pages":PAGES, "max_live_inputs":config.max_live_inputs(),
+        "block_seconds":config.block_time(), "activation":config.activation_height(),
         "legacy_v1_1_activation":config.schedule().v1_1_height(), "useful_rows":rows,
         "legacy_metadata":hex::encode(settings.pin), "legacy_fixture_directory":settings.fixtures,
         "matrix":hex::encode(runtime.bank().matrix_digest()), "bank":hex::encode(runtime.bank().digest()),

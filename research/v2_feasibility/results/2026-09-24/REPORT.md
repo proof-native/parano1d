@@ -5,6 +5,10 @@ including sixteen calls to the eight-instruction contract core. Transitions
 from both legacy B25 and B255 have been proved and verified. Neither a
 mainnet capacity, interval nor activation height has been selected.
 
+A [follow-up with an explicit 384-input budget](../2026-09-24-input-budget/REPORT.md)
+fits 96 pages in m23. The capacity table below describes the original input
+budgets, including 768 inputs for its 96-page layout.
+
 ## Capacity
 
 These figures include the recursive parent verifier, authorization, exact

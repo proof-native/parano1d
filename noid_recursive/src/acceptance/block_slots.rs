@@ -117,12 +117,22 @@ use noid_ivc_core::field_circuit::f128_to_u128;
 pub(in crate::acceptance) enum BlockRelationProfile {
     LegacyV1,
     V2,
-    ScheduledV2(noid_chain::consensus::forks::ForkSchedule),
+    ScheduledV2(crate::acceptance::history_step::v2::V2Config),
 }
 
 impl BlockRelationProfile {
     fn contracts(self) -> bool {
         self != Self::LegacyV1
+    }
+    fn geometry(self, tier: usize) -> crate::region_sidecar::SelectedZkBlockGeometry {
+        match self {
+            Self::ScheduledV2(config) => {
+                assert_eq!(config.pages(), tier);
+                config.block_geometry()
+            }
+            _ => crate::region_sidecar::selected_zk_block_geometry(tier)
+                .expect("canonical selected block geometry"),
+        }
     }
 }
 
@@ -1203,31 +1213,33 @@ fn tier_auth_slot_count(tier_user_tx_capacity: Option<usize>, n_real_user: usize
     })
 }
 
-/// Exact-state class capacities used by both the real region build and its
-/// native claim mirror. Tier builds are content-invariant. Transitional
-/// non-tier region tests use their exact touched/segment counts.
-fn exact_state_region_capacities(
-    structural: &super::history_step::ExactStateStructuralFrontierInputs,
-    user_tier: Option<usize>,
-) -> (usize, usize) {
-    if let Some(tier) = user_tier {
-        let class = super::shape::ShapeClass { tier };
-        return (class.touched_capacity(), class.segment_capacity());
-    }
+/// The same integer count drives State accounting and the explicit candidate
+/// input budget. Touched-slot capacity alone is insufficient: a block with
+/// fewer outputs could otherwise hide extra spends inside that allocation.
+fn bind_block_input_limit(b: &mut FieldR1csBuilder, live_input_sum: &LinExpr, capacity: usize) {
+    let count_bits = range_check_bits(b, live_input_sum, 12);
+    let cap_plus_one = const_block(Block128::from((capacity + 1) as u128));
+    let cap_bits = range_check_bits(b, &cap_plus_one, 12);
+    pin_lt_strict(b, &count_bits, &cap_bits);
+}
 
-    let touched = structural.touched_indices.len();
-    let segments = structural
-        .touched_indices
-        .iter()
-        .map(|slot| slot >> noid_chain::consensus::params::LOG_SEGMENT_SIZE)
-        .collect::<std::collections::BTreeSet<_>>()
-        .len();
-    assert!(touched > 0, "exact-state transition has no touched slots");
-    assert!(
-        segments > 0,
-        "exact-state transition has no touched segments"
-    );
-    (touched, segments)
+#[cfg(test)]
+mod input_budget_tests {
+    use super::*;
+
+    #[test]
+    fn input_sum_is_bounded_independently_of_output_occupancy() {
+        for inputs in [0usize, 96, 384, 385, 768] {
+            let mut builder = FieldR1csBuilder::new();
+            let selected: Vec<_> = (0..96 * noid_tx::TX_INPUTS)
+                .map(|index| alloc_block(&mut builder, Block128::from(u128::from(index < inputs))))
+                .collect();
+            let sum = pin_u64_sum(&mut builder, &selected);
+            bind_block_input_limit(&mut builder, &sum, 384);
+            let (matrix, witness) = builder.build();
+            assert_eq!(matrix.satisfies(&witness), inputs <= 384, "inputs={inputs}");
+        }
+    }
 }
 
 /// The flat image of one native `SpineInputs` statement (φ lane by lane).
@@ -2292,8 +2304,9 @@ fn build_selected_zk_block_slots_core(
     // relation consumes the authoritative sibling frontier and derives the
     // fixed-capacity paired local/upper schedule.
     let structural_es = &components.exact_state;
+    let geometry = profile.geometry(tier);
     let (touched_capacity, segment_capacity) =
-        exact_state_region_capacities(structural_es, Some(tier));
+        (geometry.touched_capacity, geometry.segment_capacity);
     let (exact_state, es_region_data) = build_exact_state_structural_region_slot(
         b,
         structural_es,
@@ -2317,12 +2330,12 @@ fn build_selected_zk_block_slots_core(
     );
 
     let prepared_allocation = match profile {
-        BlockRelationProfile::ScheduledV2(schedule) => PreparedDevelopmentAllocation::new(
+        BlockRelationProfile::ScheduledV2(config) => PreparedDevelopmentAllocation::new(
             b,
             &header.fields[hf::HEIGHT],
             &exact_state_depth.child,
             &spine_inputs[1].leaves[noid_tx::body_hash::TX8X2_LEAF_OUTPUT0_DATA][1],
-            schedule,
+            config.schedule(),
         ),
         _ => PreparedDevelopmentAllocation::legacy(
             b,
@@ -2408,8 +2421,6 @@ fn build_selected_zk_block_slots_core(
     // ---- Physical page arithmetic followed by the fixed PagedSpend scan.
     // Pages keep the existing action/exact-state surface; only complete END
     // records enter logical tx-root, fee and authorization slots.
-    let geometry = crate::region_sidecar::selected_zk_block_geometry(tier)
-        .expect("selected authorization tier is canonical");
     assert_eq!(body_user_slots, geometry.tier);
     let n_auth_slots = geometry.auth_tiles;
     assert_eq!(n_auth_slots, geometry.auth_tiles);
@@ -2601,6 +2612,7 @@ fn build_selected_zk_block_slots_core(
         spine_region_data
             .as_ref()
             .expect("selected spine region data"),
+        geometry,
     ));
     crate::acceptance::row_ledger_mark(
         b,
@@ -2657,11 +2669,12 @@ fn build_selected_zk_block_slots_core(
         class.action_candidate_capacity(),
         "three fixed system candidates plus ten per tier user slot"
     );
-    let count_bits = range_check_bits(b, &live_input_sum, 12);
-    let cap_plus_one = const_block(Block128::from((class.spend_capacity() + 1) as u128));
-    let cap_bits = range_check_bits(b, &cap_plus_one, 12);
-    pin_lt_strict(b, &count_bits, &cap_bits);
-    let action_live_capacity = class.touched_capacity();
+    let input_capacity = match profile {
+        BlockRelationProfile::ScheduledV2(config) => config.max_live_inputs(),
+        _ => class.spend_capacity(),
+    };
+    bind_block_input_limit(b, &live_input_sum, input_capacity);
+    let action_live_capacity = geometry.touched_capacity;
     bind_mint_packed_values_body_order(
         b,
         &mut action_candidates,

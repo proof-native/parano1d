@@ -8,14 +8,35 @@ use noid_ivc_core::public_io::WitnessSlice;
 pub struct V2Config {
     outer_m: usize,
     pages: usize,
+    max_live_inputs: usize,
     schedule: ForkSchedule,
 }
 
 impl V2Config {
     pub fn new(outer_m: usize, pages: usize, schedule: ForkSchedule) -> Result<Self, V2Error> {
+        Self::with_input_budget(
+            outer_m,
+            pages,
+            pages
+                .saturating_mul(noid_tx::TX_INPUTS)
+                .min(noid_chain::consensus::params::BLOCK_MAX_LIVE_INPUTS),
+            schedule,
+        )
+    }
+
+    /// Explicit research profile. The bounded-input shape is deliberately a
+    /// separate bank identity; it cannot change a previously frozen recipe.
+    pub fn with_input_budget(
+        outer_m: usize,
+        pages: usize,
+        max_live_inputs: usize,
+        schedule: ForkSchedule,
+    ) -> Result<Self, V2Error> {
         let activation = schedule.v2().ok_or(V2Error::Boundary)?;
         if !(23..=25).contains(&outer_m)
             || ![25, 63, 64, 96, 127, 128, 255].contains(&pages)
+            || crate::region_sidecar::selected_zk_block_geometry_with_inputs(pages, max_live_inputs)
+                .is_none()
             || activation.height() <= 1
             || 86_400 % activation.block_time() != 0
         {
@@ -24,6 +45,7 @@ impl V2Config {
         Ok(Self {
             outer_m,
             pages,
+            max_live_inputs,
             schedule,
         })
     }
@@ -33,6 +55,20 @@ impl V2Config {
     }
     pub fn pages(self) -> usize {
         self.pages
+    }
+    pub fn max_live_inputs(self) -> usize {
+        self.max_live_inputs
+    }
+    pub(crate) fn block_geometry(self) -> crate::region_sidecar::SelectedZkBlockGeometry {
+        crate::region_sidecar::selected_zk_block_geometry_with_inputs(
+            self.pages,
+            self.max_live_inputs,
+        )
+        .expect("checked candidate geometry")
+    }
+    pub(crate) fn has_bounded_inputs(self) -> bool {
+        self.max_live_inputs
+            != noid_chain::consensus::params::block_class_spend_capacity(self.pages)
     }
     pub fn schedule(self) -> ForkSchedule {
         self.schedule
@@ -84,7 +120,7 @@ impl V2Config {
         }
     }
     pub(super) fn identity_bytes(self) -> Vec<u8> {
-        [
+        let mut bytes: Vec<u8> = [
             self.outer_m as u64,
             self.pages as u64,
             self.schedule.v1_1_height().unwrap(),
@@ -93,7 +129,13 @@ impl V2Config {
         ]
         .into_iter()
         .flat_map(u64::to_le_bytes)
-        .collect()
+        .collect();
+        // Preserve existing candidate identities. Only the explicitly reduced
+        // budget extends the recipe, and its versioned codec carries this lane.
+        if self.has_bounded_inputs() {
+            bytes.extend_from_slice(&(self.max_live_inputs as u64).to_le_bytes());
+        }
+        bytes
     }
 }
 
@@ -104,4 +146,34 @@ pub(super) struct IoLayout {
     pub live: usize,
     pub acc: usize,
     pub len: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use noid_chain::consensus::forks::V2Activation;
+
+    #[test]
+    fn input_budget_has_an_explicit_shape_and_bank_identity() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let full = V2Config::new(23, 96, schedule).unwrap();
+        let bounded = V2Config::with_input_budget(23, 96, 384, schedule).unwrap();
+        assert_eq!(full.max_live_inputs(), 768);
+        assert_eq!(full.identity_bytes().len(), 40);
+        assert_eq!(bounded.identity_bytes().len(), 48);
+        assert_ne!(full.identity_bytes(), bounded.identity_bytes());
+        assert_eq!(bounded.block_geometry().touched_capacity, 577);
+        assert_eq!(bounded.block_geometry().segment_capacity, 256);
+        assert_eq!(bounded.block_geometry().meta_b_block_log, 9);
+        assert_eq!(full.block_geometry().meta_b_block_log, 10);
+        assert_eq!(
+            bounded.block_geometry().auth_tiles,
+            full.block_geometry().auth_tiles
+        );
+        assert_eq!(noid_tx::TX_INPUTS, 8);
+        for (pages, inputs) in [(96, 0), (96, 385), (96, 769), (63, 384)] {
+            assert!(V2Config::with_input_budget(23, pages, inputs, schedule).is_err());
+        }
+        assert!(V2Config::new(23, usize::MAX, schedule).is_err());
+    }
 }

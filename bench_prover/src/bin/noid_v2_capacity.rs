@@ -13,15 +13,30 @@ use v2_capacity_support::*;
 
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.first().is_some_and(|s| s == "verify") {
-        return verify_saved(&args[1..]);
-    }
-    if !(8..=9).contains(&args.len())
-        || args
-            .get(8)
-            .is_some_and(|s| s != "--freeze-only" && s != "--transition-only")
+    if args
+        .first()
+        .is_some_and(|s| s == "verify" || s == "verify-state")
     {
-        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only]".into());
+        return verify_saved(&args[1..], args[0] == "verify-state");
+    }
+    if !(8..=10).contains(&args.len())
+        || args.iter().skip(8).any(|s| {
+            s != "--freeze-only" && s != "--transition-only" && !s.starts_with("--inputs=")
+        })
+        || args
+            .iter()
+            .skip(8)
+            .filter(|s| s.starts_with("--inputs="))
+            .count()
+            > 1
+        || args
+            .iter()
+            .skip(8)
+            .filter(|s| !s.starts_with("--inputs="))
+            .count()
+            > 1
+    {
+        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only] [--inputs=384]".into());
     }
     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
         return Err("this fixture requires noid_chain/isolated-v1-1-testnet; the mainnet decoder is intentionally unchanged".into());
@@ -33,13 +48,22 @@ fn run() -> Result<()> {
     if samples == 0 || samples > 20 {
         return Err("samples must be 1..=20".into());
     }
-    let config = V2Config::new(
+    let mut config = V2Config::new(
         m,
         pages,
         ForkSchedule::new(Some(5), V2Activation::new(10, seconds))
             .ok_or("invalid fork schedule")?,
     )
     .map_err(err)?;
+    if let Some(inputs) = args
+        .iter()
+        .skip(8)
+        .find_map(|s| s.strip_prefix("--inputs="))
+    {
+        config =
+            V2Config::with_input_budget(m, pages, inputs.parse().map_err(err)?, config.schedule())
+                .map_err(err)?;
+    }
     let pin: [u8; 32] = hex::decode(&args[1])
         .map_err(err)?
         .try_into()
@@ -53,8 +77,8 @@ fn run() -> Result<()> {
         output,
         config,
         samples,
-        freeze_only: args.get(8).is_some_and(|s| s == "--freeze-only"),
-        transition_only: args.get(8).is_some_and(|s| s == "--transition-only"),
+        freeze_only: args.iter().skip(8).any(|s| s == "--freeze-only"),
+        transition_only: args.iter().skip(8).any(|s| s == "--transition-only"),
     };
     match pages {
         25 => measure::<25>(settings),

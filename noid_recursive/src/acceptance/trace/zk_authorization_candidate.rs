@@ -679,6 +679,7 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     exact_state: &ExactStateRegionData,
     tx_root: &TxRootRegionData,
     spine: &SpineRegionData,
+    geometry: crate::region_sidecar::SelectedZkBlockGeometry,
 ) -> SelectedZkBlockRegionBinding {
     assert_eq!(
         prepared.live_entries.len(),
@@ -709,16 +710,17 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     let (canonical, authorization) = batch
         .into_canonical_and_raw_draft()
         .expect("selected raw authorization draft");
-    let allocation =
-        allocate_selected_zk_auth_pcs_region(b, authorization, exact_state, tx_root, spine)
-            .expect("selected authorization/Meta allocation");
-    bind_selected_zk_authorization_all_tiles_trace(
+    let allocation = allocate_selected_zk_auth_pcs_region(
         b,
-        allocation.draft(),
-        &canonical,
-        spine.instances.len() - 1,
+        authorization,
+        exact_state,
+        tx_root,
+        spine,
+        geometry,
     )
-    .expect("selected all-tiles binding");
+    .expect("selected authorization/Meta allocation");
+    bind_selected_zk_authorization_all_tiles_trace(b, allocation.draft(), &canonical, geometry)
+        .expect("selected all-tiles binding");
     let (draft, paired) = allocation.into_parts();
     SelectedZkBlockRegionBinding { draft, paired }
 }
@@ -825,17 +827,10 @@ fn bind_selected_zk_authorization_all_tiles_trace(
     b: &mut FieldR1csBuilder,
     draft: &SelectedZkBlockRegionDraft,
     canonical: &CanonicalSelectedZkAuthorizationCapability,
-    tier: usize,
+    geometry: crate::region_sidecar::SelectedZkBlockGeometry,
 ) -> Result<(), ZkAuthorizationAllTilesTraceError> {
-    // Several capacities share one authorization axis but have different
-    // exact-state and Merkle-path offsets. Use the same physical tier as the
-    // owning allocator; the padded tile count cannot identify those offsets.
-    let geometry = crate::region_sidecar::selected_zk_block_geometry(tier).ok_or(
-        ZkAuthorizationAllTilesTraceError::StatementCount {
-            expected: canonical.len().next_power_of_two(),
-            actual: canonical.len(),
-        },
-    )?;
+    // Capacities and input budgets can share an authorization axis while
+    // using different Meta offsets. Consume the owning allocator's geometry.
     if canonical.len() != geometry.auth_tiles {
         return Err(ZkAuthorizationAllTilesTraceError::StatementCount {
             expected: geometry.auth_tiles,

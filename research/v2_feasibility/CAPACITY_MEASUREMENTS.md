@@ -5,6 +5,8 @@ B25/B255 bank remains responsible for blocks before that boundary. Capacity,
 target interval and activation height have not been selected for mainnet.
 The [September 24 measurements](results/2026-09-24/REPORT.md) contain actual
 matrix bounds, proofs after both legacy classes and constrained receiver runs.
+The [96-page input-budget investigation](results/2026-09-24-input-budget/REPORT.md)
+adds an explicit 384-input candidate and real distributed-State boundary blocks.
 
 `noid_v2_capacity` builds the complete recursive relation, including the
 contract core described in [CORE_CANDIDATE.md](CORE_CANDIDATE.md). It checks
@@ -35,8 +37,8 @@ RAYON_NUM_THREADS=12 /usr/bin/time -v target/release/noid_v2_capacity \
   23 63 30 3
 ```
 
-The runner requires a new output directory. Use `--freeze-only` as the last
-argument to check and serialize a complete matrix without running the block
+The runner requires a new output directory. Use `--freeze-only`
+to check and serialize a complete matrix without running the block
 sequence. `--transition-only` instead constructs the first new block followed
 by `SAMPLES` empty recursive successors. Supply a legacy fixture ending in
 B255 to exercise a boundary with both legacy accumulated claims live.
@@ -50,6 +52,31 @@ sample contains an empty block, a four-page ordinary block, and full blocks
 with zero, one, four and sixteen contract calls. Ordinary measurement payments
 use one input and one output. Contract calls retain a successor and exercise
 all eight instructions. This is not a maximum-input or maximum-segment test.
+
+An additional explicit research profile uses 96 pages with a block-wide
+384-input budget, while preserving up to eight inputs per page:
+
+```sh
+RAYON_NUM_THREADS=12 /usr/bin/time -v target/release/noid_v2_capacity \
+  /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
+  /path/to/verified-legacy-fixtures /path/to/NEW-output \
+  23 96 30 3 --inputs=384
+```
+
+Its input budget is part of the authenticated bank identity and the versioned
+compact recipe. The native preparation boundary and the R1CS integer input
+sum enforce it independently. Legacy rules and earlier candidate recipes
+retain their original capacities.
+
+After the ordinary samples, this profile creates real notes across the
+fixture's 256 segments and measures blocks with 384 inputs: 96 pages with
+four inputs and two outputs each, then 48 pages with eight inputs and two
+outputs each. It also constructs a 385-input block with spare touched slots,
+checks native rejection, deliberately bypasses that native budget during
+witness preparation, and requires the *same frozen matrix* to be unsatisfied.
+The invalid block is never added to the chain. Logs include actual segment
+counts; distributing output addresses is not itself evidence of maximum
+segment coverage.
 
 Reported phases distinguish wallet authorization, fixture construction,
 input preparation, recursive assembly, proving, nonce search, encoding,
@@ -73,14 +100,24 @@ RAYON_NUM_THREADS=4 /usr/bin/time -v target/release/noid_v2_capacity verify \
 
 The receiver authenticates both the matrix and legacy origin before timing
 repeated complete terminal verification. Its first sample is marked as
-warm-up. Apply an actual CPU affinity and an 8 GiB memory limit when evaluating
+warm-up. A comma-separated height list measures several saved blocks after
+one authentication step, with a separate warm-up for each block.
+Apply an actual CPU affinity and an 8 GiB memory limit when evaluating
 the seed envelope; a Rayon thread count alone is not a hardware limit.
 Also repeat with `NOID_CPU_BACKEND=pclmul` for machines without VPCLMULQDQ.
 CPU affinity on a laptop does not reproduce a server's core speed or sustained
 thermal envelope; record the host and selected backend with the measurements.
 
-Qualification still requires maximum resource distributions, transitions
-from both old classes, long recursive sequences, reorgs, restart and cold
+Use `verify-state` in place of `verify` to also measure native State application
+after each accepted terminal. This first verifies the endpoint and reconstructs
+its parent State by replaying the bounded fixture bodies, checking every header
+link, native transition and root. Reconstruction is a separate setup phase.
+Each timed application starts from a clone of that parent and must reproduce
+the authenticated header's root and counters. This includes State work but is
+still not a full daemon, persistent database or retained-fork workload.
+
+Further qualification requires other resource distributions and deeper State,
+transitions from both old classes, long recursive sequences, reorgs, restart and cold
 sync, and integration with the node, wallet and mining interfaces. The
 current origin verifier uses authenticated legacy matrices. Replacing that
 dependency with a compact certificate is separate cryptographic work.

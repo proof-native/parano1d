@@ -18,6 +18,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+mod boundaries;
 mod proof;
 mod state;
 use state::*;
@@ -66,9 +67,9 @@ pub struct Settings {
 /// A separate process for receiver measurements, with an externally supplied
 /// candidate-bank pin. Matrix authentication and origin authentication are
 /// measured as setup; every sample discharges the current full matrix claim.
-pub fn verify_saved(args: &[String]) -> Result<()> {
+pub fn verify_saved(args: &[String], with_state: bool) -> Result<()> {
     if args.len() != 7 {
-        return Err("usage: noid_v2_capacity verify PACK_ROOT METADATA_PIN LEGACY_FIXTURES CANDIDATE_DIR BANK_PIN HEIGHT REPEATS".into());
+        return Err("usage: noid_v2_capacity verify PACK_ROOT METADATA_PIN LEGACY_FIXTURES CANDIDATE_DIR BANK_PIN HEIGHT[,HEIGHT...] REPEATS".into());
     }
     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
         return Err("isolated-v1-1-testnet feature required".into());
@@ -79,7 +80,13 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
             .try_into()
             .map_err(|_| "pin length".into())
     };
-    let height: u64 = args[5].parse().map_err(err)?;
+    let heights: Vec<u64> = args[5]
+        .split(',')
+        .map(|s| s.parse().map_err(err))
+        .collect::<Result<_>>()?;
+    if heights.is_empty() || heights.len() > 8 {
+        return Err("supply one to eight receiver heights".into());
+    }
     let repeats: usize = args[6].parse().map_err(err)?;
     if !(1..=100).contains(&repeats) {
         return Err("repeats must be 1..=100".into());
@@ -96,7 +103,9 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
     .map_err(err)?;
     let epoch = noid_chain::consensus::genesis_header();
     if fork > noid_chain::consensus::params::TX_EPOCH_BLOCKS
-        || height >= noid_chain::consensus::params::TX_EPOCH_BLOCKS
+        || heights.iter().any(|height| {
+            *height < fork || *height >= noid_chain::consensus::params::TX_EPOCH_BLOCKS
+        })
     {
         return Err("this short fixture receiver expects the genesis transaction epoch".into());
     }
@@ -119,33 +128,81 @@ pub fn verify_saved(args: &[String]) -> Result<()> {
         "{}",
         json!({"phase":"receiver_setup","setup_ms":elapsed(start),"memory":memory(),
         "m":runtime.bank().config().outer_m(),"pages":runtime.bank().config().pages(),
+        "max_live_inputs":runtime.bank().config().max_live_inputs(),
         "rayon_threads":rayon::current_num_threads(),
         "cpu_backend":noid_core::cpu::selected_backend().to_string()})
     );
-    let bytes = proof::bounded(
-        &output.join(format!("h{height:06}.terminal")),
-        v2::terminal_max_bytes(&runtime).map_err(err)?,
-    )?;
-    let block = Block::from_bytes(&proof::bounded(
-        &output.join(format!("h{height:06}.block")),
-        16 * 1024 * 1024,
-    )?)
-    .map_err(err)?;
-    noid_chain::consensus::pow::validate_pow(&block.header).map_err(err)?;
-    for sample in 0..=repeats {
-        let start = Instant::now();
-        let terminal = v2::decode_terminal(&runtime, &bytes).map_err(err)?;
-        let accepted = v2::verify_terminal(&runtime, &origin, &terminal, &block.header, &epoch)
-            .map_err(err)?;
-        let verify_ms = elapsed(start);
-        if accepted.accumulator().height != height {
-            return Err("receiver accepted wrong height".into());
+    for height in heights {
+        let bytes = proof::bounded(
+            &output.join(format!("h{height:06}.terminal")),
+            v2::terminal_max_bytes(&runtime).map_err(err)?,
+        )?;
+        let block = Block::from_bytes(&proof::bounded(
+            &output.join(format!("h{height:06}.block")),
+            16 * 1024 * 1024,
+        )?)
+        .map_err(err)?;
+        noid_chain::consensus::pow::validate_pow(&block.header).map_err(err)?;
+        let parent_state = if with_state {
+            // Authenticate the endpoint before replaying fixture bodies. The
+            // replay checks every header link, native transition and root;
+            // its final parent ID must be the one bound by this terminal.
+            let terminal = v2::decode_terminal(&runtime, &bytes).map_err(err)?;
+            let authenticated =
+                v2::verify_terminal(&runtime, &origin, &terminal, &block.header, &epoch)
+                    .map_err(err)?;
+            let start = Instant::now();
+            let chain = Chain::replay_for_receiver(
+                Path::new(&args[2]),
+                output,
+                runtime.bank().config(),
+                height - 1,
+            )?;
+            chain.check_native(&block, runtime.bank().config().schedule())?;
+            let end = chain
+                .accumulator
+                .advance(chain.parent(), &block.header)
+                .map_err(err)?;
+            if noid_chain::hash_block_header(chain.parent()) != block.header.prev_block_hash
+                || authenticated.accumulator() != &end
+                || end.height != height
+            {
+                return Err("receiver State belongs to a different authenticated parent".into());
+            }
+            println!(
+                "{}",
+                json!({"phase":"receiver_state_setup","height":height,
+                "replay_ms":elapsed(start),"memory":memory()})
+            );
+            Some(chain.state)
+        } else {
+            None
+        };
+        for sample in 0..=repeats {
+            let start = Instant::now();
+            let terminal = v2::decode_terminal(&runtime, &bytes).map_err(err)?;
+            let accepted = v2::verify_terminal(&runtime, &origin, &terminal, &block.header, &epoch)
+                .map_err(err)?;
+            let verify_ms = elapsed(start);
+            if accepted.accumulator().height != height {
+                return Err("receiver accepted wrong height".into());
+            }
+            let state_apply_ms = if let Some(parent) = parent_state.as_ref() {
+                let start = Instant::now();
+                let mut trial = parent.clone();
+                noid_chain::materialize_accepted_block_state(&mut trial, &block).map_err(err)?;
+                Some(elapsed(start))
+            } else {
+                None
+            };
+            println!(
+                "{}",
+                json!({"phase":"receiver_verify","sample":sample,"warmup":sample==0,
+            "height":height,"terminal_bytes":bytes.len(),"verify_ms":verify_ms,
+            "state_apply_ms":state_apply_ms,"verify_apply_ms":state_apply_ms.map(|ms| ms + verify_ms),
+            "memory":memory()})
+            );
         }
-        println!(
-            "{}",
-            json!({"phase":"receiver_verify","sample":sample,"warmup":sample==0,
-            "height":height,"terminal_bytes":bytes.len(),"verify_ms":verify_ms,"memory":memory()})
-        );
     }
     Ok(())
 }
@@ -326,6 +383,11 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
             run.block::<PAGES>(&mut chain, &label, batch)?;
         }
     }
+    if run.settings.config.max_live_inputs()
+        != noid_chain::consensus::params::block_class_spend_capacity(PAGES)
+    {
+        boundaries::measure::<PAGES>(&mut run, &mut chain)?;
+    }
     println!(
         "{}",
         json!({"complete":true,"m":run.settings.config.outer_m(),"pages":PAGES,
@@ -437,7 +499,14 @@ impl Run {
         noid_chain::materialize_accepted_block_state(&mut chain.state, &block).map_err(err)?;
         let apply_ms = elapsed(start);
         let record = json!({"label":label, "height":block.header.height,"m":self.settings.config.outer_m(),
-            "capacity":PAGES,"pages":batch.pages.len(),"contract_calls":batch.openings.len(),
+            "capacity":PAGES,"max_live_inputs":self.settings.config.max_live_inputs(),
+            "pages":batch.pages.len(),"contract_calls":batch.openings.len(),
+            "live_inputs":batch.pages.iter().map(|p| p.body.live_input_count()).sum::<usize>(),
+            "live_outputs":batch.pages.iter().map(|p| p.body.live_output_count()).sum::<usize>(),
+            "touched_segments":block.transactions.iter().flat_map(|tx| {
+                tx.body.live_inputs().map(|(_, input)| input.slot_index >> 16)
+                    .chain(tx.body.live_outputs().map(|(_, output)| output.slot_index >> 16))
+            }).collect::<BTreeSet<_>>().len(),
             "wallet_authorization_ms":batch.auth_ms,"wallet_batch_workers":batch.auth_workers,
             "fixture_template_ms":template_ms,
             "input_ms":input_ms,"assembly_ms":assembly_ms,"prove_ms":prove_ms,"pow_ms":pow_ms,

@@ -87,7 +87,7 @@ impl V2RuntimeParts {
             return Err(V2Error::Runtime);
         }
         let expected = BlockRegionSidecarVk::from_object_registry_slices(
-            config.pages(),
+            config.block_geometry(),
             block_vk.selected_registry_slices()?,
         )?;
         if block_vk != expected {
@@ -198,7 +198,7 @@ pub fn derive_direct_block_vk<const TIER: usize>(
         authorization,
         &parent_header,
         &parent.block_id,
-        BlockRelationProfile::ScheduledV2(config.schedule()),
+        BlockRelationProfile::ScheduledV2(config),
     );
     Ok(assembly.region_vk().clone())
 }
@@ -616,7 +616,7 @@ fn prepare_assembly<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_seal.block_id,
-        BlockRelationProfile::ScheduledV2(runtime.bank.config().schedule()),
+        BlockRelationProfile::ScheduledV2(runtime.bank.config()),
     );
     pin_eq(
         &mut builder,
