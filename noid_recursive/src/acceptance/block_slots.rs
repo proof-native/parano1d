@@ -124,6 +124,13 @@ impl BlockRelationProfile {
     fn contracts(self) -> bool {
         self != Self::LegacyV1
     }
+    fn contract_slots(self) -> usize {
+        match self {
+            Self::LegacyV1 => 0,
+            Self::V2 => V2_CONTRACT_SLOTS,
+            Self::ScheduledV2(config) => config.contract_slots(),
+        }
+    }
     fn geometry(self, tier: usize) -> crate::region_sidecar::SelectedZkBlockGeometry {
         match self {
             Self::ScheduledV2(config) => {
@@ -143,115 +150,129 @@ mod selected_zk_capability_tests {
 
     #[test]
     fn object_spine_prefix_is_independent_of_the_system_record() {
+        use crate::acceptance::history_step::v2::V2Config;
+        use noid_chain::consensus::forks::{ForkSchedule, V2Activation};
         use noid_poseidon2b::primitives::Address;
         use noid_tx::experimental_object::{transaction_contexts, ObjectOpening};
-        let mut digest = None;
-        for count in [0usize, 1, 4, V2_CONTRACT_SLOTS] {
-            for system_record in [false, true] {
-                let user_base = 1 + usize::from(system_record);
-                let mut bodies = vec![noid_gkr::ghost_tx::ghost_tx_body(); 26];
-                let mut contracts = Vec::new();
-                for slot in 0..count {
-                    let opening = ObjectOpening {
-                        program: [[Block128::ZERO; 2]; 8],
-                        state: Block128::from(slot as u128 + 1),
-                        claim_authority: Address([1; 32]),
-                        recovery_authority: Address([2; 32]),
-                        deadline: 100,
-                        claim_recipient: Address([3; 32]),
-                        recovery_recipient: Address([4; 32]),
-                        rules: noid_tx::experimental_object::ObjectRules {
-                            max_fee: u64::MAX,
-                            min_retained: 0,
-                            max_payout: u64::MAX,
-                            modes: 31,
-                        },
-                    };
-                    let body = &mut bodies[user_base + slot];
-                    body.input_owner = opening.root();
-                    body.outputs[0].owner = opening.root();
-                    contracts.push(V2ContractComponentInput {
-                        body_index: user_base + slot,
-                        live: true,
-                        program: opening.program,
-                        current: opening.state,
-                        contexts: transaction_contexts(body),
-                        next: opening.state,
-                        controller: opening.claim_authority.as_fields(),
-                        refund_authority: opening.recovery_authority.as_fields(),
-                        terminal: false,
-                        deadline: opening.deadline,
-                        claim_recipient: opening.claim_recipient.as_fields(),
-                        refund_recipient: opening.recovery_recipient.as_fields(),
-                        rules: opening.rules,
-                    });
-                }
-                let natives = bodies
-                    .iter()
-                    .map(noid_gkr::spine_statement::spine_inputs_from_body)
-                    .collect::<Vec<_>>();
-                // This component test binds the supplied body/commitment aliases;
-                // the complete direct relation separately checks body hashing.
-                let hashes = vec![[Block128::ZERO; 2]; natives.len()];
-                let mut b = FieldR1csBuilder::new();
-                let prefix_wire = b.alloc_bool(system_record);
-                let prefix = LinExpr::from_wire(prefix_wire);
-                let inputs = natives
-                    .iter()
-                    .map(|n| SpineInputsTrace::alloc(&mut b, n))
-                    .collect::<Vec<_>>();
-                let hash_wires = hashes
-                    .iter()
-                    .map(|pair| pair.map(|value| alloc_block(&mut b, value)))
-                    .collect::<Vec<_>>();
-                let raw = spine_region_data_from_wires(
-                    &mut b,
-                    &natives,
-                    &hashes,
-                    &inputs,
-                    &hash_wires,
-                    &contracts,
-                    user_base,
-                    BlockRelationProfile::V2,
-                );
-                assert!(raw.instances[0].contract.is_none());
-                assert!(raw.instances[1..=V2_CONTRACT_SLOTS + 1]
-                    .iter()
-                    .all(|s| s.contract.is_some()));
-                let views = select_v2_contract_views(&mut b, &raw, &prefix);
-                for (slot, view) in views.iter().enumerate() {
-                    assert_eq!(
-                        view.live.eval(b.values()),
-                        if slot < count { F128::ONE } else { F128::ZERO }
-                    );
-                    assert_eq!(
-                        view.current_w.eval(b.values()),
-                        flat_of(Block128::from(if slot < count {
-                            slot as u128 + 1
-                        } else {
-                            0
-                        }))
-                    );
-                    // Pin to independently allocated claimed user states so a
-                    // substituted schedule bit cannot merely select another view.
-                    let expected = alloc_block(
+        for (pages, capacity) in [(25, 16), (64, 32), (64, 64)] {
+            let config = V2Config::with_limits(
+                23,
+                pages,
+                pages * 8,
+                capacity,
+                ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap(),
+            )
+            .unwrap();
+            let mut digest = None;
+            for requested in [0usize, 1, 4, capacity] {
+                for system_record in [false, true] {
+                    let count = requested.min(pages - usize::from(system_record));
+                    let user_base = 1 + usize::from(system_record);
+                    let mut bodies = vec![noid_gkr::ghost_tx::ghost_tx_body(); pages + 1];
+                    let mut contracts = Vec::new();
+                    for slot in 0..count {
+                        let opening = ObjectOpening {
+                            program: noid_tx::experimental_object::integer_program::EMPTY_PROGRAM,
+                            state: Block128::from(slot as u128 + 1),
+                            claim_authority: Address([1; 32]),
+                            recovery_authority: Address([2; 32]),
+                            deadline: 100,
+                            claim_recipient: Address([3; 32]),
+                            recovery_recipient: Address([4; 32]),
+                            rules: noid_tx::experimental_object::ObjectRules {
+                                max_fee: u64::MAX,
+                                min_retained: 0,
+                                max_payout: u64::MAX,
+                                modes: 31,
+                            },
+                        };
+                        let body = &mut bodies[user_base + slot];
+                        body.input_owner = opening.root();
+                        body.outputs[0].owner = opening.root();
+                        contracts.push(V2ContractComponentInput {
+                            body_index: user_base + slot,
+                            live: true,
+                            program: opening.program,
+                            current: opening.state,
+                            contexts: transaction_contexts(body),
+                            next: opening.state,
+                            controller: opening.claim_authority.as_fields(),
+                            refund_authority: opening.recovery_authority.as_fields(),
+                            terminal: false,
+                            deadline: opening.deadline,
+                            claim_recipient: opening.claim_recipient.as_fields(),
+                            refund_recipient: opening.recovery_recipient.as_fields(),
+                            rules: opening.rules,
+                        });
+                    }
+                    let natives = bodies
+                        .iter()
+                        .map(noid_gkr::spine_statement::spine_inputs_from_body)
+                        .collect::<Vec<_>>();
+                    // This component test binds the supplied body/commitment aliases;
+                    // the complete direct relation separately checks body hashing.
+                    let hashes = vec![[Block128::ZERO; 2]; natives.len()];
+                    let mut b = FieldR1csBuilder::new();
+                    let prefix_wire = b.alloc_bool(system_record);
+                    let prefix = LinExpr::from_wire(prefix_wire);
+                    let inputs = natives
+                        .iter()
+                        .map(|n| SpineInputsTrace::alloc(&mut b, n))
+                        .collect::<Vec<_>>();
+                    let hash_wires = hashes
+                        .iter()
+                        .map(|pair| pair.map(|value| alloc_block(&mut b, value)))
+                        .collect::<Vec<_>>();
+                    let raw = spine_region_data_from_wires(
                         &mut b,
-                        Block128::from(if slot < count { slot as u128 + 1 } else { 0 }),
+                        &natives,
+                        &hashes,
+                        &inputs,
+                        &hash_wires,
+                        &contracts,
+                        user_base,
+                        BlockRelationProfile::ScheduledV2(config),
                     );
-                    pin_eq(&mut b, &view.current_w, &expected);
-                }
-                let (matrix, witness) = b.build();
-                assert!(matrix.satisfies(&witness));
-                let actual = matrix.structural_statement_digest();
-                assert!(
-                    digest.is_none_or(|expected| expected == actual),
-                    "count={count}, system={system_record}"
-                );
-                digest = Some(actual);
-                if count != 0 {
-                    let mut forged = witness;
-                    forged[prefix_wire.0 as usize] += F128::ONE;
-                    assert!(!matrix.satisfies(&forged));
+                    assert!(raw.instances[0].contract.is_none());
+                    assert!(raw.instances[1..=(capacity + 1).min(pages)]
+                        .iter()
+                        .all(|s| s.contract.is_some()));
+                    let views = select_v2_contract_views(&mut b, &raw, &prefix, capacity);
+                    assert_eq!(views.len(), capacity);
+                    for (slot, view) in views.iter().enumerate() {
+                        assert_eq!(
+                            view.live.eval(b.values()),
+                            if slot < count { F128::ONE } else { F128::ZERO }
+                        );
+                        assert_eq!(
+                            view.current_w.eval(b.values()),
+                            flat_of(Block128::from(if slot < count {
+                                slot as u128 + 1
+                            } else {
+                                0
+                            }))
+                        );
+                        // Pin to independently allocated claimed user states so a
+                        // substituted schedule bit cannot merely select another view.
+                        let expected = alloc_block(
+                            &mut b,
+                            Block128::from(if slot < count { slot as u128 + 1 } else { 0 }),
+                        );
+                        pin_eq(&mut b, &view.current_w, &expected);
+                    }
+                    let (matrix, witness) = b.build();
+                    assert!(matrix.satisfies(&witness));
+                    let actual = matrix.structural_statement_digest();
+                    assert!(
+                        digest.is_none_or(|expected| expected == actual),
+                        "count={count}, system={system_record}"
+                    );
+                    digest = Some(actual);
+                    if count != 0 {
+                        let mut forged = witness;
+                        forged[prefix_wire.0 as usize] += F128::ONE;
+                        assert!(!matrix.satisfies(&forged));
+                    }
                 }
             }
         }
@@ -308,13 +329,16 @@ mod selected_zk_capability_tests {
                 .map(|index| authorization_surface(index < contract_count))
                 .collect::<Vec<_>>();
             let policy = V2ContractPolicy {
-                expected_authorities: std::array::from_fn(|index| {
-                    [
-                        const_block(Block128::from(index as u128 + 1025)),
-                        const_block(Block128::from(index as u128 + 1281)),
-                    ]
-                }),
-                before_deadlines: std::array::from_fn(|_| LinExpr::zero()),
+                height: LinExpr::zero(),
+                expected_authorities: (0..V2_CONTRACT_SLOTS)
+                    .map(|index| {
+                        [
+                            const_block(Block128::from(index as u128 + 1025)),
+                            const_block(Block128::from(index as u128 + 1281)),
+                        ]
+                    })
+                    .collect(),
+                before_deadlines: vec![LinExpr::zero(); V2_CONTRACT_SLOTS],
             };
             let capability =
                 mint_v2_selected_zk_authorization_capability(&mut b, &groups, &surfaces, &policy);
@@ -700,13 +724,13 @@ fn append_page_action_surface(
 fn bind_v2_contract_partition(
     b: &mut FieldR1csBuilder,
     surfaces: &[ActionSurfaceTrace],
-    contracts: &[V2ContractView; V2_CONTRACT_SLOTS],
+    contracts: &[V2ContractView],
 ) {
-    assert!(surfaces.len() >= V2_CONTRACT_SLOTS);
+    assert!(surfaces.len() >= contracts.len());
 
     let mut previous_contract: Option<LinExpr> = None;
     for (slot, surface) in surfaces.iter().enumerate() {
-        if slot < V2_CONTRACT_SLOTS {
+        if slot < contracts.len() {
             let contract = &contracts[slot];
             pin_eq(b, &surface.contract, &contract.live);
             pin_eq(b, &surface.terminal, &contract.terminal);
@@ -751,7 +775,7 @@ fn bind_v2_contract_partition(
 struct V2ContractView {
     live: LinExpr,
     terminal: LinExpr,
-    program_w: [[LinExpr; 2]; 8],
+    program_w: [[LinExpr; 2]; noid_tx::experimental_object::PROGRAM_STEPS],
     current_w: LinExpr,
     next_w: LinExpr,
     controller_w: [LinExpr; 2],
@@ -767,53 +791,76 @@ fn select_v2_contract_views(
     b: &mut FieldR1csBuilder,
     spine: &SpineRegionData,
     system_prefix: &LinExpr,
-) -> [V2ContractView; V2_CONTRACT_SLOTS] {
-    let raw: [&SpineContractRegion; V2_CONTRACT_SLOTS + 1] = std::array::from_fn(|slot| {
-        spine.instances[1 + slot]
-            .contract
-            .as_ref()
-            .expect("fixed raw object prefix")
-    });
+    contract_slots: usize,
+) -> Vec<V2ContractView> {
+    let raw: Vec<&SpineContractRegion> = spine
+        .instances
+        .iter()
+        .skip(1)
+        .take(contract_slots + 1)
+        .map(|instance| instance.contract.as_ref().expect("fixed raw object prefix"))
+        .collect();
+    assert!(contract_slots > 0 && raw.len() >= contract_slots);
     let first_unused = mul(b, system_prefix, &raw[0].live);
     pin_zero(b, &first_unused);
-    let last_unused = mul(
-        b,
-        &system_prefix.add_const(F128::ONE),
-        &raw[V2_CONTRACT_SLOTS].live,
-    );
-    pin_zero(b, &last_unused);
-    std::array::from_fn(|slot| {
-        let (lo, hi) = (raw[slot], raw[slot + 1]);
-        let mut select = |one: &LinExpr, zero: &LinExpr| select_expr(b, system_prefix, one, zero);
-        V2ContractView {
-            live: select(&hi.live, &lo.live),
-            terminal: select(&hi.terminal, &lo.terminal),
-            program_w: std::array::from_fn(|step| {
-                std::array::from_fn(|lane| {
-                    select(&hi.program_w[step][lane], &lo.program_w[step][lane])
-                })
-            }),
-            current_w: select(&hi.current_w, &lo.current_w),
-            next_w: select(&hi.next_w, &lo.next_w),
-            controller_w: std::array::from_fn(|lane| {
-                select(&hi.controller_w[lane], &lo.controller_w[lane])
-            }),
-            refund_authority_w: std::array::from_fn(|lane| {
-                select(&hi.refund_authority_w[lane], &lo.refund_authority_w[lane])
-            }),
-            contexts_w: std::array::from_fn(|step| {
-                select(&hi.contexts_w[step], &lo.contexts_w[step])
-            }),
-            deadline_w: select(&hi.deadline_w, &lo.deadline_w),
-            claim_recipient_w: std::array::from_fn(|lane| {
-                select(&hi.claim_recipient_w[lane], &lo.claim_recipient_w[lane])
-            }),
-            refund_recipient_w: std::array::from_fn(|lane| {
-                select(&hi.refund_recipient_w[lane], &lo.refund_recipient_w[lane])
-            }),
-            rules_w: std::array::from_fn(|lane| select(&hi.rules_w[lane], &lo.rules_w[lane])),
-        }
-    })
+    if let Some(last) = raw.get(contract_slots) {
+        let last_unused = mul(b, &system_prefix.add_const(F128::ONE), &last.live);
+        pin_zero(b, &last_unused);
+    }
+    // With a fully contract-capable block, the shifted final user position
+    // has no physical body tile. Its view is a constant ghost; the common
+    // payout-over-capacity constraint already requires that user to be dead.
+    (0..contract_slots)
+        .map(|slot| {
+            let (lo, hi) = (raw[slot], raw.get(slot + 1).copied());
+            let zero = LinExpr::zero();
+            let mut select = |one: Option<&LinExpr>, other: &LinExpr| {
+                select_expr(b, system_prefix, one.unwrap_or(&zero), other)
+            };
+            V2ContractView {
+                live: select(hi.map(|v| &v.live), &lo.live),
+                terminal: select(hi.map(|v| &v.terminal), &lo.terminal),
+                program_w: std::array::from_fn(|step| {
+                    std::array::from_fn(|lane| {
+                        select(
+                            hi.map(|v| &v.program_w[step][lane]),
+                            &lo.program_w[step][lane],
+                        )
+                    })
+                }),
+                current_w: select(hi.map(|v| &v.current_w), &lo.current_w),
+                next_w: select(hi.map(|v| &v.next_w), &lo.next_w),
+                controller_w: std::array::from_fn(|lane| {
+                    select(hi.map(|v| &v.controller_w[lane]), &lo.controller_w[lane])
+                }),
+                refund_authority_w: std::array::from_fn(|lane| {
+                    select(
+                        hi.map(|v| &v.refund_authority_w[lane]),
+                        &lo.refund_authority_w[lane],
+                    )
+                }),
+                contexts_w: std::array::from_fn(|step| {
+                    select(hi.map(|v| &v.contexts_w[step]), &lo.contexts_w[step])
+                }),
+                deadline_w: select(hi.map(|v| &v.deadline_w), &lo.deadline_w),
+                claim_recipient_w: std::array::from_fn(|lane| {
+                    select(
+                        hi.map(|v| &v.claim_recipient_w[lane]),
+                        &lo.claim_recipient_w[lane],
+                    )
+                }),
+                refund_recipient_w: std::array::from_fn(|lane| {
+                    select(
+                        hi.map(|v| &v.refund_recipient_w[lane]),
+                        &lo.refund_recipient_w[lane],
+                    )
+                }),
+                rules_w: std::array::from_fn(|lane| {
+                    select(hi.map(|v| &v.rules_w[lane]), &lo.rules_w[lane])
+                }),
+            }
+        })
+        .collect()
 }
 
 /// Deadline branch and expected authorization address for each reserved v2
@@ -821,36 +868,19 @@ fn select_v2_contract_views(
 /// selected-region allocation; only these values are needed to form its
 /// authorization statements.
 struct V2ContractPolicy {
-    expected_authorities: [[LinExpr; 2]; V2_CONTRACT_SLOTS],
-    before_deadlines: [LinExpr; V2_CONTRACT_SLOTS],
-}
-
-fn v2_opcode_selectors(b: &mut FieldR1csBuilder, opcode: &LinExpr) -> [LinExpr; 8] {
-    let bits = range_check_bits(b, opcode, 3);
-    std::array::from_fn(|opcode| {
-        let mut selected = LinExpr::constant(F128::ONE);
-        for (bit, wire) in bits.iter().enumerate() {
-            let value = LinExpr::from_wire(*wire);
-            let factor = if opcode & (1 << bit) == 0 {
-                value.add_const(F128::ONE)
-            } else {
-                value
-            };
-            selected = mul(b, &selected, &factor);
-        }
-        selected
-    })
+    height: LinExpr,
+    expected_authorities: Vec<[LinExpr; 2]>,
+    before_deadlines: Vec<LinExpr>,
 }
 
 fn bind_v2_contract_policy(
     b: &mut FieldR1csBuilder,
-    contracts: &[V2ContractView; V2_CONTRACT_SLOTS],
+    contracts: &[V2ContractView],
     height_bits: &[Wire; 64],
 ) -> V2ContractPolicy {
-    let mut expected_authorities = Vec::with_capacity(V2_CONTRACT_SLOTS);
-    let mut before_deadlines = Vec::with_capacity(V2_CONTRACT_SLOTS);
-    for slot in 0..V2_CONTRACT_SLOTS {
-        let contract = &contracts[slot];
+    let mut expected_authorities = Vec::with_capacity(contracts.len());
+    let mut before_deadlines = Vec::with_capacity(contracts.len());
+    for contract in contracts {
         let deadline_bits = range_check_bits(b, &contract.deadline_w, 64);
         let before_deadline = lt_strict_expr(b, height_bits, &deadline_bits);
         expected_authorities.push(std::array::from_fn(|lane| {
@@ -864,23 +894,38 @@ fn bind_v2_contract_policy(
         before_deadlines.push(before_deadline);
     }
     V2ContractPolicy {
-        expected_authorities: expected_authorities
-            .try_into()
-            .unwrap_or_else(|_| unreachable!("exact v2 contract slot count")),
-        before_deadlines: before_deadlines
-            .try_into()
-            .unwrap_or_else(|_| unreachable!("exact v2 contract slot count")),
+        height: height_bits
+            .iter()
+            .enumerate()
+            .fold(LinExpr::zero(), |sum, (index, &wire)| {
+                sum.add(&LinExpr::from_wire(wire).scale(flat_const(1u128 << index)))
+            }),
+        expected_authorities,
+        before_deadlines,
     }
 }
 
-/// Enforce the bounded field program, context binding and terminal recipient
+/// Split one committed 128-bit body field into its two unsigned u64 words.
+fn v2_integer_words(b: &mut FieldR1csBuilder, value: &LinExpr) -> [LinExpr; 2] {
+    let bits = range_check_bits(b, value, 128);
+    std::array::from_fn(|word| {
+        bits[word * 64..word * 64 + 64].iter().enumerate().fold(
+            LinExpr::zero(),
+            |sum, (index, &wire)| {
+                sum.add(&LinExpr::from_wire(wire).scale(flat_const(1u128 << index)))
+            },
+        )
+    })
+}
+
+/// Enforce the bounded integer program, context binding and terminal recipient
 /// for every reserved slot. Every row is present even when the slot carries
 /// an ordinary wallet transaction, preserving one content-independent matrix.
 fn bind_v2_contract_execution(
     b: &mut FieldR1csBuilder,
     page_spines: &[SpineInputsTrace],
     surfaces: &[ActionSurfaceTrace],
-    contracts: &[V2ContractView; V2_CONTRACT_SLOTS],
+    contracts: &[V2ContractView],
     policy: &V2ContractPolicy,
 ) {
     const CONTEXT_SOURCES: [(usize, usize); 8] = [
@@ -893,10 +938,11 @@ fn bind_v2_contract_execution(
         (noid_tx::body_hash::TX8X2_LEAF_OUTPUT1_OWNER, 1),
         (noid_tx::body_hash::TX8X2_LEAF_FLAGS, 0),
     ];
-    assert!(page_spines.len() >= V2_CONTRACT_SLOTS);
-    assert!(surfaces.len() >= V2_CONTRACT_SLOTS);
+    assert!(page_spines.len() >= contracts.len());
+    assert!(surfaces.len() >= contracts.len());
+    assert_eq!(policy.before_deadlines.len(), contracts.len());
 
-    for slot in 0..V2_CONTRACT_SLOTS {
+    for slot in 0..contracts.len() {
         let slot_start = b.num_wires();
         let surface = &surfaces[slot];
         let contract = &contracts[slot];
@@ -909,33 +955,39 @@ fn bind_v2_contract_execution(
         }
         let after_context = b.num_wires();
 
-        let mut state = contract.current_w.clone();
-        for step in 0..noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS {
-            let opcode = &contract.program_w[step][0];
-            let immediate = &contract.program_w[step][1];
-            let selectors = v2_opcode_selectors(b, opcode);
-            for (selector, difference) in [
-                (&selectors[4], contract.contexts_w[step].add(immediate)),
-                (&selectors[5], state.add(immediate)),
-            ] {
-                let enabled = mul(b, live, selector);
-                let violation = mul(b, &enabled, &difference);
-                pin_zero(b, &violation);
-            }
-
-            let state_times_immediate = mul(b, &state, immediate);
-            let context_select =
-                state.add(&mul(b, &contract.contexts_w[step], &state.add(immediate)));
-            state = mul(b, &selectors[0], &state)
-                .add(&mul(b, &selectors[1], &state.add(immediate)))
-                .add(&mul(b, &selectors[2], &state_times_immediate))
-                .add(&mul(b, &selectors[3], &context_select))
-                .add(&mul(b, &selectors[4].add(&selectors[5]), &state))
-                .add(&mul(b, &selectors[6], &contract.contexts_w[step]))
-                .add(&mul(b, &selectors[7], immediate));
-        }
-        let transition_mismatch = mul(b, live, &state.add(&contract.next_w));
-        pin_zero(b, &transition_mismatch);
+        use noid_tx::body_hash::*;
+        let leaves = &page_spines[slot].leaves;
+        let input = v2_integer_words(b, &leaves[TX8X2_LEAF_INPUT_BASE][1]);
+        let owner0 = v2_integer_words(b, &leaves[TX8X2_LEAF_OUTPUT1_OWNER][0]);
+        let owner1 = v2_integer_words(b, &leaves[TX8X2_LEAF_OUTPUT1_OWNER][1]);
+        let context = super::trace::integer_program::ContextTrace {
+            height: policy.height.clone(),
+            fee: leaves[TX8X2_LEAF_FEE][0].clone(),
+            payout: leaves[TX8X2_LEAF_OUTPUT1_DATA][1].clone(),
+            retained: leaves[TX8X2_LEAF_OUTPUT0_DATA][1].clone(),
+            input_amount: input[0].clone(),
+            before_deadline: policy.before_deadlines[slot].clone(),
+            terminal: surface.terminal.clone(),
+            has_payout: surface.raw_outputs[1].clone(),
+            payout_owner: [
+                owner0[0].clone(),
+                owner0[1].clone(),
+                owner1[0].clone(),
+                owner1[1].clone(),
+            ],
+            input_creation_id: input[1].clone(),
+            input_slot: leaves[TX8X2_LEAF_INPUT_BASE][0].clone(),
+            retained_slot: leaves[TX8X2_LEAF_OUTPUT0_DATA][0].clone(),
+            payout_slot: leaves[TX8X2_LEAF_OUTPUT1_DATA][0].clone(),
+        };
+        super::trace::integer_program::bind_program(
+            b,
+            &contract.program_w,
+            &contract.current_w,
+            &contract.next_w,
+            &context,
+            live,
+        );
         let after_program = b.num_wires();
 
         let expected_recipient: [LinExpr; 2] = std::array::from_fn(|lane| {
@@ -1291,7 +1343,7 @@ fn spine_region_data_from_wires(
         }
     };
     assert!(
-        contracts.len() <= V2_CONTRACT_SLOTS,
+        contracts.len() <= profile.contract_slots(),
         "v2 contract prefix overflow"
     );
     for (slot, contract) in contracts.iter().enumerate() {
@@ -1320,7 +1372,7 @@ fn spine_region_data_from_wires(
             assert_pair(b, hw, h, "spine tx hash");
             let reserved_slot = body_index
                 .checked_sub(1)
-                .filter(|slot| profile.contracts() && *slot <= V2_CONTRACT_SLOTS);
+                .filter(|slot| profile.contracts() && *slot <= profile.contract_slots());
             let contract = reserved_slot.map(|_| {
                 let supplied = body_index
                     .checked_sub(user_body_base)
@@ -1328,7 +1380,7 @@ fn spine_region_data_from_wires(
                 let flat = SpineContractInstanceFlat {
                     program: supplied
                         .map(|contract| contract.program)
-                        .unwrap_or([[Block128::from(0u128); 2]; 8])
+                        .unwrap_or(noid_tx::experimental_object::integer_program::EMPTY_PROGRAM)
                         .map(|fields| fields.map(flat_of)),
                     current: supplied.map_or(F128::ZERO, |contract| flat_of(contract.current)),
                     next: supplied.map_or(F128::ZERO, |contract| flat_of(contract.next)),
@@ -1700,7 +1752,7 @@ fn mint_v2_selected_zk_authorization_capability(
             group.logical_txid[lane].add(&dead.scale(flat_of(ghost_hash[lane])))
         });
         let selected_address = std::array::from_fn(|lane| {
-            let authority = if index < V2_CONTRACT_SLOTS {
+            let authority = if index < policy.expected_authorities.len() {
                 select_expr(
                     b,
                     &surfaces[index].contract,
@@ -2457,6 +2509,7 @@ fn build_selected_zk_block_slots_core(
                 .as_ref()
                 .expect("selected spine region data"),
             &allocation.payout_due,
+            profile.contract_slots(),
         )
     });
     let v2_contract_policy = v2_contract_views
@@ -3426,7 +3479,7 @@ mod object_execution_tests {
 
     fn object() -> ObjectOpening {
         ObjectOpening {
-            program: [[Block128(0); 2]; 8],
+            program: noid_tx::experimental_object::integer_program::EMPTY_PROGRAM,
             state: Block128(7),
             claim_authority: Address([1; 32]),
             recovery_authority: Address([2; 32]),
@@ -3497,7 +3550,8 @@ mod object_execution_tests {
         body.outputs[0].owner = if terminal {
             o.recipient_at(height)
         } else {
-            o.successor(o.execute(&body).unwrap_or(Block128(0))).root()
+            o.successor(o.execute(&body, height).unwrap_or(Block128(0)))
+                .root()
         };
         TxPage { body }
     }
@@ -3505,13 +3559,24 @@ mod object_execution_tests {
     // Isolated execution/policy component. Full source-binding tests separately
     // authenticate these opening wires through the Meta-A object commitment.
     fn trace(o: &ObjectOpening, page: &TxPage, height: u64, bad_next: bool) -> (bool, [u8; 32]) {
+        trace_with_next(o, page, height, bad_next, None)
+    }
+
+    fn trace_with_next(
+        o: &ObjectOpening,
+        page: &TxPage,
+        height: u64,
+        bad_next: bool,
+        next_override: Option<Block128>,
+    ) -> (bool, [u8; 32]) {
+        let native_height = height;
         let mut b = FieldR1csBuilder::new();
         let height = alloc_block(&mut b, Block128(height as u128));
         let height: [Wire; 64] = range_check_bits(&mut b, &height, 64).try_into().unwrap();
         let mut spines = Vec::new();
         let mut surfaces = Vec::new();
         let mut contracts = Vec::new();
-        for index in 0..V2_CONTRACT_SLOTS {
+        for index in 0..1 {
             let active = index == 0;
             let ghost = noid_gkr::ghost_tx::ghost_tx_body();
             let body = if active { &page.body } else { &ghost };
@@ -3523,8 +3588,9 @@ mod object_execution_tests {
             let surface = bind_user_action_surface_for_profile(&mut b, &spine, &tx_live, true);
             let mut field =
                 |value: Block128| alloc_block(&mut b, if active { value } else { Block128(0) });
-            let next =
-                o.execute(body).unwrap_or(Block128(0)) + Block128(u128::from(bad_next && active));
+            let next = next_override
+                .unwrap_or_else(|| o.execute(body, native_height).unwrap_or(Block128(0)))
+                + Block128(u128::from(bad_next && active));
             contracts.push(V2ContractView {
                 live: surface.contract.clone(),
                 terminal: surface.terminal.clone(),
@@ -3542,7 +3608,6 @@ mod object_execution_tests {
             spines.push(spine);
             surfaces.push(surface);
         }
-        let contracts: [_; V2_CONTRACT_SLOTS] = contracts.try_into().ok().unwrap();
         bind_v2_contract_partition(&mut b, &surfaces, &contracts);
         let policy = bind_v2_contract_policy(&mut b, &contracts, &height);
         bind_v2_contract_execution(&mut b, &spines, &surfaces, &contracts, &policy);
@@ -3609,35 +3674,130 @@ mod object_execution_tests {
     }
 
     #[test]
-    fn all_eight_instructions_and_assertion_failures_are_constrained() {
+    fn integer_instructions_and_assertion_failures_are_constrained() {
+        use noid_tx::experimental_object::integer_program::{
+            Instruction, Opcode, Operand, Register,
+        };
         let mut digest = None;
-        for opcode in 0..=8 {
+        for opcode in Opcode::ALL {
             let mut o = object();
-            o.program[2] = [
-                Block128(opcode),
-                Block128(if opcode == 4 {
-                    100
-                } else if opcode == 5 {
-                    7
-                } else {
-                    9
-                }),
-            ];
+            o.program[2] = Instruction::new(
+                opcode,
+                Register::State0,
+                Operand::State0,
+                Operand::Immediate,
+                7,
+            )
+            .to_fields();
             let p = page(&o, 49, false, 100, 9_400, 500);
             let (satisfied, actual) = trace(&o, &p, 49, false);
-            assert_eq!(satisfied, opcode < 8, "opcode={opcode}");
-            assert_eq!(o.check_call(&p, 49).is_ok(), opcode < 8);
+            assert!(satisfied, "opcode={opcode:?}");
+            assert!(o.check_call(&p, 49).is_ok());
             assert!(
                 !trace(&o, &p, 49, true).0,
-                "unbound next state at opcode={opcode}"
+                "unbound next state at opcode={opcode:?}"
             );
             assert!(digest.is_none_or(|previous| previous == actual));
             digest = Some(actual);
-            if opcode == 4 || opcode == 5 {
-                o.program[2][1] += Block128(1);
+            if matches!(opcode, Opcode::AssertEqual | Opcode::AssertLessOrEqual) {
+                o.program[2][1] = Block128(6);
                 let p = page(&o, 49, false, 100, 9_400, 500);
                 assert!(o.check_call(&p, 49).is_err());
                 assert!(!trace(&o, &p, 49, false).0);
+            }
+        }
+        let mut o = object();
+        o.program[2][0] = Block128(15);
+        let p = page(&o, 49, false, 100, 9_400, 500);
+        assert!(!trace(&o, &p, 49, false).0);
+        assert!(o.check_call(&p, 49).is_err());
+    }
+
+    #[test]
+    fn every_integer_body_operand_matches_native_and_height_cannot_be_substituted() {
+        use noid_tx::experimental_object::integer_program::{
+            Instruction, Opcode, Operand, Register,
+        };
+        let mut digest = None;
+        for operand in Operand::ALL {
+            let mut o = object();
+            o.program[0] =
+                Instruction::new(Opcode::Move, Register::State0, operand, Operand::Zero, 19)
+                    .to_fields();
+            let p = page(&o, 49, false, 100, 9_400, 500);
+            let (valid, shape) = trace(&o, &p, 49, false);
+            assert!(valid, "{operand:?}");
+            assert!(digest.is_none_or(|value| value == shape));
+            digest = Some(shape);
+            assert!(!trace(&o, &p, 49, true).0, "unbound result for {operand:?}");
+            if operand == Operand::Height {
+                let forged = o.execute(&p.body, 48).unwrap();
+                assert!(!trace_with_next(&o, &p, 49, false, Some(forged)).0);
+            }
+        }
+    }
+
+    #[test]
+    fn scheduled_templates_share_one_relation_and_enforce_claims_and_recovery() {
+        use noid_tx::experimental_object::{applications::*, integer_program::pack_state};
+        let owner = Address([1; 32]);
+        let mut budget = period_budget_wallet(
+            owner,
+            Address([2; 32]),
+            None,
+            PeriodBudget {
+                start_height: 100,
+                period_blocks: 10,
+                budget: 100,
+                recover_at: 180,
+                max_fee: 5,
+                max_payout: 100,
+                min_retained: 10,
+            },
+        )
+        .unwrap();
+        // A preceding call spent the entire budget; only the reset may restore it.
+        budget.state = pack_state([0, 110]);
+        let recurring = recurring_payment(
+            owner,
+            owner,
+            RecurringPayment {
+                first_due_height: 110,
+                period_blocks: 10,
+                payment: 50,
+                recover_at: 180,
+                max_fee: 5,
+            },
+        )
+        .unwrap();
+        let vesting = tranche_vesting(
+            owner,
+            TrancheVesting {
+                first_unlock_height: 110,
+                period_blocks: 10,
+                tranche_amount: 50,
+                mature_at: 180,
+                max_fee: 5,
+            },
+        )
+        .unwrap();
+        let mut digest = None;
+        for o in [budget, recurring, vesting] {
+            for (height, terminal, payout, valid) in [
+                (99, false, 50, false),
+                (109, false, 50, false),
+                (110, false, 50, true),
+                (179, false, 50, true),
+                (179, true, 0, false),
+                (180, true, 0, true),
+                (180, false, 50, false),
+            ] {
+                let p = page(&o, height, terminal, 5, 9_400, payout);
+                assert_eq!(o.check_call(&p, height).is_ok(), valid);
+                let (satisfied, shape) = trace(&o, &p, height, false);
+                assert_eq!(satisfied, valid, "height={height}, terminal={terminal}");
+                assert!(digest.is_none_or(|value| value == shape));
+                digest = Some(shape);
             }
         }
     }

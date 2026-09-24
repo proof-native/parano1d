@@ -1,14 +1,16 @@
 # v2 contract feasibility research
 
-Status: the measured baseline is one m23 class with 112 user pages and a
+Status: the earlier measured baseline is one m23 class with 112 user pages and a
 384-input block budget. See the [independent-payment measurements](results/2026-09-24-tps/REPORT.md).
+The expanded integer core changes that relation; its capacity requires new measurements.
 A primary m23 class with a manually selected m24 class is under investigation;
 the [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
 separate the repeated verification cost from the unresolved two-class capacity.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
-must be included in the next capacity measurements. Mainnet still selects its
-existing v1 and v1.1 rules. The candidate is not a release selection; no v2
-activation height or target interval is selected.
+must be included in the next capacity measurements. The development branch
+schedules 30-second v2 blocks at H210537, estimated for October 10, 2026 at
+23:59 PDT. Running mainnet remains on its existing v1.1 release. The final
+joint matrix bank and call capacities still require measurement and qualification.
 
 The September 15 integrated prototype established feasibility for an earlier
 object relation; its row counts are historical and do not describe the current

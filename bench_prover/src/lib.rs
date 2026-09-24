@@ -475,7 +475,7 @@ impl TrackedSpendable {
     }
 }
 
-const V2_RESEARCH_PROGRAM_STEPS: usize = 8;
+const V2_RESEARCH_PROGRAM_STEPS: usize = noid_tx::experimental_object::PROGRAM_STEPS;
 const V2_RESEARCH_CODE_DOMAIN: DomainTag = DomainTag::new(b"CNTCODE_");
 const V2_RESEARCH_POLICY_DOMAIN: DomainTag = DomainTag::new(b"CNTPOL__");
 const V2_RESEARCH_OBJECT_DOMAIN: DomainTag = DomainTag::new(b"CNTOBJ__");
@@ -545,7 +545,10 @@ fn v2_object_root(
     policy.absorb_pair(controller[1], refund_authority[0]);
     policy.absorb_pair(refund_authority[1], claim_recipient[0]);
     policy.absorb_pair(claim_recipient[1], refund_recipient[0]);
-    policy.absorb_pair(refund_recipient[1], Block128::from(2u128));
+    policy.absorb_pair(
+        refund_recipient[1],
+        Block128::from(noid_tx::experimental_object::OBJECT_VERSION as u128),
+    );
     let rules = v2_research_rules().fields();
     policy.absorb_pair(rules[0], rules[1]);
     policy.absorb_pair(rules[2], rules[3]);
@@ -556,7 +559,9 @@ fn v2_object_root(
     Address(object.finalize_no_pad())
 }
 
-fn v2_contract_context(body: &TxBody) -> [Block128; V2_RESEARCH_PROGRAM_STEPS] {
+fn v2_contract_context(
+    body: &TxBody,
+) -> [Block128; noid_tx::experimental_object::BODY_CONTEXT_FIELDS] {
     let leaves = body_hash_leaves(body);
     [
         leaves[TX8X2_LEAF_EPOCH_ANCHOR][0],
@@ -571,20 +576,15 @@ fn v2_contract_context(body: &TxBody) -> [Block128; V2_RESEARCH_PROGRAM_STEPS] {
 }
 
 fn v2_execute_program(
-    mut state: Block128,
+    state: Block128,
     program: &[[Block128; 2]; V2_RESEARCH_PROGRAM_STEPS],
-    contexts: &[Block128; V2_RESEARCH_PROGRAM_STEPS],
+    body: &TxBody,
+    height: u64,
+    deadline: u64,
 ) -> Block128 {
-    for (step, instruction) in program.iter().enumerate() {
-        state = match instruction[0].to_u128() {
-            0 => state,
-            1 => state + instruction[1],
-            2 => state * instruction[1],
-            3 => state + contexts[step] * (state + instruction[1]),
-            opcode => panic!("non-canonical research opcode {opcode}"),
-        };
-    }
-    state
+    use noid_tx::experimental_object::integer_program::{execute, Context};
+    execute(program, state, Context::from_body(body, height, deadline))
+        .expect("valid integer research program")
 }
 
 fn v2_research_object(seed: u128, index: usize, parent_height: u64) -> V2ResearchObject {
@@ -593,14 +593,29 @@ fn v2_research_object(seed: u128, index: usize, parent_height: u64) -> V2Researc
     let refund_authority_seed = seed.wrapping_add(0xBEF0_0000).wrapping_add(index as u128);
     let refund_authority = derive_address(&mk_secret(refund_authority_seed)).as_fields();
     let program = std::array::from_fn(|step| {
-        [
-            Block128::from(((step + index) % 4) as u128),
-            Block128::from(
-                seed.wrapping_add(0xA000_0000)
-                    .wrapping_add((index as u128) << 8)
-                    .wrapping_add(step as u128 + 1),
+        use noid_tx::experimental_object::integer_program::{
+            Instruction, Opcode as Op, Operand as Arg, Register as Reg,
+        };
+        let immediate = seed
+            .wrapping_add(0xA000_0000)
+            .wrapping_add((index as u128) << 8)
+            .wrapping_add(step as u128 + 1) as u64
+            & ((1u64 << 48) - 1);
+        match step % 6 {
+            0 => Instruction::new(Op::Move, Reg::State0, Arg::Immediate, Arg::Zero, immediate),
+            1 => Instruction::new(Op::Add, Reg::State0, Arg::State0, Arg::One, 0),
+            2 => Instruction::new(Op::Move, Reg::State1, Arg::Height, Arg::Zero, 0),
+            3 => Instruction::new(Op::Max, Reg::State0, Arg::State0, Arg::Payout, 0),
+            4 => Instruction::new(
+                Op::Equal,
+                Reg::Scratch0,
+                Arg::State0,
+                Arg::Immediate,
+                immediate,
             ),
-        ]
+            _ => Instruction::new(Op::Min, Reg::State1, Arg::State1, Arg::InputAmount, 0),
+        }
+        .to_fields()
     });
     let current = Block128::from(
         seed.wrapping_add(0x5700_0000)
@@ -1065,7 +1080,13 @@ impl HonestHistoryStepFixtureProvider {
                     .checked_sub(body.fee)
                     .ok_or_else(|| "research object does not cover its fee".to_owned())?;
                 let contexts = v2_contract_context(&body);
-                let next = v2_execute_program(object.current, &object.program, &contexts);
+                let next = v2_execute_program(
+                    object.current,
+                    &object.program,
+                    &body,
+                    checkpoint.parent_header.height + 1,
+                    object.deadline,
+                );
                 let before_deadline = checkpoint.parent_header.height + 1 < object.deadline;
                 body.outputs[0].owner = if terminal {
                     v2_address(if before_deadline {
@@ -1110,7 +1131,7 @@ impl HonestHistoryStepFixtureProvider {
                 if tx_index == 0 {
                     match mutation {
                         V2ResearchMutation::InvalidOpcodeOpening => {
-                            component.program[0][0] = Block128::from(8u128);
+                            component.program[0][0] = Block128::from(15u128);
                         }
                         V2ResearchMutation::WrongNextOpening => {
                             component.next += Block128::from(1u128);

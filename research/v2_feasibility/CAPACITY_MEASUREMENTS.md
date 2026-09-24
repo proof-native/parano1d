@@ -1,9 +1,10 @@
 # Scheduled single-class measurements
 
-The measured baseline is one m23 class with 112 user pages and a
+The earlier measured baseline is one m23 class with 112 user pages and a
 384-input block budget after the v2 boundary. The existing B25/B255 bank
-remains responsible for blocks before that boundary. Target interval and
-activation height have not been selected; this is not a release-qualified bank.
+remains responsible for blocks before that boundary. The expanded integer
+core and larger call envelopes require new measurements. The development
+schedule now selects 30 seconds; this is not a release-qualified bank.
 The [September 24 measurements](results/2026-09-24/REPORT.md) contain actual
 matrix bounds, proofs after both legacy classes and constrained receiver runs.
 The [96-page input-budget investigation](results/2026-09-24-input-budget/REPORT.md)
@@ -57,26 +58,34 @@ body position, so rounding only the user-page count gives an incorrect domain.
 Use `--payments-only` to fund distinct owners and alternate two-payment and
 full-payment blocks, each transaction with one input and two outputs. The first
 full block also rebuilds and checks the complete frozen matrix; the sequence
-ends with an empty recursive successor. For the current candidate:
+ends with an empty recursive successor. An example candidate probe is:
 
 ```sh
 RAYON_NUM_THREADS=12 target/release/noid_v2_capacity \
   /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
   /path/to/verified-legacy-fixtures /path/to/NEW-output \
-  23 112 30 3 --payments-only --inputs=384
+  23 96 30 3 --payments-only --inputs=384 --calls=32
 ```
 
-The 30-second interval in this command is a fixture parameter. This mode retains
+The command is a measurement request, not a claim that this shape fits. This mode retains
 the contract core in the matrix but does not generate live contract calls.
 It reports independent wallet-proof creation separately from miner construction.
 The three execution modes are mutually exclusive.
 
 The sequence begins with an empty fork block, then creates spendable notes
-and sixteen contract objects through ordinary authorized transactions. Each
+and the configured number of contract objects through ordinary authorized transactions. Each
 sample contains an empty block, a four-page ordinary block, and full blocks
-with zero, one, four and sixteen contract calls. Ordinary measurement payments
+with zero, one, four and the configured maximum number of contract calls. Ordinary measurement payments
 use one input and one output. Contract calls retain a successor and exercise
-all eight instructions. This is not a maximum-input or maximum-segment test.
+the sixteen-step integer program, including arithmetic, assertions and height.
+This is not a maximum-input or maximum-segment test.
+
+`--calls=N` chooses the fixed call envelope; the default of sixteen only keeps
+the baseline invocation convenient. Measure 32 and a full envelope such as
+`--calls=96` for a 96-page candidate. Every reserved slot contributes to the
+relation even when the block is empty. The limit and object ABI version are
+committed by the bank identity. The new `O1V2PT04` recipe rejects previous
+experimental core recipes; the legacy runtime codec is unchanged.
 
 An additional explicit research profile uses 96 pages with a block-wide
 384-input budget, while preserving up to eight inputs per page:
@@ -90,8 +99,7 @@ RAYON_NUM_THREADS=12 /usr/bin/time -v target/release/noid_v2_capacity \
 
 Its input budget is part of the authenticated bank identity and the versioned
 compact recipe. The native preparation boundary and the R1CS integer input
-sum enforce it independently. Legacy rules and earlier candidate recipes
-retain their original capacities.
+sum enforce it independently. Legacy rules retain their original capacities.
 
 After the ordinary samples, this profile creates real notes across the
 fixture's 256 segments and measures blocks with 384 inputs: 96 pages with

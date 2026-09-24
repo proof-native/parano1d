@@ -111,7 +111,10 @@ pub struct AuthorizationComponentInput {
     pub public: noid_gkr::OwnerAuthPublicInputs,
 }
 
-pub const V2_CONTRACT_PROGRAM_STEPS: usize = 8;
+pub const V2_CONTRACT_PROGRAM_STEPS: usize = noid_tx::experimental_object::PROGRAM_STEPS;
+const _: () = assert!(
+    V2_CONTRACT_PROGRAM_STEPS == noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS
+);
 pub const V2_CONTRACT_SLOTS: usize = 16;
 
 /// Research-only contract opening associated with one physical user body.
@@ -123,7 +126,7 @@ pub struct V2ContractComponentInput {
     pub live: bool,
     pub program: [[noid_core::Block128; 2]; V2_CONTRACT_PROGRAM_STEPS],
     pub current: noid_core::Block128,
-    pub contexts: [noid_core::Block128; V2_CONTRACT_PROGRAM_STEPS],
+    pub contexts: [noid_core::Block128; noid_tx::experimental_object::BODY_CONTEXT_FIELDS],
     pub next: noid_core::Block128,
     /// Claim authority used before the deadline.
     pub controller: [noid_core::Block128; 2],
@@ -343,6 +346,9 @@ impl<const TIER: usize> HistoryStepBlockInput<TIER> {
             || components.effective_page_count() > TIER
         {
             return Err(HistoryStepInputError::NonCanonicalTier { tier: TIER });
+        }
+        if components.v2_contract_inputs.len() > config.contract_slots() {
+            return Err(HistoryStepInputError::ComponentShape);
         }
         Self::try_new_inner(
             start_accumulator,

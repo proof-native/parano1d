@@ -247,6 +247,21 @@ pub fn freeze<const PAGES: usize>(
     {
         return Err("runtime recipe round trip".into());
     }
+    // Call limits must not be replaced while retaining the trusted bank pin,
+    // even when the surrounding column geometry has the same padded extent.
+    for calls in [0u64, 1, 16, 32, PAGES as u64, PAGES as u64 + 1, u64::MAX] {
+        if calls == config.contract_slots() as u64 {
+            continue;
+        }
+        let mut changed = encoded.clone();
+        changed[56..64].copy_from_slice(&calls.to_le_bytes());
+        if let Ok(other) = v2::V2RuntimeParts::decode_compact(&changed) {
+            let other_bank = v2::V2Bank::pin(runtime.bank().matrix_digest(), &other);
+            if other_bank.digest() == runtime.bank().digest() {
+                return Err("altered contract limit retained the original bank identity".into());
+            }
+        }
+    }
     if config.max_live_inputs() != noid_chain::consensus::params::block_class_spend_capacity(PAGES)
     {
         let mut decode_rejected = 0;
@@ -295,7 +310,7 @@ pub fn freeze<const PAGES: usize>(
     }
     std::fs::write(settings.output.join("candidate.parts"), encoded).map_err(err)?;
     let manifest = json!({"status":"research; no release parameters selected", "m":config.outer_m(),
-        "pages":PAGES, "max_live_inputs":config.max_live_inputs(),
+        "pages":PAGES, "max_live_inputs":config.max_live_inputs(), "contract_slots":config.contract_slots(),
         "block_seconds":config.block_time(), "activation":config.activation_height(),
         "legacy_v1_1_activation":config.schedule().v1_1_height(), "useful_rows":rows,
         "legacy_metadata":hex::encode(settings.pin), "legacy_fixture_directory":settings.fixtures,

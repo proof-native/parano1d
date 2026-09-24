@@ -304,21 +304,31 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
         return payments::measure::<PAGES>(&mut run, &mut chain);
     }
 
+    use noid_tx::experimental_object::integer_program::{
+        Instruction, Opcode::*, Operand as O, Register as R, EMPTY_PROGRAM,
+    };
+    let mut program = EMPTY_PROGRAM;
+    // Exercise checked arithmetic, authenticated height, scratch state and
+    // assertions. Every reserved instruction is still present in the relation.
+    for (step, instruction) in [
+        Instruction::new(Move, R::State0, O::Immediate, O::Zero, 5),
+        Instruction::new(Add, R::State0, O::State0, O::Immediate, 2),
+        Instruction::new(Subtract, R::Scratch0, O::State0, O::One, 0),
+        Instruction::new(Min, R::Scratch0, O::Scratch0, O::Immediate, 6),
+        Instruction::new(Max, R::Scratch0, O::Scratch0, O::One, 0),
+        Instruction::new(LessThan, R::Scratch1, O::Scratch0, O::State0, 0),
+        Instruction::new(Equal, R::Scratch1, O::Scratch1, O::One, 0),
+        Instruction::new(AssertEqual, R::State0, O::State0, O::Immediate, 7),
+        Instruction::new(AssertLessOrEqual, R::State0, O::Scratch0, O::State0, 0),
+        Instruction::new(Move, R::State1, O::Height, O::Zero, 0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        program[step] = instruction.to_fields();
+    }
     let opening = ObjectOpening {
-        // Exercise all eight opcodes in every live call. Loading 5 then
-        // adding 2 gives 7 in the binary field; the context update has a
-        // zero multiplier and the payment-amount assertion requires zero.
-        program: [
-            (6, 0),
-            (7, 5),
-            (1, 2),
-            (3, 7),
-            (4, 0),
-            (5, 7),
-            (2, 1),
-            (0, 0),
-        ]
-        .map(|(opcode, immediate)| [Block128(opcode), Block128(immediate)]),
+        program,
         state: Block128(3),
         claim_authority: address(2),
         recovery_authority: address(3),
@@ -333,8 +343,12 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
         },
     };
     let mut ordinary = chain.ordinary_slots();
-    while ordinary.len() < PAGES + 16 {
-        let count = ordinary.len().min(PAGES).min(PAGES + 16 - ordinary.len());
+    let call_capacity = run.settings.config.contract_slots();
+    while ordinary.len() < PAGES + call_capacity {
+        let count = ordinary
+            .len()
+            .min(PAGES)
+            .min(PAGES + call_capacity - ordinary.len());
         if count == 0 {
             return Err("legacy fixture has no ordinary funding notes".into());
         }
@@ -367,7 +381,7 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
     }
     let mut batch = Batch::default();
     let mut objects = Vec::new();
-    for source in ordinary.drain(..16) {
+    for source in ordinary.drain(..call_capacity) {
         let [slot] = chain.empty_slots()?;
         let amount = chain
             .input_slot(source)?
@@ -392,14 +406,14 @@ pub fn measure<const PAGES: usize>(settings: Settings) -> Result<()> {
     run.block::<PAGES>(&mut chain, "fund_objects", batch)?;
     for sample in 0..run.settings.samples {
         // Empty, light, fully filled and mixed cases all use the same pinned
-        // complete recursive relation, including the sixteen object slots.
+        // complete recursive relation, including the configured call envelope.
         for (pages, calls) in [
             (0, 0),
             (4, 0),
             (PAGES, 0),
-            (PAGES, 1),
-            (PAGES, 4),
-            (PAGES, 16),
+            (PAGES, 1.min(call_capacity)),
+            (PAGES, 4.min(call_capacity)),
+            (PAGES, call_capacity),
         ] {
             let mut batch = Batch::default();
             for object in objects.iter_mut().take(calls) {
@@ -476,7 +490,9 @@ impl Run {
         let audit_full_payments = self.settings.payments_only
             && label.starts_with("payment_sample_")
             && batch.pages.len() == PAGES;
-        if (batch.openings.len() == 16 || audit_full_payments) && !self.checked_recursive_matrix {
+        if (batch.openings.len() == self.settings.config.contract_slots() || audit_full_payments)
+            && !self.checked_recursive_matrix
+        {
             let start = Instant::now();
             let frozen = v2::assemble_frozen(
                 &self.runtime,
@@ -556,6 +572,7 @@ impl Run {
         let apply_ms = elapsed(start);
         let record = json!({"label":label, "height":block.header.height,"m":self.settings.config.outer_m(),
             "capacity":PAGES,"max_live_inputs":self.settings.config.max_live_inputs(),
+            "contract_slots":self.settings.config.contract_slots(),
             "wire_budget":wire_budget(&self.runtime, block.to_bytes().len(), bytes.len())?,
             "wallet_authorization_proof_bytes_total":authorization_proof_bytes.iter().sum::<usize>(),
             "wallet_authorization_proof_bytes_max":authorization_proof_bytes.iter().copied().max(),
@@ -724,7 +741,7 @@ impl Batch {
                 false,
             )
             .map_err(err)?;
-        let next = opening.successor(opening.execute(&page.body).map_err(err)?);
+        let next = opening.successor(opening.execute(&page.body, height).map_err(err)?);
         self.pages.push(page);
         self.openings.push(opening.clone());
         Ok(next)

@@ -9,7 +9,6 @@ use noid_gkr::zk_authorization::ZkAuthorizationProof;
 use noid_recursive::{
     acceptance::history_step::{prepare_candidate_authorizations, v2::V2Config},
     HistoryStepBlockInput, PreparedHistoryStepGhostAuthorization, V2ContractComponentInput,
-    V2_CONTRACT_SLOTS,
 };
 use noid_tx::{experimental_object::ObjectOpening, TxPage, PAGED_SPEND_V2_CONTRACT_MASK};
 
@@ -27,7 +26,7 @@ pub fn prepare_candidate_input<const PAGES: usize>(
 ) -> Result<HistoryStepBlockInput<PAGES>, HistoryStepWitnessError> {
     if PAGES != config.pages()
         || block.header.height < config.activation_height()
-        || openings.len() > V2_CONTRACT_SLOTS
+        || openings.len() > config.contract_slots()
     {
         return Err(HistoryStepWitnessError::V2ContractShape);
     }

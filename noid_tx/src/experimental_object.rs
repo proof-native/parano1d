@@ -2,10 +2,11 @@
 // Copyright (C) 2026 Paranoid Zero.
 
 //! Unfrozen v2 object carrier for isolated experiments. These types do not
-//! activate a network rule. Commitments and execution match the existing
-//! eight-step HistoryStep relation, including its fixed per-step contexts.
+//! activate a network rule. Commitments and execution match the bounded
+//! integer HistoryStep relation and its authenticated transaction context.
 
 pub mod applications;
+pub mod integer_program;
 pub mod policy;
 pub use policy::ObjectRules;
 
@@ -19,10 +20,13 @@ use crate::{
     PAGED_SPEND_START_BIT, PAGED_SPEND_TERMINAL_BIT, TX_BODY_WIRE_SIZE, TX_INPUTS, TX_OUTPUTS,
 };
 
-pub const PROGRAM_STEPS: usize = 8;
+pub const PROGRAM_STEPS: usize = integer_program::PROGRAM_STEPS;
+/// Raw body fields carried by the component witness and bound to its spine.
+/// This count is independent of the number of program instructions.
+pub const BODY_CONTEXT_FIELDS: usize = 8;
 pub const CONTRACT_SLOTS: usize = 16;
-pub const OBJECT_VERSION: u16 = 2;
-const OPENING_MAGIC: &[u8; 8] = b"NOIDOBJ2";
+pub const OBJECT_VERSION: u16 = 3;
+const OPENING_MAGIC: &[u8; 8] = b"NOIDOBJ3";
 pub const INTENT_MAGIC: &[u8; 8] = b"NOIDV2TX";
 pub const OPENING_BYTES: usize = 8 + 2 + PROGRAM_STEPS * 32 + 16 + 4 * 32 + 8 + policy::RULE_BYTES;
 pub const INTENT_PREFIX_BYTES: usize = INTENT_MAGIC.len() + OPENING_BYTES;
@@ -43,7 +47,7 @@ pub enum ObjectError {
     FeeLimit,
     ReserveLimit,
     PayoutLimit,
-    Assertion { step: usize },
+    Program(integer_program::ProgramError),
     Page(String),
 }
 
@@ -71,7 +75,7 @@ pub struct ObjectOpening {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckedTransition {
     pub next: Block128,
-    pub contexts: [Block128; PROGRAM_STEPS],
+    pub contexts: [Block128; BODY_CONTEXT_FIELDS],
     pub authority: Address,
     pub terminal: bool,
 }
@@ -80,7 +84,7 @@ impl ObjectOpening {
     pub fn validate(&self) -> Result<(), ObjectError> {
         self.rules.validate()?;
         for (step, instruction) in self.program.iter().enumerate() {
-            if instruction[0].0 > 7 {
+            if integer_program::Instruction::from_fields(*instruction).is_none() {
                 return Err(ObjectError::Opcode { step });
             }
         }
@@ -145,34 +149,14 @@ impl ObjectOpening {
         }
     }
 
-    pub fn execute(&self, body: &TxBody) -> Result<Block128, ObjectError> {
+    pub fn execute(&self, body: &TxBody, height: u64) -> Result<Block128, ObjectError> {
         self.validate()?;
-        let contexts = transaction_contexts(body);
-        let mut state = self.state;
-        for (step, [opcode, immediate]) in self.program.iter().copied().enumerate() {
-            state = match opcode.0 {
-                0 => state,
-                1 => state + immediate,
-                2 => state * immediate,
-                3 => state + contexts[step] * (state + immediate),
-                4 => {
-                    if contexts[step] != immediate {
-                        return Err(ObjectError::Assertion { step });
-                    }
-                    state
-                }
-                5 => {
-                    if state != immediate {
-                        return Err(ObjectError::Assertion { step });
-                    }
-                    state
-                }
-                6 => contexts[step],
-                7 => immediate,
-                _ => unreachable!("validated opcode"),
-            };
-        }
-        Ok(state)
+        integer_program::execute(
+            &self.program,
+            self.state,
+            integer_program::Context::from_body(body, height, self.deadline),
+        )
+        .map_err(ObjectError::Program)
     }
 
     /// Native preflight; the enclosing HistoryStep still proves every binding.
@@ -220,7 +204,7 @@ impl ObjectOpening {
                 return Err(ObjectError::Recipient);
             }
         }
-        let next = self.execute(body)?;
+        let next = self.execute(body, height)?;
         if terminal {
             if body.outputs[0].owner != self.recipient_at(height) {
                 return Err(ObjectError::Recipient);
@@ -331,7 +315,7 @@ impl ObjectOpening {
         body.outputs[0].owner = if terminal {
             self.recipient_at(height)
         } else {
-            self.successor(self.execute(&body)?).root()
+            self.successor(self.execute(&body, height)?).root()
         };
         let page = TxPage::new(body).map_err(|e| ObjectError::Page(e.to_string()))?;
         self.check_call(&page, height)?;
@@ -407,7 +391,7 @@ impl ObjectOpening {
     }
 }
 
-pub fn transaction_contexts(body: &TxBody) -> [Block128; PROGRAM_STEPS] {
+pub fn transaction_contexts(body: &TxBody) -> [Block128; BODY_CONTEXT_FIELDS] {
     let leaves = body_hash_leaves(body);
     [
         leaves[TX8X2_LEAF_EPOCH_ANCHOR][0],

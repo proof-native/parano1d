@@ -1,12 +1,28 @@
+use integer_program::{Instruction, Opcode, Operand, ProgramError, Register, EMPTY_PROGRAM};
 use noid_core::Block128;
 use noid_poseidon2b::primitives::Address;
 use noid_tx::{experimental_object::*, *};
 
 fn opening() -> ObjectOpening {
+    let mut program = EMPTY_PROGRAM;
+    program[0] = Instruction::new(
+        Opcode::Move,
+        Register::State0,
+        Operand::Retained,
+        Operand::Zero,
+        0,
+    )
+    .to_fields();
+    program[1] = Instruction::new(
+        Opcode::Add,
+        Register::State1,
+        Operand::State1,
+        Operand::Height,
+        0,
+    )
+    .to_fields();
     ObjectOpening {
-        program: std::array::from_fn(|step| {
-            [Block128((step % 4) as u128), Block128(step as u128 + 7)]
-        }),
+        program,
         state: Block128(11),
         claim_authority: Address([1; 32]),
         recovery_authority: Address([2; 32]),
@@ -43,19 +59,19 @@ fn call(object: &ObjectOpening, height: u64, terminal: bool) -> TxPage {
 fn fixed_wire_roundtrip_and_every_truncation() {
     let object = opening();
     let bytes = object.to_bytes().unwrap();
-    assert_eq!(bytes.len(), 443);
+    assert_eq!(bytes.len(), 699);
     assert_eq!(ObjectOpening::from_bytes(&bytes), Ok(object.clone()));
     for cut in 0..bytes.len() {
         assert!(ObjectOpening::from_bytes(&bytes[..cut]).is_err());
     }
     let mut over = bytes.to_vec();
-    over.extend_from_slice(&[0; 32]); // ninth instruction / extension is not canonical
+    over.extend_from_slice(&[0; 32]); // seventeenth instruction is not canonical
     assert!(ObjectOpening::from_bytes(&over).is_err());
     let mut bad = bytes;
-    bad[8] = 3;
+    bad[8] = 4;
     assert_eq!(ObjectOpening::from_bytes(&bad), Err(ObjectError::Version));
     let mut bad = bytes;
-    bad[10] = 8;
+    bad[10] = 15;
     assert_eq!(
         ObjectOpening::from_bytes(&bad),
         Err(ObjectError::Opcode { step: 0 })
@@ -66,7 +82,7 @@ fn fixed_wire_roundtrip_and_every_truncation() {
         spend: PagedSpendIntent::new(vec![call(&object, 9, false)], vec![5; 20]).unwrap(),
     };
     let bytes = intent.to_bytes().unwrap();
-    assert_eq!(bytes.len(), 781 + 20);
+    assert_eq!(bytes.len(), 1037 + 20);
     assert_eq!(ObjectIntent::from_bytes(&bytes), Ok(intent));
     for cut in 0..bytes.len() {
         assert!(ObjectIntent::from_bytes(&bytes[..cut]).is_err());
@@ -128,7 +144,7 @@ fn invalid_program_predecessor_successor_context_and_effects_reject() {
     wrong.program[0][1] = Block128(999);
     assert_eq!(wrong.check_call(&honest, 9), Err(ObjectError::OldObject));
     wrong = object.clone();
-    wrong.program[0][0] = Block128(8);
+    wrong.program[0][0] = Block128(15);
     assert!(matches!(
         wrong.check_call(&honest, 9),
         Err(ObjectError::Opcode { .. })
@@ -140,7 +156,7 @@ fn invalid_program_predecessor_successor_context_and_effects_reject() {
     let mut bad = honest.clone();
     bad.body.outputs[0].owner.0[0] ^= 1;
     assert_eq!(object.check_call(&bad, 9), Err(ObjectError::Successor));
-    // Change the step-3 amount context while preserving ordinary balance.
+    // Change the authenticated retained amount while preserving ordinary balance.
     let mut bad = honest.clone();
     bad.body.outputs[0].amount -= 1;
     bad.body.fee += 1;
@@ -176,31 +192,78 @@ fn ordinary_body_and_capsule_carrier_stay_distinct() {
 }
 
 #[test]
-fn assertion_and_load_opcodes_use_the_committed_transaction_contexts() {
+fn program_uses_actual_height_amount_and_recipient_contexts() {
     let mut object = opening();
-    object.program = [[Block128(0); 2]; PROGRAM_STEPS];
+    object.program = EMPTY_PROGRAM;
     let page = call(&object, 9, false);
-    let contexts = transaction_contexts(&page.body);
-    // Load a transaction field, check it, load an immediate, check that state,
-    // then require the actual payment amount and load its recipient field.
-    object.program[0] = [Block128(6), Block128(0)];
-    object.program[1] = [Block128(5), contexts[0]];
-    object.program[2] = [Block128(7), Block128(123)];
-    object.program[3] = [Block128(5), Block128(123)];
-    object.program[4] = [Block128(4), contexts[4]];
-    object.program[5] = [Block128(6), Block128(0)];
-    assert_eq!(object.execute(&page.body), Ok(contexts[5]));
+    for (step, instruction) in [
+        Instruction::new(
+            Opcode::Move,
+            Register::State0,
+            Operand::Height,
+            Operand::Zero,
+            0,
+        ),
+        Instruction::new(
+            Opcode::AssertEqual,
+            Register::State0,
+            Operand::State0,
+            Operand::Immediate,
+            9,
+        ),
+        Instruction::new(
+            Opcode::Move,
+            Register::State1,
+            Operand::Immediate,
+            Operand::Zero,
+            123,
+        ),
+        Instruction::new(
+            Opcode::AssertEqual,
+            Register::State0,
+            Operand::State1,
+            Operand::Immediate,
+            123,
+        ),
+        Instruction::new(
+            Opcode::AssertEqual,
+            Register::State0,
+            Operand::Payout,
+            Operand::Zero,
+            0,
+        ),
+        Instruction::new(
+            Opcode::Move,
+            Register::State1,
+            Operand::PayoutOwner0,
+            Operand::Zero,
+            0,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        object.program[step] = instruction.to_fields();
+    }
+    assert_eq!(
+        object.execute(&page.body, 9),
+        Ok(integer_program::pack_state([9, 0]))
+    );
+    assert_eq!(
+        object.execute(&page.body, 10),
+        Err(ObjectError::Program(ProgramError::Assertion { step: 1 }))
+    );
     let mut wrong = object.clone();
     wrong.program[3][1] = Block128(124);
     assert_eq!(
-        wrong.execute(&page.body),
-        Err(ObjectError::Assertion { step: 3 })
+        wrong.execute(&page.body, 9),
+        Err(ObjectError::Program(ProgramError::Assertion { step: 3 }))
     );
     let mut wrong_body = page.body;
     wrong_body.outputs[1].amount ^= 1;
     assert_eq!(
-        object.execute(&wrong_body),
-        Err(ObjectError::Assertion { step: 4 })
+        object.execute(&wrong_body, 9),
+        Err(ObjectError::Program(ProgramError::Assertion { step: 4 }))
     );
     object.rules.modes |= 128;
     assert_eq!(object.validate(), Err(ObjectError::Policy));

@@ -25,12 +25,13 @@ fn run() -> Result<()> {
     {
         return verify_saved(&args[1..], args[0] == "verify-state");
     }
-    if !(8..=10).contains(&args.len())
+    if !(8..=11).contains(&args.len())
         || args.iter().skip(8).any(|s| {
             s != "--freeze-only"
                 && s != "--transition-only"
                 && s != "--payments-only"
                 && !s.starts_with("--inputs=")
+                && !s.starts_with("--calls=")
         })
         || args
             .iter()
@@ -41,11 +42,17 @@ fn run() -> Result<()> {
         || args
             .iter()
             .skip(8)
-            .filter(|s| !s.starts_with("--inputs="))
+            .filter(|s| s.starts_with("--calls="))
+            .count()
+            > 1
+        || args
+            .iter()
+            .skip(8)
+            .filter(|s| !s.starts_with("--inputs=") && !s.starts_with("--calls="))
             .count()
             > 1
     {
-        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only|--payments-only] [--inputs=N]".into());
+        return Err("usage: noid_v2_capacity PACK_ROOT METADATA_PIN LEGACY_FIXTURES NEW_OUTPUT M PAGES SECONDS SAMPLES [--freeze-only|--transition-only|--payments-only] [--inputs=N] [--calls=N]".into());
     }
     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
         return Err("this fixture requires noid_chain/isolated-v1-1-testnet; the mainnet decoder is intentionally unchanged".into());
@@ -72,6 +79,16 @@ fn run() -> Result<()> {
         config =
             V2Config::with_input_budget(m, pages, inputs.parse().map_err(err)?, config.schedule())
                 .map_err(err)?;
+    }
+    if let Some(calls) = args.iter().skip(8).find_map(|s| s.strip_prefix("--calls=")) {
+        config = V2Config::with_limits(
+            m,
+            pages,
+            config.max_live_inputs(),
+            calls.parse().map_err(err)?,
+            config.schedule(),
+        )
+        .map_err(err)?;
     }
     let pin: [u8; 32] = hex::decode(&args[1])
         .map_err(err)?

@@ -39,18 +39,20 @@ pub const SPINE_TREE_KID_LEAF_BASE: usize = SPINE_TREE_LEAVES;
 pub const SPINE_WRAP_SLOTS: usize = 1;
 /// The construction-specific wrap and the fixed v2 feasibility tail share one
 /// thirty-two-slot sponge family. Slot zero is the existing Tx8x2 wrap. Slots
-/// one through twenty authenticate an eight-instruction program, its timed
+/// one through twenty-eight authenticate a sixteen-instruction program, its timed
 /// authority policy, and the old and successor object records. The remaining
 /// slots stay canonical padding. Together with the 32-slot body tree this
 /// still occupies the existing 64-slot Meta-A allocation per transaction.
 pub const SPINE_V2_WRAP_SLOTS: usize = 32;
 pub const SPINE_WRAP_SLOT: usize = 0;
-pub const SPINE_CONTRACT_PROGRAM_STEPS: usize = 8;
+pub const SPINE_CONTRACT_PROGRAM_STEPS: usize = 16;
 pub const SPINE_CONTRACT_CODE_BASE: usize = 1;
-pub const SPINE_CONTRACT_POLICY_BASE: usize = 9;
-pub const SPINE_CONTRACT_OLD_OBJECT_BASE: usize = 17;
-pub const SPINE_CONTRACT_NEW_OBJECT_BASE: usize = 19;
-pub const SPINE_CONTRACT_END: usize = 21;
+pub const SPINE_CONTRACT_POLICY_BASE: usize =
+    SPINE_CONTRACT_CODE_BASE + SPINE_CONTRACT_PROGRAM_STEPS;
+pub const SPINE_CONTRACT_OLD_OBJECT_BASE: usize = SPINE_CONTRACT_POLICY_BASE + 8;
+pub const SPINE_CONTRACT_NEW_OBJECT_BASE: usize = SPINE_CONTRACT_OLD_OBJECT_BASE + 2;
+pub const SPINE_CONTRACT_END: usize = SPINE_CONTRACT_NEW_OBJECT_BASE + 2;
+const _: () = assert!(SPINE_CONTRACT_END <= SPINE_V2_WRAP_SLOTS);
 
 pub const SPINE_CONTRACT_CODE_DOMAIN: DomainTag = DomainTag::new(b"CNTCODE_");
 pub const SPINE_CONTRACT_POLICY_DOMAIN: DomainTag = DomainTag::new(b"CNTPOL__");
@@ -58,7 +60,7 @@ pub const SPINE_CONTRACT_OBJECT_DOMAIN: DomainTag = DomainTag::new(b"CNTOBJ__");
 
 /// Canonical object-format version expressed in the flat circuit basis.
 pub fn spine_contract_object_version_flat() -> F128 {
-    flat_of_tower_u128(2)
+    flat_of_tower_u128(3)
 }
 
 fn iv_flat(tag: noid_poseidon2b::native::domain::DomainTag) -> [F128; 2] {

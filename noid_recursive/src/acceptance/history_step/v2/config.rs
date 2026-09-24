@@ -9,6 +9,7 @@ pub struct V2Config {
     outer_m: usize,
     pages: usize,
     max_live_inputs: usize,
+    contract_slots: usize,
     schedule: ForkSchedule,
 }
 
@@ -32,12 +33,32 @@ impl V2Config {
         max_live_inputs: usize,
         schedule: ForkSchedule,
     ) -> Result<Self, V2Error> {
+        Self::with_limits(
+            outer_m,
+            pages,
+            max_live_inputs,
+            super::super::V2_CONTRACT_SLOTS,
+            schedule,
+        )
+    }
+
+    /// All capacity limits belong to the proof-bank identity, never to the
+    /// witness. This permits measuring larger call envelopes before freezing.
+    pub fn with_limits(
+        outer_m: usize,
+        pages: usize,
+        max_live_inputs: usize,
+        contract_slots: usize,
+        schedule: ForkSchedule,
+    ) -> Result<Self, V2Error> {
         let activation = schedule.v2().ok_or(V2Error::Boundary)?;
         if !(23..=25).contains(&outer_m)
             || crate::region_sidecar::selected_zk_block_geometry_with_inputs(pages, max_live_inputs)
                 .is_none()
             || activation.height() <= 1
             || 86_400 % activation.block_time() != 0
+            || contract_slots == 0
+            || contract_slots > pages
         {
             return Err(V2Error::Runtime);
         }
@@ -45,6 +66,7 @@ impl V2Config {
             outer_m,
             pages,
             max_live_inputs,
+            contract_slots,
             schedule,
         })
     }
@@ -58,16 +80,15 @@ impl V2Config {
     pub fn max_live_inputs(self) -> usize {
         self.max_live_inputs
     }
+    pub fn contract_slots(self) -> usize {
+        self.contract_slots
+    }
     pub(crate) fn block_geometry(self) -> crate::region_sidecar::SelectedZkBlockGeometry {
         crate::region_sidecar::selected_zk_block_geometry_with_inputs(
             self.pages,
             self.max_live_inputs,
         )
         .expect("checked candidate geometry")
-    }
-    pub(crate) fn has_bounded_inputs(self) -> bool {
-        self.max_live_inputs
-            != noid_chain::consensus::params::block_class_spend_capacity(self.pages)
     }
     pub fn schedule(self) -> ForkSchedule {
         self.schedule
@@ -119,22 +140,19 @@ impl V2Config {
         }
     }
     pub(super) fn identity_bytes(self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = [
+        [
             self.outer_m as u64,
             self.pages as u64,
             self.schedule.v1_1_height().unwrap(),
             self.activation_height(),
             self.block_time(),
+            self.max_live_inputs as u64,
+            self.contract_slots as u64,
+            noid_tx::experimental_object::OBJECT_VERSION as u64,
         ]
         .into_iter()
         .flat_map(u64::to_le_bytes)
-        .collect();
-        // Preserve existing candidate identities. Only the explicitly reduced
-        // budget extends the recipe, and its versioned codec carries this lane.
-        if self.has_bounded_inputs() {
-            bytes.extend_from_slice(&(self.max_live_inputs as u64).to_le_bytes());
-        }
-        bytes
+        .collect()
     }
 }
 
@@ -158,8 +176,8 @@ mod tests {
         let full = V2Config::new(23, 96, schedule).unwrap();
         let bounded = V2Config::with_input_budget(23, 96, 384, schedule).unwrap();
         assert_eq!(full.max_live_inputs(), 768);
-        assert_eq!(full.identity_bytes().len(), 40);
-        assert_eq!(bounded.identity_bytes().len(), 48);
+        assert_eq!(full.identity_bytes().len(), 64);
+        assert_eq!(bounded.identity_bytes().len(), 64);
         assert_ne!(full.identity_bytes(), bounded.identity_bytes());
         assert_eq!(bounded.block_geometry().touched_capacity, 577);
         assert_eq!(bounded.block_geometry().segment_capacity, 256);
@@ -193,5 +211,19 @@ mod tests {
         }
         assert!(V2Config::with_input_budget(23, 129, 384, schedule).is_err());
         assert!(V2Config::with_input_budget(23, 127, 257, schedule).is_err());
+    }
+
+    #[test]
+    fn call_capacity_is_explicit_and_bound_into_the_bank() {
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let mut identities = std::collections::HashSet::new();
+        for calls in [1, 16, 32, 96] {
+            let config = V2Config::with_limits(23, 96, 384, calls, schedule).unwrap();
+            assert_eq!(config.contract_slots(), calls);
+            assert!(identities.insert(config.identity_bytes()));
+        }
+        for calls in [0, 97, usize::MAX] {
+            assert!(V2Config::with_limits(23, 96, 384, calls, schedule).is_err());
+        }
     }
 }

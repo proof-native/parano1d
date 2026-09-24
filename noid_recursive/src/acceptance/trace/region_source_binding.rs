@@ -647,7 +647,7 @@ pub struct SpineContractRegion {
     pub refund_authority_w: [LinExpr; 2],
     pub code_digest_w: [LinExpr; 2],
     pub policy_digest_w: [LinExpr; 2],
-    pub contexts_w: [LinExpr; noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS],
+    pub contexts_w: [LinExpr; noid_tx::experimental_object::BODY_CONTEXT_FIELDS],
     pub deadline_w: LinExpr,
     pub claim_recipient_w: [LinExpr; 2],
     pub refund_recipient_w: [LinExpr; 2],
