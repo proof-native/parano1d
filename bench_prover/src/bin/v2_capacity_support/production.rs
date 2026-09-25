@@ -195,7 +195,11 @@ impl Production {
         batch.prove_authorizations(height)?;
         let pool = AsyncMempool::new(
             ChainView::from_mdbx(&self.producing),
-            MempoolConfig::default(),
+            MempoolConfig::default().with_v2_block_budgets(
+                self.producer
+                    .v2_admission_budgets()
+                    .ok_or("v2 budgets unavailable")?,
+            ),
         )
         .with_authorization_verification_executor(Arc::new(|task| {
             noid_miner::install_wallet_verifier_cpu(task).map_err(err)?

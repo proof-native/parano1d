@@ -21,6 +21,15 @@ use std::{
     },
 };
 
+fn test_config() -> MempoolConfig {
+    use noid_chain::mempool::BlockSelectionBudget;
+    MempoolConfig::default().with_v2_block_budgets([63, 206].map(|pages| BlockSelectionBudget {
+        pages,
+        live_inputs: 504,
+        contract_calls: 63,
+    }))
+}
+
 fn secret(n: u8) -> SpendSecret {
     SpendSecret::from_bytes([n; 32])
 }
@@ -119,7 +128,7 @@ fn encoded(opening: &ObjectOpening, page: TxPage, height: u64, key: u8) -> Vec<u
 fn counted_pool(opening: &ObjectOpening, tip: u64) -> (AsyncMempool, Arc<AtomicUsize>) {
     let counter = Arc::new(AtomicUsize::new(0));
     let work = counter.clone();
-    let pool = AsyncMempool::new(view(opening, tip, 7), MempoolConfig::default())
+    let pool = AsyncMempool::new(view(opening, tip, 7), test_config())
         .with_authorization_verification_executor(Arc::new(move |task| {
             work.fetch_add(1, Ordering::SeqCst);
             task()
@@ -152,7 +161,7 @@ async fn scheduled_admission_relay_selection_and_backward_fork_reorg() {
     };
     assert_eq!(hash, id);
     assert_eq!(intent_bytes.as_ref(), bytes);
-    let receiver = AsyncMempool::new(view(&object, activation - 1, 7), MempoolConfig::default());
+    let receiver = AsyncMempool::new(view(&object, activation - 1, 7), test_config());
     assert_eq!(
         receiver
             .submit_encoded(intent_bytes.to_vec())
@@ -275,7 +284,7 @@ async fn submit_while_height_changes(
     let started = Arc::new(std::sync::Mutex::new(Some(started)));
     let (release, wait) = std::sync::mpsc::channel();
     let wait = Arc::new(std::sync::Mutex::new(wait));
-    let pool = AsyncMempool::new(view(object, from - 1, 7), MempoolConfig::default())
+    let pool = AsyncMempool::new(view(object, from - 1, 7), test_config())
         .with_authorization_verification_executor(Arc::new(move |task| {
             started.lock().unwrap().take().unwrap().send(()).unwrap();
             wait.lock().unwrap().recv().unwrap();

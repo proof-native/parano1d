@@ -85,8 +85,64 @@ the exact pins, file hashes, build identity and successful checks; the
 Ten targeted tests passed for configuration identities, complete registry
 certificates, miner resource budgets and pre/post-fork RPC class reporting.
 
-These runs freeze and check the full matrices; they do not produce new v2
-terminals. The mainnet freezer creates no verified fork origin and does not
-claim to know the future predecessor block. Earlier full-block and constrained
-receiver measurements used different banks and do not qualify this candidate.
-Full production qualification is still required.
+The matrix-construction runs above do not produce v2 terminals. The mainnet
+freezer creates no verified fork origin and does not claim to know the future
+predecessor block.
+
+## Full isolated proofs
+
+A subsequent run used the exact archived isolated executable and reproduced
+the same `be82f3be…` bank. It verified the H1–H9 legacy fixtures and produced
+27 accepted v2 blocks, H10–H36, including all predecessor-class transitions,
+full ordinary and contract blocks, and Small blocks after Large. Each block
+passed native execution and recursive terminal verification. Complete matrix
+witness audits passed for the transition cases and both full-call classes.
+Terminal mutation checks rejected 243–245 variants per audited block.
+
+These are individual samples on an Intel Core i7-1365U laptop, with 12 Rayon
+threads and AVX2+VPCLMUL. Preparation is input construction, recursive assembly
+and proving. Wallet authorizations were created separately; one-time matrix
+authentication, witness audits, PoW and negative controls are also excluded
+from the preparation column. Verification here ran in the producer process.
+
+| Workload | Height | Preparation | Verification | Terminal bytes |
+|---|---:|---:|---:|---:|
+| Small: 63 ordinary payments | 27 | 17.565 s | 0.830 s | 913,108 |
+| Small: 63 calls | 30 | 18.161 s | 0.774 s | 913,012 |
+| Large: 206 ordinary payments | 31 | 42.583 s | 2.017 s | 981,396 |
+| Large: 63 calls + 143 payments | 32 | 46.294 s | 2.469 s | 979,828 |
+| Small: 63 calls immediately after Large | 33 | 19.631 s | 1.521 s | 912,884 |
+
+The three subsequent empty Small blocks had median preparation of 16.584 s
+and median verification of 1.011 s. This sequence checks continued operation
+after Large; it is not a server speed prediction. Large preparation on this
+laptop exceeds the 30-second target. Its optional production flag remains
+an operator choice for suitable hardware.
+
+All observed terminals fit their class bounds and the transport limit. The
+whole run peaked at 8,171,596 KiB RSS, including full matrix audits and both
+provers; this is not the memory requirement of a receiving seed. Exact
+commands, executable identity, timing scope, terminal hashes and records are
+in [full proof measurements](full-proofs.json). The existing
+[isolated source patch](isolated-source.patch) reconstructs this executable's
+source.
+
+The production artifact loader also authenticated and staged this exact bank,
+verified H36 against its checked legacy origin and matched native replay. It
+rejected five malformed/unpinned metadata cases and both swapped matrix
+classes. [Loader records](production-loader.json) preserve the command,
+artifact hashes and origin binding. This exercises the embedded runtime path;
+it is separate from running a complete node.
+
+The corresponding admission changes derive limits from the authenticated
+bank. Wallet preflight and mempool checks reject unmineable intents before
+authorization, repeat the checks after authorization, and remove entries
+invalidated by a fork or changed candidate-height capacity. Tests cover the
+504/505-input boundary, activation during authorization, eviction and rollback
+to legacy admission. The mempool/RPC suites passed 96 tests on each of the
+mainnet and H10 profiles; the isolated node passed 202 tests, and the mempool
+API example compiled. These tests do not change the frozen matrices.
+
+Maximum-input workloads across State segments, a constrained receiver and
+real daemon qualification remain separate checks. Earlier daemon/receiver
+results used different banks and do not qualify this profile.

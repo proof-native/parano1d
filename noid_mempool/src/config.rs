@@ -4,6 +4,18 @@
 //! Mempool configuration.
 
 use noid_chain::consensus::wire_limits::{MAX_MEMPOOL_BYTES, MAX_MEMPOOL_TXS};
+use noid_chain::mempool::BlockSelectionBudget;
+
+use crate::SubmitError;
+
+#[cfg(test)]
+pub(crate) fn test_config() -> MempoolConfig {
+    MempoolConfig::default().with_v2_block_budgets([63, 206].map(|pages| BlockSelectionBudget {
+        pages,
+        live_inputs: 504,
+        contract_calls: 63,
+    }))
+}
 
 /// Configuration for the async mempool.
 #[derive(Debug, Clone)]
@@ -23,6 +35,11 @@ pub struct MempoolConfig {
     /// 0 = no concurrency limit; authorization verification is still required.
     /// Recommended: number of physical cores.
     pub auth_verify_workers: usize,
+
+    /// Full class budgets supplied by the authenticated v2 bank, before the
+    /// candidate height's additional system-page reservation. Missing budgets
+    /// keep legacy admission available but cannot authorize v2 admission.
+    pub v2_block_budgets: Option<[BlockSelectionBudget; 2]>,
 }
 
 impl Default for MempoolConfig {
@@ -32,11 +49,57 @@ impl Default for MempoolConfig {
             max_total_intent_bytes: MAX_MEMPOOL_BYTES,
             fee_floor_window: 50,
             auth_verify_workers: 4,
+            v2_block_budgets: None,
         }
     }
 }
 
 impl MempoolConfig {
+    pub fn with_v2_block_budgets(mut self, budgets: [BlockSelectionBudget; 2]) -> Self {
+        self.v2_block_budgets = Some(budgets);
+        self
+    }
+
+    /// A whole intent must fit one pinned class. Taking page and input maxima
+    /// independently could admit a spend that fits neither class.
+    pub(crate) fn check_resources(
+        &self,
+        height: u64,
+        pages: usize,
+        inputs: usize,
+        calls: usize,
+    ) -> Result<(), SubmitError> {
+        if !noid_chain::consensus::params::v2_active(height) {
+            return Ok(());
+        }
+        let budgets = self
+            .v2_block_budgets
+            .ok_or(SubmitError::V2LimitsUnavailable)?;
+        let reserved = usize::from(
+            noid_chain::consensus::development_allocation::development_payout_due_at_height(height),
+        );
+        let max_inputs = budgets
+            .into_iter()
+            .filter(|budget| {
+                pages <= budget.pages.saturating_sub(reserved) && calls <= budget.contract_calls
+            })
+            .map(|budget| budget.live_inputs)
+            .max()
+            .ok_or(SubmitError::NoProofClass {
+                pages,
+                inputs,
+                calls,
+            })?;
+        let max_inputs = max_inputs.min(noid_tx::MAX_PAGED_SPEND_INPUTS);
+        if inputs > max_inputs {
+            return Err(SubmitError::InputLimitExceeded {
+                actual: inputs,
+                max_inputs,
+            });
+        }
+        Ok(())
+    }
+
     pub fn with_capacity(mut self, capacity: usize) -> Self {
         self.capacity = capacity;
         self

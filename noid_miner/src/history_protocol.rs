@@ -147,6 +147,20 @@ impl HistoryProtocolRuntime {
             .ok_or_else(|| "scheduled v2 HistoryStep runtime unavailable".into())
     }
 
+    /// Full immutable budgets from the authenticated bank. The mempool and
+    /// producer reserve any additional system page at the candidate height.
+    pub fn v2_admission_budgets(&self) -> Option<[noid_chain::mempool::BlockSelectionBudget; 2]> {
+        let config = self.v2.as_deref()?.bank().config();
+        Some(v2::Class::ALL.map(|class| {
+            let limits = config.class(class);
+            noid_chain::mempool::BlockSelectionBudget {
+                pages: limits.pages(),
+                live_inputs: limits.max_live_inputs(),
+                contract_calls: limits.contract_slots(),
+            }
+        }))
+    }
+
     pub fn prepare_v2_matrix_cache(&self, class: v2::Class) -> Result<(), String> {
         self.v2()?
             .prepare_matrix_cache(class)

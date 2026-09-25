@@ -360,7 +360,7 @@ impl AsyncMempool {
                     max: self.config.max_total_intent_bytes,
                 });
             }
-            let _ = run_admission_checks(&intent.pages, &spend, &st)?;
+            let _ = run_admission_checks(&intent.pages, &spend, &st, &self.config)?;
             let height = st
                 .view
                 .tip_height
@@ -435,7 +435,7 @@ impl AsyncMempool {
         }
 
         // Re-derive anchor_height from current state (needed by pool.admit).
-        let _anchor_height = run_admission_checks(&intent.pages, &spend, &st)?;
+        let _anchor_height = run_admission_checks(&intent.pages, &spend, &st, &self.config)?;
         if let Some(opening) = &opening {
             let height = st
                 .view
@@ -709,6 +709,16 @@ impl AsyncMempool {
             .filter_map(|(hash, entry)| {
                 let reason = if entry.spend.epoch_anchor != st.view.user_epoch_anchor_id {
                     EvictReason::EpochAnchorChanged
+                } else if check_candidate_resources(
+                    &self.config,
+                    st.view.tip_height,
+                    entry.pages.len(),
+                    usize::from(entry.spend.live_inputs),
+                    contract_call_count(&entry.pages),
+                )
+                .is_err()
+                {
+                    EvictReason::BlockCapacityChanged
                 } else if entry.spend.fee
                     < fee_breakdown(
                         u64::from(entry.spend.live_inputs),
@@ -919,6 +929,18 @@ impl AsyncMempool {
         (st.view.active_slot_count, st.view.log_slots())
     }
 
+    /// Cheap wallet preflight against the same candidate-height limits used
+    /// on both sides of authorization verification. No proof is checked here.
+    pub async fn check_candidate_resources(
+        &self,
+        pages: usize,
+        inputs: usize,
+        calls: usize,
+    ) -> Result<(), SubmitError> {
+        let st = self.state.lock().await;
+        check_candidate_resources(&self.config, st.view.tip_height, pages, inputs, calls)
+    }
+
     /// Pending value sent to an external owner, excluding change from that
     /// same owner. The underlying index is maintained at admission/removal.
     pub async fn pending_incoming_for_owner(&self, owner: &Address) -> u64 {
@@ -1066,6 +1088,26 @@ impl AsyncMempool {
 // Helper: all cheap admission checks
 // ---------------------------------------------------------------------------
 
+fn contract_call_count(pages: &[TxPage]) -> usize {
+    pages
+        .iter()
+        .filter(|page| page.body.validity_bitmap & noid_tx::PAGED_SPEND_CONTRACT_BIT != 0)
+        .count()
+}
+
+fn check_candidate_resources(
+    config: &MempoolConfig,
+    tip_height: u64,
+    pages: usize,
+    inputs: usize,
+    calls: usize,
+) -> Result<(), SubmitError> {
+    let height = tip_height
+        .checked_add(1)
+        .ok_or_else(|| SubmitError::Internal("height exhausted".into()))?;
+    config.check_resources(height, pages, inputs, calls)
+}
+
 /// Bind the semantic object to its retained wire allocation without encoding
 /// or cloning the potentially large authorization proof a second time.
 fn canonical_intent_bytes_match(intent: &PagedSpendIntent, bytes: &[u8]) -> bool {
@@ -1108,7 +1150,15 @@ fn run_admission_checks(
     pages: &[TxPage],
     spend: &PagedSpendFacts,
     st: &MempoolState,
+    config: &MempoolConfig,
 ) -> Result<u64, SubmitError> {
+    check_candidate_resources(
+        config,
+        st.view.tip_height,
+        pages.len(),
+        usize::from(spend.live_inputs),
+        contract_call_count(pages),
+    )?;
     // Dynamic fee floor layered over the deterministic consensus minimum.
     let consensus_required = fee_breakdown(
         u64::from(spend.live_inputs),
@@ -1135,7 +1185,12 @@ fn run_admission_checks(
 
     // Epoch anchor is the one start-of-next-block transaction-epoch anchor.
     // Returns its height for deterministic mempool bookkeeping.
-    let anchor_height = tx_epoch_anchor_height_for_child(st.view.tip_height + 1);
+    let anchor_height = tx_epoch_anchor_height_for_child(
+        st.view
+            .tip_height
+            .checked_add(1)
+            .ok_or_else(|| SubmitError::Internal("height exhausted".into()))?,
+    );
     if st.view.user_epoch_anchor_id == [0u8; 32]
         || spend.epoch_anchor != st.view.user_epoch_anchor_id
     {
@@ -1296,6 +1351,10 @@ fn verify_intent_authorization(pages: &[TxPage], authorization_bytes: &[u8]) -> 
 }
 
 #[cfg(test)]
+#[path = "pool_capacity_tests.rs"]
+mod capacity_tests;
+
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
@@ -1312,7 +1371,7 @@ mod tests {
         check_input_slots, rebuild_slot_sets, refresh_fee_floor, run_admission_checks,
         AsyncMempool, MempoolState,
     };
-    use crate::config::MempoolConfig;
+    use crate::config::{test_config, MempoolConfig};
     use crate::error::SubmitError;
     use crate::view::ChainView;
     use std::collections::HashSet;
@@ -1353,7 +1412,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default().with_capacity(8),
+            test_config().with_capacity(8),
         );
         let pages = user_pages([0x31; 32], 400, 1);
         let txid = validate_paged_spend(&pages).unwrap().logical_txid;
@@ -1384,7 +1443,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default().with_capacity(8),
+            test_config().with_capacity(8),
         );
         let pages = user_pages([0x31; 32], 400, 1);
         let txid = validate_paged_spend(&pages).unwrap().logical_txid;
@@ -1412,7 +1471,7 @@ mod tests {
 
         let state = ChainState::with_log_slots(6);
         let view = ChainView::new(0, HashMap::new(), 0, state.state);
-        let pool = AsyncMempool::new(view.clone(), MempoolConfig::default());
+        let pool = AsyncMempool::new(view.clone(), test_config());
         {
             let mut locked = pool.state.lock().await;
             locked.floor.record(100_000);
@@ -1434,7 +1493,7 @@ mod tests {
         ChainView,
         Vec<noid_poseidon2b::primitives::TxBodyHash>,
     ) {
-        fee_test_pool_at(fees, 0, MempoolConfig::default(), 0).await
+        fee_test_pool_at(fees, 0, test_config(), 0).await
     }
 
     async fn fee_test_pool_at(
@@ -1509,13 +1568,8 @@ mod tests {
     async fn cancelled_submission_keeps_its_cpu_permit_until_the_worker_exits() {
         use noid_tx::PagedSpendIntent;
         use std::sync::Arc;
-        let (mut pool, _, ids) = fee_test_pool_at(
-            &[40_000],
-            0,
-            MempoolConfig::default().with_auth_verify_workers(1),
-            0,
-        )
-        .await;
+        let (mut pool, _, ids) =
+            fee_test_pool_at(&[40_000], 0, test_config().with_auth_verify_workers(1), 0).await;
         let pages = {
             let mut state = pool.state.lock().await;
             let pages = state.pool.remove(&ids[0]).unwrap().pages;
@@ -1566,8 +1620,7 @@ mod tests {
         let Some(height) = noid_chain::consensus::params::V2_ACTIVATION_HEIGHT else {
             return;
         };
-        let (pool, view, _) =
-            fee_test_pool_at(&[40_000], height - 1, MempoolConfig::default(), 0).await;
+        let (pool, view, _) = fee_test_pool_at(&[40_000], height - 1, test_config(), 0).await;
         let budget = BlockSelectionBudget {
             pages: 63,
             live_inputs: 504,
@@ -1609,8 +1662,7 @@ mod tests {
         for payment_fee in [7_000, 10_000, 13_000] {
             let mut fees = vec![40_000; 3];
             fees.extend([payment_fee; 6]);
-            let (pool, view, ids) =
-                fee_test_pool_at(&fees, height - 1, MempoolConfig::default(), 0).await;
+            let (pool, view, ids) = fee_test_pool_at(&fees, height - 1, test_config(), 0).await;
             {
                 // Resource-selection fixture: real controller authorization
                 // and admission are exercised by the integration tests.
@@ -1653,8 +1705,7 @@ mod tests {
     #[tokio::test]
     async fn fee_policy_fixtures_preserve_current_epoch_at_large_heights() {
         for tip in [0, 143, 144, 95_124, 1_000_000] {
-            let (pool, view, _) =
-                fee_test_pool_at(&[9_000; 2], tip, MempoolConfig::default(), 0).await;
+            let (pool, view, _) = fee_test_pool_at(&[9_000; 2], tip, test_config(), 0).await;
             assert_ne!(view.user_epoch_anchor_id, [0; 32]);
             pool.on_new_block(&[], tip, view).await;
             assert_eq!(pool.len().await, 2, "current-epoch fixtures at tip={tip}");
@@ -1670,7 +1721,7 @@ mod tests {
         let (pool, mut view, _) = fee_test_pool_at(
             &[100_000; 6],
             activation - 2,
-            MempoolConfig::default().with_capacity(10),
+            test_config().with_capacity(10),
             0,
         )
         .await;
@@ -1690,7 +1741,7 @@ mod tests {
             );
             assert_eq!(pool.fee_floor().await, expected, "tip={tip}");
         }
-        let fresh = AsyncMempool::new(view, MempoolConfig::default());
+        let fresh = AsyncMempool::new(view, test_config());
         assert_eq!(fresh.fee_floor().await, MIN_FEE_BASE);
     }
 
@@ -1700,7 +1751,7 @@ mod tests {
         let tip = V1_1_ACTIVATION_HEIGHT.unwrap_or(5) - 1;
         for byte_pressure in [false, true] {
             for reorg in [false, true] {
-                let config = MempoolConfig::default()
+                let config = test_config()
                     .with_capacity(if byte_pressure { 100 } else { 10 })
                     .with_max_total_intent_bytes(1000);
                 let (pool, view, ids) = fee_test_pool_at(
@@ -1735,13 +1786,8 @@ mod tests {
     async fn admission_and_every_fee_projection_use_the_same_latched_floor() {
         use noid_chain::consensus::params::{MIN_FEE_BASE, V1_1_ACTIVATION_HEIGHT};
         let tip = V1_1_ACTIVATION_HEIGHT.unwrap_or(5) - 1;
-        let (pool, view, ids) = fee_test_pool_at(
-            &[9_000; 8],
-            tip,
-            MempoolConfig::default().with_capacity(10),
-            0,
-        )
-        .await;
+        let (pool, view, ids) =
+            fee_test_pool_at(&[9_000; 8], tip, test_config().with_capacity(10), 0).await;
         {
             let mut st = pool.state.lock().await;
             for _ in 0..50 {
@@ -1763,7 +1809,7 @@ mod tests {
             let pages = user_pages(view.user_epoch_anchor_id, 9_000, 1);
             let facts = validate_paged_spend(&pages).unwrap();
             let st = pool.state.lock().await;
-            let result = run_admission_checks(&pages, &facts, &st);
+            let result = run_admission_checks(&pages, &facts, &st, &pool.config);
             if expected == MIN_FEE_BASE {
                 result.unwrap(); // The removed input is live and unreserved.
             } else {
@@ -1876,7 +1922,7 @@ mod tests {
     #[tokio::test]
     async fn fee_floor_is_local_and_a_fresh_pool_starts_at_base() {
         let (busy, view, _) = fee_test_pool(&[100_000]).await;
-        let fresh = AsyncMempool::new(view, MempoolConfig::default());
+        let fresh = AsyncMempool::new(view, test_config());
         assert_eq!(busy.fee_floor().await, 90_000);
         assert_eq!(
             fresh.fee_floor().await,
@@ -1891,10 +1937,10 @@ mod tests {
         let pages = user_pages(view.user_epoch_anchor_id, 9_000, 1);
         let facts = validate_paged_spend(&pages).unwrap();
         let mut st = pool.state.lock().await;
-        run_admission_checks(&pages, &facts, &st).unwrap();
+        run_admission_checks(&pages, &facts, &st, &pool.config).unwrap();
         st.floor.record(100_000);
         assert!(matches!(
-            run_admission_checks(&pages, &facts, &st),
+            run_admission_checks(&pages, &facts, &st, &pool.config),
             Err(crate::error::SubmitError::Consensus(
                 noid_chain::consensus::ConsensusError::BelowMinFee {
                     required: 90_000,
@@ -1903,7 +1949,7 @@ mod tests {
             ))
         ));
         st.floor.reset();
-        run_admission_checks(&pages, &facts, &st).unwrap();
+        run_admission_checks(&pages, &facts, &st, &pool.config).unwrap();
     }
 
     async fn growth_fee_test_pool(
@@ -1939,10 +1985,10 @@ mod tests {
             )
             .unwrap();
         let view = ChainView::new(0, HashMap::from([(0, genesis)]), active_slots, state.state);
-        let pool = AsyncMempool::new(view.clone(), MempoolConfig::default());
+        let pool = AsyncMempool::new(view.clone(), test_config());
         {
             let mut st = pool.state.lock().await;
-            run_admission_checks(&pages, &facts, &st).unwrap();
+            run_admission_checks(&pages, &facts, &st, &pool.config).unwrap();
             st.pool.admit(pages, 0).unwrap();
             st.floor.record(facts.fee);
             rebuild_slot_sets(&mut st);
@@ -2039,7 +2085,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default().with_capacity(8),
+            test_config().with_capacity(8),
         );
         let anchor = [0x11; 32];
         let wrong_anchor = [0x22; 32];
@@ -2077,7 +2123,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default().with_capacity(8),
+            test_config().with_capacity(8),
         );
         let anchor = [0x11; 32];
         let high = user_pages(anchor, 300, 1);
@@ -2127,7 +2173,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default(),
+            test_config(),
         );
         {
             let mut locked = pool.state.lock().await;
@@ -2187,7 +2233,7 @@ mod tests {
         let initial_view = ChainView::new(0, HashMap::from([(0, parent)]), 1, state.state.clone());
 
         for avoid in [false, true] {
-            let pool = AsyncMempool::new(initial_view.clone(), MempoolConfig::default());
+            let pool = AsyncMempool::new(initial_view.clone(), test_config());
             let id = pool
                 .submit(intent.clone(), intent.to_bytes().unwrap())
                 .await
@@ -2298,7 +2344,7 @@ mod tests {
         let state = ChainState::with_log_slots(6);
         let pool = AsyncMempool::new(
             ChainView::new(0, HashMap::new(), 0, state.state),
-            MempoolConfig::default().with_capacity(8),
+            test_config().with_capacity(8),
         );
         let tx = user_pages([0x31; 32], 400, 1);
         let txid = validate_paged_spend(&tx).unwrap().logical_txid;
@@ -2430,7 +2476,7 @@ mod tests {
         let mut candidate = spend(required);
         candidate[0].body.epoch_anchor = probe_state.view.user_epoch_anchor_id;
         let facts = validate_paged_spend(&candidate).unwrap();
-        run_admission_checks(&candidate, &facts, &probe_state)
+        run_admission_checks(&candidate, &facts, &probe_state, &test_config())
             .expect("accepted tip reward is spendable in its child block");
     }
 

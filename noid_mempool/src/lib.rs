@@ -33,9 +33,13 @@
 //! use noid_mempool::{AsyncMempool, ChainView, MempoolConfig};
 //! use noid_chain::storage::MdbxChainContext;
 //!
-//! async fn example(ctx: &MdbxChainContext) {
+//! async fn example(
+//!     ctx: &MdbxChainContext,
+//!     pinned_v2_budgets: [noid_chain::mempool::BlockSelectionBudget; 2],
+//! ) {
 //!     let view = ChainView::from_mdbx(ctx);
-//!     let mp = AsyncMempool::new(view, MempoolConfig::default());
+//!     let config = MempoolConfig::default().with_v2_block_budgets(pinned_v2_budgets);
+//!     let mp = AsyncMempool::new(view, config);
 //!
 //!     // Subscribe to events (P2P, RPC, block builder).
 //!     let mut rx = mp.subscribe();

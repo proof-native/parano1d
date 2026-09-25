@@ -320,13 +320,13 @@ pub struct WalletSendPlan {
     pub fee_breakdown: FeeBreakdownInfo,
 }
 
-/// Stable JSON-RPC code for a payment that exceeds the canonical input limit.
+/// Stable JSON-RPC code for a payment that exceeds the active input limit.
 pub const WALLET_INPUT_LIMIT_EXCEEDED_CODE: i32 = -32011;
-/// Stable JSON-RPC message for a payment that exceeds the canonical input limit.
+/// Stable JSON-RPC message for a payment that exceeds the active input limit.
 pub const WALLET_INPUT_LIMIT_EXCEEDED_MESSAGE: &str = "InputLimitExceeded";
 
-/// JSON-RPC error data when no legal payment can be formed within the fixed
-/// transaction input bound.
+/// JSON-RPC error data when no legal payment can be formed within the wire
+/// bound or the candidate height's pinned block-class input budget.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WalletInputLimitExceeded {
     pub max_inputs: usize,

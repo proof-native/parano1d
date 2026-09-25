@@ -1,0 +1,200 @@
+{
+  "command": [
+    "systemd-run",
+    "--user",
+    "--scope",
+    "--quiet",
+    "--unit=noid-v2-common-stage",
+    "-p",
+    "MemoryMax=20G",
+    "-p",
+    "MemorySwapMax=0",
+    "/usr/bin/time",
+    "-v",
+    "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-input-4792f048",
+    "joint-stage",
+    "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+    "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-full-20260925-a",
+    "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a",
+    "36"
+  ],
+  "exit_code": 0,
+  "wall_seconds": 220.94327371101826,
+  "binary_sha256": "4792f0481151b9f2a3058301992575f14be5efa392da6fc89c559920a8452b00",
+  "source_patch": "isolated-source.patch",
+  "environment": {
+    "RAYON_NUM_THREADS": "12",
+    "RUST_MIN_STACK": "16777216",
+    "NOID_CPU_BACKEND": "automatic"
+  },
+  "log_sha256": "6792259c975a76212462dc032a464a50c6612a8c17c0bd8205fff7ced7753755",
+  "stage": {
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "height": 36,
+    "mainnet_release": false,
+    "memory": {
+      "process_peak_rss_kib": 1492564,
+      "rss_kib": 1234364
+    },
+    "metadata_negative_checks": 5,
+    "origin_binding": "1b8800d0fd1d0eef951afb5754fd58c1b9e50636c9235e612f82db297915c3c0",
+    "status": "local candidate staged and verified",
+    "swapped_class_rejections": 2
+  },
+  "artifacts": {
+    "legacy-v2-origin.bin": {
+      "bytes": 874728,
+      "sha256": "d4d3be8c36780e1642610734ea7f72049995588fa1ca86a0f4bbcc4f4436036f"
+    },
+    "stage.json": {
+      "bytes": 408,
+      "sha256": "868da21bf6f743b3abc1c17267833d95c480a4dcbec04e15e30515ac643bc034"
+    },
+    "v2-large.field-r1cs.zst": {
+      "bytes": 21475021,
+      "sha256": "c69d9194520d61a8b6cd12799fc181a23dc376bc2e0671fd56989355878a6213"
+    },
+    "v2-runtime-metadata.bin": {
+      "bytes": 2258540,
+      "sha256": "5b2f7967483a8ee596c83c65ae7c99bf38b14197b4a774cb5a1ddb181e0c0958"
+    },
+    "v2-small.field-r1cs.zst": {
+      "bytes": 10464568,
+      "sha256": "a677b1c464377cf2b7f27c77cd53006d4fb6c67ac082bc217157ae06e7706f59"
+    }
+  },
+  "records": [
+    {
+      "class": 0,
+      "memory": {
+        "process_peak_rss_kib": 518812,
+        "rss_kib": 134868
+      },
+      "ms": 50668.73973,
+      "phase": "production_matrix_preflight"
+    },
+    {
+      "class": 1,
+      "memory": {
+        "process_peak_rss_kib": 518812,
+        "rss_kib": 126184
+      },
+      "ms": 125505.689323,
+      "phase": "production_matrix_preflight"
+    },
+    {
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1140824
+      },
+      "ms": 1770.444557,
+      "phase": "production_embedded_matrix_load"
+    },
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1391688
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 31989.820057
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1395840
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 461.85409300000003
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396888
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 475.511375
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396900
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 500.503711
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396920
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 472.380428
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396936
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 475.468727
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396940
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 498.21177
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396948
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 506.307191
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1396948
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 527.1508580000001
+    },
+    {
+      "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+      "height": 36,
+      "mainnet_release": false,
+      "memory": {
+        "process_peak_rss_kib": 1492564,
+        "rss_kib": 1234364
+      },
+      "metadata_negative_checks": 5,
+      "origin_binding": "1b8800d0fd1d0eef951afb5754fd58c1b9e50636c9235e612f82db297915c3c0",
+      "status": "local candidate staged and verified",
+      "swapped_class_rejections": 2
+    }
+  ]
+}

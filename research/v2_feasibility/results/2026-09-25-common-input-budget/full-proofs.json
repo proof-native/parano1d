@@ -1,0 +1,949 @@
+{
+  "qualification": "Full isolated fork, native execution and recursive proofs; no full daemon or constrained receiver in this run.",
+  "source_base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+  "source_patch": "isolated-source.patch",
+  "binary_sha256": "4792f0481151b9f2a3058301992575f14be5efa392da6fc89c559920a8452b00",
+  "command": [
+    "systemd-run",
+    "--user",
+    "--scope",
+    "--quiet",
+    "--unit=noid-v2-common-full",
+    "-p",
+    "MemoryMax=20G",
+    "-p",
+    "MemorySwapMax=0",
+    "/usr/bin/time",
+    "-v",
+    "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-input-4792f048",
+    "joint",
+    "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+    "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-full-20260925-a",
+    "63",
+    "504",
+    "63",
+    "504",
+    "63",
+    "--large-pages=206"
+  ],
+  "environment": {
+    "RAYON_NUM_THREADS": "12",
+    "RUST_MIN_STACK": "16777216",
+    "NOID_CPU_BACKEND": "automatic"
+  },
+  "log_sha256": "f1ba2807933053296639ce52cd5a8b9d5bc40d3cb13f75562b22f099345bc71b",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "exit_code": 0,
+  "wall_seconds": 1824.6456328429922,
+  "peak_rss_kib": 8171596,
+  "timing_scope": "Input construction + recursive assembly + proving. Separately created wallet authorizations, one-time matrix authentication, matrix witness audits, PoW, native replay and negative checks are excluded.",
+  "summary": {
+    "small_full_payments": {
+      "height": 27,
+      "pages": 63,
+      "calls": 0,
+      "preparation_ms": 17565.119337,
+      "verify_ms": 830.288707,
+      "terminal_bytes": 913108
+    },
+    "small_full_calls": {
+      "height": 30,
+      "pages": 63,
+      "calls": 63,
+      "preparation_ms": 18160.93727,
+      "verify_ms": 773.982703,
+      "terminal_bytes": 913012
+    },
+    "large_full_payments": {
+      "height": 31,
+      "pages": 206,
+      "calls": 0,
+      "preparation_ms": 42582.845591000005,
+      "verify_ms": 2016.7158829999998,
+      "terminal_bytes": 981396
+    },
+    "large_full_mixed": {
+      "height": 32,
+      "pages": 206,
+      "calls": 63,
+      "preparation_ms": 46294.174801,
+      "verify_ms": 2469.16104,
+      "terminal_bytes": 979828
+    },
+    "small_full_calls_after_large": {
+      "height": 33,
+      "pages": 63,
+      "calls": 63,
+      "preparation_ms": 19630.84614,
+      "verify_ms": 1521.396925,
+      "terminal_bytes": 912884
+    }
+  },
+  "empty_small_tail": {
+    "heights": [
+      34,
+      35,
+      36
+    ],
+    "median_preparation_ms": 16583.912168,
+    "median_verify_ms": 1011.0276
+  },
+  "records": [
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 267840
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 30092.107237
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 267888
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 485.557683
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 270980
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 491.763571
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 270988
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 549.910899
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 271004
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 581.53762
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 271012
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 491.966063
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 271020
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 537.991089
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 271032
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 496.20203200000003
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 349800,
+        "rss_kib": 271036
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 571.3239629999999
+    },
+    {
+      "calls": 63,
+      "class": 0,
+      "inputs": 504,
+      "matrix": "97ccaa72fae081b91a67db2b8263b68ee6b7bbfb3dbe6daf1e7ed318aa4bca33",
+      "memory": {
+        "process_peak_rss_kib": 1562672,
+        "rss_kib": 1253212
+      },
+      "pages": 63,
+      "pass": 0,
+      "phase": "joint_freeze",
+      "rows": 6936657,
+      "satisfied": true,
+      "scan_ms": 18407.859904999998
+    },
+    {
+      "calls": 63,
+      "class": 1,
+      "inputs": 504,
+      "matrix": "088505ae53378d12b3fd56d25cb66745cc0076e1e7e53e3148147d6535c80d7a",
+      "memory": {
+        "process_peak_rss_kib": 3411592,
+        "rss_kib": 2350720
+      },
+      "pages": 206,
+      "pass": 0,
+      "phase": "joint_freeze",
+      "rows": 16776687,
+      "satisfied": true,
+      "scan_ms": 47084.794535999994
+    },
+    {
+      "calls": 63,
+      "class": 0,
+      "inputs": 504,
+      "matrix": "0a286f5bf9e73a6bb154a4bb4a90636cabe6303c868c3b1b3ee6187fbc355c5a",
+      "memory": {
+        "process_peak_rss_kib": 3411592,
+        "rss_kib": 1426240
+      },
+      "pages": 63,
+      "pass": 1,
+      "phase": "joint_freeze",
+      "rows": 6936657,
+      "satisfied": true,
+      "scan_ms": 18328.602496
+    },
+    {
+      "calls": 63,
+      "class": 1,
+      "inputs": 504,
+      "matrix": "8110969aaeb71dd68069d105a6324e1b7819fe2ccefafa7985ed67486d53377f",
+      "memory": {
+        "process_peak_rss_kib": 3490336,
+        "rss_kib": 2376548
+      },
+      "pages": 206,
+      "pass": 1,
+      "phase": "joint_freeze",
+      "rows": 16776687,
+      "satisfied": true,
+      "scan_ms": 45374.820381
+    },
+    {
+      "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+      "cpu_backend": "avx2+vpclmul",
+      "entries": [
+        {
+          "calls": 63,
+          "class": 0,
+          "file": "pass1-class0.field-r1cs.zst",
+          "inputs": 504,
+          "m": 23,
+          "matrix": "0a286f5bf9e73a6bb154a4bb4a90636cabe6303c868c3b1b3ee6187fbc355c5a",
+          "matrix_zstd_bytes": 10464568,
+          "pages": 63,
+          "rows": 6936657,
+          "terminal_bound": 1014132
+        },
+        {
+          "calls": 63,
+          "class": 1,
+          "file": "pass1-class1.field-r1cs.zst",
+          "inputs": 504,
+          "m": 24,
+          "matrix": "8110969aaeb71dd68069d105a6324e1b7819fe2ccefafa7985ed67486d53377f",
+          "matrix_zstd_bytes": 21475021,
+          "pages": 206,
+          "rows": 16776687,
+          "terminal_bound": 1081396
+        }
+      ],
+      "legacy_fixture_directory": "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+      "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+      "memory": {
+        "process_peak_rss_kib": 3554936,
+        "rss_kib": 836348
+      },
+      "rayon_threads": 12,
+      "setup_ms": 232010.570669,
+      "status": "research joint bank; no release capacity selected"
+    },
+    {
+      "memory": {
+        "process_peak_rss_kib": 3554936,
+        "rss_kib": 1545508
+      },
+      "ms": 182052.764692,
+      "phase": "joint_matrix_authentication"
+    },
+    {
+      "class": 0,
+      "height": 10,
+      "ms": 18357.058208000002,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 4365.728169999999,
+      "calls": 0,
+      "class": 0,
+      "height": 10,
+      "input_ms": 2.2221430000000004,
+      "label": "joint_transition_0",
+      "memory": {
+        "process_peak_rss_kib": 3684288,
+        "rss_kib": 2444032
+      },
+      "pages": 0,
+      "pow_ms": 559.401164,
+      "prove_ms": 9525.076456,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914068,
+      "verify_ms": 479.373259,
+      "terminal_sha256": "6837fd0b3003bc255afaeeb067716b6dc674e6e0bfc140766eaf77740c2674a1",
+      "preparation_ms": 13893.026769
+    },
+    {
+      "height": 10,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 243
+    },
+    {
+      "class": 0,
+      "height": 11,
+      "ms": 20472.107629,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 6101.258492,
+      "calls": 0,
+      "class": 0,
+      "height": 11,
+      "input_ms": 1.9704050000000002,
+      "label": "joint_transition_1",
+      "memory": {
+        "process_peak_rss_kib": 4788340,
+        "rss_kib": 2593032
+      },
+      "pages": 0,
+      "pow_ms": 3425.259685,
+      "prove_ms": 10255.988022,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914612,
+      "verify_ms": 1080.669283,
+      "terminal_sha256": "2258290c0157938b4cf2bbe51271a165252927d0b925ebd0f5a3ff61a89a09f2",
+      "preparation_ms": 16359.216918999999
+    },
+    {
+      "height": 11,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 244
+    },
+    {
+      "class": 1,
+      "height": 12,
+      "ms": 51721.719121,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 10012.708513,
+      "calls": 0,
+      "class": 1,
+      "height": 12,
+      "input_ms": 1.771765,
+      "label": "joint_transition_2",
+      "memory": {
+        "process_peak_rss_kib": 6047068,
+        "rss_kib": 3674368
+      },
+      "pages": 0,
+      "pow_ms": 904.227679,
+      "prove_ms": 23087.396226999997,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981332,
+      "verify_ms": 1299.096456,
+      "terminal_sha256": "4f5b5c8b5005077bbfa1520abdacd44a98b065bb4ff2179ff2ed4ae8a2df51ef",
+      "preparation_ms": 33101.876505
+    },
+    {
+      "height": 12,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 244
+    },
+    {
+      "class": 1,
+      "height": 13,
+      "ms": 57693.763935,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 12464.571612,
+      "calls": 0,
+      "class": 1,
+      "height": 13,
+      "input_ms": 2.036845,
+      "label": "joint_transition_3",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3706540
+      },
+      "pages": 0,
+      "pow_ms": 103.37499899999999,
+      "prove_ms": 26654.381599,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979060,
+      "verify_ms": 3087.6834249999997,
+      "terminal_sha256": "27c7d40785b23e9a618e729d32cfbedc42f6c634006bb830a21673c7424fb4ae",
+      "preparation_ms": 39120.990056
+    },
+    {
+      "height": 13,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "class": 0,
+      "height": 14,
+      "ms": 30111.196669999998,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 7971.171138,
+      "calls": 0,
+      "class": 0,
+      "height": 14,
+      "input_ms": 1.7029040000000002,
+      "label": "joint_transition_4",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3641656
+      },
+      "pages": 0,
+      "pow_ms": 1725.3993059999998,
+      "prove_ms": 9143.975797,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 909460,
+      "verify_ms": 1456.478321,
+      "terminal_sha256": "4d1f88197ff0d3ab3298271bd9141a20ae5a8f0c88cc2dc11febf8cc9e0e814c",
+      "preparation_ms": 17116.849839
+    },
+    {
+      "height": 14,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 5974.870231,
+      "calls": 0,
+      "class": 0,
+      "height": 15,
+      "input_ms": 1.714233,
+      "label": "joint_transition_5",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3643220
+      },
+      "pages": 0,
+      "pow_ms": 1517.961484,
+      "prove_ms": 9474.290687,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913748,
+      "verify_ms": 726.4220369999999,
+      "terminal_sha256": "ac8de3d7ef049078ed3a4f8f05091365fc092ef39f0e61f2576fbe1450dfe099",
+      "preparation_ms": 15450.875151
+    },
+    {
+      "height": 15,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 5943.667555,
+      "calls": 0,
+      "class": 0,
+      "height": 16,
+      "input_ms": 1.6394199999999999,
+      "label": "joint_transition_6",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3592288
+      },
+      "pages": 0,
+      "pow_ms": 1006.3974179999999,
+      "prove_ms": 11238.528495,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914548,
+      "verify_ms": 1004.2189040000001,
+      "terminal_sha256": "7861aac515367cc11b241bdd7b78624566d28da469496cab35b742b7a2fcb666",
+      "preparation_ms": 17183.83547
+    },
+    {
+      "height": 16,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 7053.6760349999995,
+      "calls": 0,
+      "class": 0,
+      "height": 17,
+      "input_ms": 1.96602,
+      "label": "joint_transition_7",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3640852
+      },
+      "pages": 0,
+      "pow_ms": 977.67175,
+      "prove_ms": 14143.635141,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913364,
+      "verify_ms": 995.418837,
+      "terminal_sha256": "b37f2d1de462b72f698bb0bf8c926d9aae0b41e7674feb224017a0b81c026d72",
+      "preparation_ms": 21199.277196
+    },
+    {
+      "height": 17,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 6274.752377999999,
+      "calls": 0,
+      "class": 0,
+      "height": 18,
+      "input_ms": 393.428122,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3677752
+      },
+      "pages": 14,
+      "pow_ms": 743.19219,
+      "prove_ms": 9020.030188,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913844,
+      "verify_ms": 671.719505,
+      "terminal_sha256": "ee7664ce2bef1d4760fe52411f058a78ec1028d8ffbb8e3d802157cfd3e13d81",
+      "preparation_ms": 15688.210688
+    },
+    {
+      "assembly_ms": 6180.331228,
+      "calls": 0,
+      "class": 0,
+      "height": 19,
+      "input_ms": 721.376133,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3687744
+      },
+      "pages": 28,
+      "pow_ms": 1150.5125679999999,
+      "prove_ms": 9457.334723,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914580,
+      "verify_ms": 740.4955130000001,
+      "terminal_sha256": "54b9d913c49f82fab2a733bb2f80738ecb84659b13b08afac70cc2859e6901d6",
+      "preparation_ms": 16359.042084
+    },
+    {
+      "assembly_ms": 6788.963968,
+      "calls": 0,
+      "class": 0,
+      "height": 20,
+      "input_ms": 1361.98657,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3713728
+      },
+      "pages": 56,
+      "pow_ms": 39.073613,
+      "prove_ms": 13888.692869,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913780,
+      "verify_ms": 995.224103,
+      "terminal_sha256": "a51157862f9631edf3aa43385b8e2be5413d35be8810da2c8c87927170bcfa8d",
+      "preparation_ms": 22039.643407
+    },
+    {
+      "assembly_ms": 7047.6053329999995,
+      "calls": 0,
+      "class": 0,
+      "height": 21,
+      "input_ms": 1560.7880060000002,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3716104
+      },
+      "pages": 63,
+      "pow_ms": 1329.996062,
+      "prove_ms": 9952.586092000001,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 915028,
+      "verify_ms": 744.571638,
+      "terminal_sha256": "4d4d5d3403805b151a4aad4bf9d9c01cfcd5aef2b1e9b394959c5c64e354c5e4",
+      "preparation_ms": 18560.979431
+    },
+    {
+      "assembly_ms": 8098.388546000001,
+      "calls": 0,
+      "class": 0,
+      "height": 22,
+      "input_ms": 1642.7579839999999,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3720824
+      },
+      "pages": 63,
+      "pow_ms": 48.010511,
+      "prove_ms": 14774.072138,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 916340,
+      "verify_ms": 1088.7678700000001,
+      "terminal_sha256": "43a81b00a250ebb90df38c10713c67e1762325c4b5b6e74636110027f267e086",
+      "preparation_ms": 24515.218668
+    },
+    {
+      "assembly_ms": 6180.976903000001,
+      "calls": 0,
+      "class": 0,
+      "height": 23,
+      "input_ms": 714.15538,
+      "label": "joint_fund_payments",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3724356
+      },
+      "pages": 31,
+      "pow_ms": 400.678049,
+      "prove_ms": 9283.950773,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 912980,
+      "verify_ms": 700.454218,
+      "terminal_sha256": "9f4fe2bcd4a601f4afa7e9001f76cd4bdd9beb2be0709ab45d414d550f3dd5b6",
+      "preparation_ms": 16179.083056000001
+    },
+    {
+      "assembly_ms": 6778.353817,
+      "calls": 0,
+      "class": 0,
+      "height": 24,
+      "input_ms": 1528.753685,
+      "label": "joint_fund_objects",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3724376
+      },
+      "pages": 63,
+      "pow_ms": 521.452555,
+      "prove_ms": 9670.634677,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914388,
+      "verify_ms": 728.344657,
+      "terminal_sha256": "bb4b485e9ffb1f8799383dd82dba3a4131f5ebbc30f72213b95b01e7b074de35",
+      "preparation_ms": 17977.742179
+    },
+    {
+      "assembly_ms": 6018.559375,
+      "calls": 0,
+      "class": 0,
+      "height": 25,
+      "input_ms": 1.742406,
+      "label": "joint_class_0_pages_0_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3724376
+      },
+      "pages": 0,
+      "pow_ms": 275.783324,
+      "prove_ms": 9665.132337,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914836,
+      "verify_ms": 718.733205,
+      "terminal_sha256": "d5893e79aeb1a9ba63926bdadbcb3f12714e5c1ab3fc52edeef3791e38f9b330",
+      "preparation_ms": 15685.434118
+    },
+    {
+      "assembly_ms": 7275.029877999999,
+      "calls": 0,
+      "class": 0,
+      "height": 26,
+      "input_ms": 126.724957,
+      "label": "joint_class_0_pages_4_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3724888
+      },
+      "pages": 4,
+      "pow_ms": 54.021484,
+      "prove_ms": 14305.696882999999,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914164,
+      "verify_ms": 963.975512,
+      "terminal_sha256": "40c8af0faeeba2bbba274af539dd2cbf10f876552945ec2a3e6e4048dcde8fe2",
+      "preparation_ms": 21707.451717999997
+    },
+    {
+      "assembly_ms": 6856.358867,
+      "calls": 0,
+      "class": 0,
+      "height": 27,
+      "input_ms": 1491.058256,
+      "label": "joint_class_0_pages_63_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3690964
+      },
+      "pages": 63,
+      "pow_ms": 4179.25789,
+      "prove_ms": 9217.702213999999,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913108,
+      "verify_ms": 830.288707,
+      "terminal_sha256": "94efe1725830be033018e980d9eb8a2790584778c1fea7d87c6dea4abaf83825",
+      "preparation_ms": 17565.119337
+    },
+    {
+      "assembly_ms": 6940.711642,
+      "calls": 1,
+      "class": 0,
+      "height": 28,
+      "input_ms": 1536.045866,
+      "label": "joint_class_0_pages_63_calls_1",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3600976
+      },
+      "pages": 63,
+      "pow_ms": 1094.8714559999999,
+      "prove_ms": 9661.629698,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 911060,
+      "verify_ms": 766.48393,
+      "terminal_sha256": "ff7b19b6f2ebc9167ef39564a08900fa805dde5e2f668b673e7ab1be495a0553",
+      "preparation_ms": 18138.387206
+    },
+    {
+      "assembly_ms": 8154.913540999999,
+      "calls": 4,
+      "class": 0,
+      "height": 29,
+      "input_ms": 1593.307027,
+      "label": "joint_class_0_pages_63_calls_4",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3646064
+      },
+      "pages": 63,
+      "pow_ms": 71.91781,
+      "prove_ms": 14058.028041,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 915572,
+      "verify_ms": 1019.555416,
+      "terminal_sha256": "fff584a3a2fc5d120bbee574acf6253ca8481120c55d1f0f35893e4bd10f9690",
+      "preparation_ms": 23806.248609
+    },
+    {
+      "class": 0,
+      "height": 30,
+      "ms": 22990.429120999997,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 6927.158813,
+      "calls": 63,
+      "class": 0,
+      "height": 30,
+      "input_ms": 1542.9159829999999,
+      "label": "joint_class_0_pages_63_calls_63",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3707892
+      },
+      "pages": 63,
+      "pow_ms": 99.704352,
+      "prove_ms": 9690.862474,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913012,
+      "verify_ms": 773.982703,
+      "terminal_sha256": "6e9a7a371dee6674e9326d63e869c91ff492490753fcc41bcf4eafc68f3cbb0a",
+      "preparation_ms": 18160.93727
+    },
+    {
+      "height": 30,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 13477.098784000002,
+      "calls": 0,
+      "class": 1,
+      "height": 31,
+      "input_ms": 4927.584685,
+      "label": "joint_class_1_pages_206_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8130200,
+        "rss_kib": 3711804
+      },
+      "pages": 206,
+      "pow_ms": 1245.1417680000002,
+      "prove_ms": 24178.162122,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981396,
+      "verify_ms": 2016.7158829999998,
+      "terminal_sha256": "c8639d5fd185fc268c1a2d7e1d06d6f5b24e60b34590d81b968c72eacf6b1c0a",
+      "preparation_ms": 42582.845591000005
+    },
+    {
+      "class": 1,
+      "height": 32,
+      "ms": 56568.563232,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 15519.473084,
+      "calls": 63,
+      "class": 1,
+      "height": 32,
+      "input_ms": 5028.46536,
+      "label": "joint_class_1_pages_206_calls_63",
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3683888
+      },
+      "pages": 206,
+      "pow_ms": 4388.084989,
+      "prove_ms": 25746.236357,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979828,
+      "verify_ms": 2469.16104,
+      "terminal_sha256": "7f28a60abcf9d74ae04a989ad263665ab51d5033603252fc28ff902b51f5a735",
+      "preparation_ms": 46294.174801
+    },
+    {
+      "height": 32,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 8923.086353,
+      "calls": 63,
+      "class": 0,
+      "height": 33,
+      "input_ms": 1479.018022,
+      "label": "joint_class_0_pages_63_calls_63",
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3734960
+      },
+      "pages": 63,
+      "pow_ms": 1356.604854,
+      "prove_ms": 9228.741765,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 912884,
+      "verify_ms": 1521.396925,
+      "terminal_sha256": "beccefc7488bdffe0f335e434c7d0725e26acf7216d8918bb2a2ccda4642b8d4",
+      "preparation_ms": 19630.84614
+    },
+    {
+      "height": 33,
+      "phase": "joint_terminal_adversarial_checks",
+      "rejected": 245
+    },
+    {
+      "assembly_ms": 5913.711881,
+      "calls": 0,
+      "class": 0,
+      "height": 34,
+      "input_ms": 1.541819,
+      "label": "joint_class_0_pages_0_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3724400
+      },
+      "pages": 0,
+      "pow_ms": 1213.125119,
+      "prove_ms": 9494.19682,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 911764,
+      "verify_ms": 764.462554,
+      "terminal_sha256": "eb8dd8e8926a71d5fb9abf803c71800a133cc65188d635593b7ab62e5494584a",
+      "preparation_ms": 15409.450519999999
+    },
+    {
+      "assembly_ms": 6211.9369449999995,
+      "calls": 0,
+      "class": 0,
+      "height": 35,
+      "input_ms": 1.8964839999999998,
+      "label": "joint_class_0_pages_0_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3684900
+      },
+      "pages": 0,
+      "pow_ms": 1516.5578229999999,
+      "prove_ms": 10370.078739,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914868,
+      "verify_ms": 1092.776494,
+      "terminal_sha256": "b2f3d12eac8ea005767b3cd9236aa08b6289e20317f6b9613c72745c9420ef8e",
+      "preparation_ms": 16583.912168
+    },
+    {
+      "assembly_ms": 7082.414484,
+      "calls": 0,
+      "class": 0,
+      "height": 36,
+      "input_ms": 3.008232,
+      "label": "joint_class_0_pages_0_calls_0",
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3684900
+      },
+      "pages": 0,
+      "pow_ms": 634.7561069999999,
+      "prove_ms": 14193.685168,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913492,
+      "verify_ms": 1011.0276,
+      "terminal_sha256": "6ecf5a5ecf6a3e4c8fbcb0c49fccc9ee8c747ebfc552f0a10067ffd6ff978276",
+      "preparation_ms": 21279.107884
+    },
+    {
+      "complete": true,
+      "memory": {
+        "process_peak_rss_kib": 8171596,
+        "rss_kib": 3684900
+      },
+      "mode": "joint-transition-and-applications",
+      "tip": 36
+    }
+  ]
+}

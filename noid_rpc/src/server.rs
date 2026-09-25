@@ -979,7 +979,27 @@ fn is_wallet_fee_rejection(error: &noid_mempool::SubmitError) -> bool {
     )
 }
 
+fn wallet_resource_error(error: noid_mempool::SubmitError) -> ErrorObject<'static> {
+    match error {
+        noid_mempool::SubmitError::InputLimitExceeded { max_inputs, .. } => {
+            wallet_plan_error(WalletSendPlanError::InputLimitExceeded { max_inputs })
+        }
+        other => rpc_err(other.to_string()),
+    }
+}
+
 impl RpcHandler {
+    async fn check_wallet_plan_resources(&self, inputs: usize, outputs: usize) -> RpcResult<()> {
+        let pages = inputs
+            .div_ceil(noid_tx::TX_INPUTS)
+            .max(outputs.div_ceil(noid_tx::TX_OUTPUTS))
+            .max(1);
+        self.mempool
+            .check_candidate_resources(pages, inputs, 0)
+            .await
+            .map_err(wallet_resource_error)
+    }
+
     async fn wallet_send_reviewed(
         &self,
         to_address: String,
@@ -1027,6 +1047,8 @@ impl RpcHandler {
                 fee_floor,
             )
             .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, plan.output_count)
+            .await?;
         tracing::info!(
             amount_micronoid,
             fee_micronoid = plan.fee_micronoid,
@@ -1175,6 +1197,10 @@ impl RpcHandler {
                     "wallet Auto fee replanned after admission rejection"
                 );
             }
+            // Recheck each attempt: the candidate can cross the fork or a
+            // reserved-page height while the wallet waits or replans its fee.
+            self.check_wallet_plan_resources(expected_input_count, expected_output_count)
+                .await?;
             let reserved_outputs = self.mempool.reserved_output_slots().await;
             let selection = {
                 let chain = self.chain.read().await;
@@ -2977,7 +3003,8 @@ impl ParanoidApiServer for RpcHandler {
         let _to_address = parse_address_param(&to_address)?.0;
         let (active_slot_count, log_slots) = self.mempool.fee_context().await;
         let floor = self.mempool.fee_floor().await;
-        self.wallet
+        let plan = self
+            .wallet
             .plan_send(
                 amount_micronoid,
                 if fee_micronoid == 0 {
@@ -2989,7 +3016,10 @@ impl ParanoidApiServer for RpcHandler {
                 log_slots,
                 floor,
             )
-            .map_err(wallet_plan_error)
+            .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, plan.output_count)
+            .await?;
+        Ok(plan)
     }
 
     async fn wallet_send(
@@ -3007,14 +3037,18 @@ impl ParanoidApiServer for RpcHandler {
         self.reload_active_wallet().await?;
         let (active_slot_count, log_slots) = self.mempool.fee_context().await;
         let relay_floor = self.mempool.fee_floor().await;
-        self.wallet
+        let plan = self
+            .wallet
             .plan_consolidation(
                 WALLET_CONSOLIDATION_INPUT_LIMIT,
                 active_slot_count,
                 log_slots,
                 relay_floor,
             )
-            .map_err(wallet_plan_error)
+            .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, 1)
+            .await?;
+        Ok(plan)
     }
 
     async fn wallet_consolidate(
@@ -3041,6 +3075,8 @@ impl ParanoidApiServer for RpcHandler {
                 relay_floor,
             )
             .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, 1)
+            .await?;
         if selected_input_slots != plan.selected_input_slots
             || expected_fee_micronoid != plan.fee_micronoid
             || expected_output_value_micronoid != plan.output_value_micronoid
@@ -3509,6 +3545,19 @@ mod tests {
         assert_eq!(data.max_inputs, 8);
         let value = serde_json::to_value(data).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn active_bank_input_limit_keeps_the_wallet_error_contract() {
+        let error = wallet_resource_error(noid_mempool::SubmitError::InputLimitExceeded {
+            actual: 505,
+            max_inputs: 504,
+        });
+        assert_eq!(error.code(), WALLET_INPUT_LIMIT_EXCEEDED_CODE);
+        assert_eq!(error.message(), WALLET_INPUT_LIMIT_EXCEEDED_MESSAGE);
+        let data: WalletInputLimitExceeded =
+            serde_json::from_str(error.data().unwrap().get()).unwrap();
+        assert_eq!(data.max_inputs, 504);
     }
 
     #[test]

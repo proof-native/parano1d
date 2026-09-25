@@ -2122,7 +2122,14 @@ async fn main() -> anyhow::Result<()> {
                 format!("authorization verification CPU admission failed: {error}")
             })?
         });
-    let mempool = AsyncMempool::new(view, MempoolConfig::default())
+    let mut mempool_config = MempoolConfig::default();
+    if let Some(budgets) = history_step_runtime
+        .as_deref()
+        .and_then(|runtime| runtime.v2_admission_budgets())
+    {
+        mempool_config = mempool_config.with_v2_block_budgets(budgets);
+    }
+    let mempool = AsyncMempool::new(view, mempool_config)
         .with_authorization_verification_executor(authorization_verification_executor);
     tracing::debug!("mempool ready");
 

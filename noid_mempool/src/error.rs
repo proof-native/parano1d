@@ -34,6 +34,24 @@ pub enum SubmitError {
     #[error("tx intent too large: {actual} bytes (max {max})")]
     IntentTooLarge { actual: usize, max: usize },
 
+    /// The node must know the authenticated bank before admitting v2 traffic.
+    #[error("v2 transaction limits are unavailable")]
+    V2LimitsUnavailable,
+
+    /// The spend exceeds every class compatible with its other resources.
+    #[error("transaction has {actual} inputs; the active block limit is {max_inputs}")]
+    InputLimitExceeded { actual: usize, max_inputs: usize },
+
+    /// No one class can accommodate the complete indivisible spend.
+    #[error(
+        "no active proof class fits {pages} pages, {inputs} inputs and {calls} contract calls"
+    )]
+    NoProofClass {
+        pages: usize,
+        inputs: usize,
+        calls: usize,
+    },
+
     /// Non-coinbase transactions must carry a wallet authorization.
     #[error("missing auth authorization for non-coinbase transaction")]
     MissingProof,
@@ -60,6 +78,9 @@ impl SubmitError {
             SubmitError::AlreadyAdmitted(_)
                 | SubmitError::Full { .. }
                 | SubmitError::BytesFull { .. }
+                | SubmitError::V2LimitsUnavailable
+                | SubmitError::InputLimitExceeded { .. }
+                | SubmitError::NoProofClass { .. }
                 | SubmitError::Consensus(ConsensusError::SlotConflict)
         )
     }
