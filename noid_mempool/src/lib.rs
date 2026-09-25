@@ -46,6 +46,7 @@
 //! ```
 
 pub mod config;
+mod contracts;
 pub mod error;
 pub mod event;
 pub mod floor;
@@ -57,12 +58,14 @@ pub mod view;
 // ---------------------------------------------------------------------------
 
 pub use config::MempoolConfig;
+pub use contracts::DecodedMempoolIntent;
 pub use error::SubmitError;
 pub use event::{EvictReason, MempoolEvent};
 pub use floor::FeeFloor;
 pub use pool::{
     AsyncMempool, AuthorizationVerificationExecutor, AuthorizationVerificationTask,
     MempoolEntryMetadata, MempoolMetadataSnapshot, MempoolUsageSnapshot, SelectedMempoolEntry,
+    V2MempoolSelection,
 };
 pub use view::ChainView;
 

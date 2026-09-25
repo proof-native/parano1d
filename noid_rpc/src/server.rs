@@ -2260,11 +2260,9 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn submit_tx_intent(&self, hex_str: String) -> RpcResult<String> {
         let bytes = decode_bounded_hex("tx intent", &hex_str, MAX_TX_INTENT_BYTES_GLOBAL)?;
-        let intent = noid_tx::PagedSpendIntent::from_bytes(&bytes)
-            .map_err(|e| rpc_err(format!("decode: {e:?}")))?;
         let hash = self
             .mempool
-            .submit(intent, bytes)
+            .submit_encoded(bytes)
             .await
             .map_err(|e| rpc_err(e.to_string()))?;
         Ok(hex::encode(hash.0))

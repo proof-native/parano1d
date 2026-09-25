@@ -10428,12 +10428,12 @@ async fn handle_p2p_events(
                             );
                             continue;
                         }
-                        if let Ok(intent) = noid_tx::PagedSpendIntent::from_bytes(&intent_bytes) {
+                        if let Ok(intent) = noid_mempool::DecodedMempoolIntent::from_bytes(&intent_bytes) {
                             // Scan-local exclusion, not an acceptance cache.
                             // A stale/invalid intent must not pin a later page
                             // behind the same prefix. New scans start fresh.
                             observed_txids.push(intent.logical_txid().0);
-                            match mempool_task.submit(intent, intent_bytes).await {
+                            match mempool_task.submit_decoded(intent, intent_bytes).await {
                                 Ok(hash) => {
                                     tracing::debug!(hash = ?hash, "mempool sync: tx admitted");
                                 }
@@ -10520,8 +10520,8 @@ async fn handle_p2p_events(
                 // relay task spawned in main() — no extra work needed here.
                 let mempool_task = mempool.clone();
                 tokio::spawn(async move {
-                    let acceptance = match noid_tx::PagedSpendIntent::from_bytes(&intent_bytes) {
-                        Ok(intent) => match mempool_task.submit(intent, intent_bytes).await {
+                    let acceptance = match noid_mempool::DecodedMempoolIntent::from_bytes(&intent_bytes) {
+                        Ok(intent) => match mempool_task.submit_decoded(intent, intent_bytes).await {
                             Ok(hash) => {
                                 tracing::debug!(hash = ?hash, "P2P tx admitted");
                                 delivery.admitted(hash.0);

@@ -16,11 +16,11 @@ use noid_poseidon2b::primitives::TxBodyHash;
 #[derive(Debug, Clone)]
 pub enum MempoolEvent {
     /// A new transaction was admitted (passed all native checks).
-    /// Payload: raw wire bytes of the `PagedSpendIntent` (for P2P gossip).
+    /// Payload: canonical ordinary or contract intent bytes (for P2P gossip).
     TxAdmitted {
         hash: TxBodyHash,
         fee: u64,
-        /// Raw `PagedSpendIntent` bytes for P2P rebroadcast.
+        /// The exact admitted envelope, including any contract opening.
         intent_bytes: Arc<[u8]>,
     },
 
@@ -41,6 +41,11 @@ pub enum MempoolEvent {
 /// Why a transaction was evicted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvictReason {
+    /// A reorg moved the candidate block back before contract activation.
+    ContractForkInactive,
+    /// The candidate height changed a contract's result or authorized key.
+    /// The wallet must rebuild and reauthorize the call against the new view.
+    ContractContextChanged,
     /// The canonical transaction epoch anchor advanced at a boundary.
     EpochAnchorChanged,
     /// The fee is below the current parent-State consensus minimum.
