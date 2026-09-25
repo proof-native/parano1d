@@ -470,13 +470,24 @@ fn fee_breakdown_info(
     }
 }
 
-fn mempool_tx_info(entry: noid_mempool::MempoolEntryMetadata) -> MempoolTxInfo {
+fn mempool_tx_info(
+    entry: noid_mempool::MempoolEntryMetadata,
+    v2: Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>,
+) -> MempoolTxInfo {
     use noid_chain::consensus::paged_spend::BlockProofClass;
 
     let page_count = usize::from(entry.page_count);
-    let proof_class = BlockProofClass::for_page_count(page_count)
-        .expect("admitted PagedSpend always fits a consensus proof class");
-    let requires_b255_miner = matches!(proof_class, BlockProofClass::B255);
+    let (minimum_proof_class, requires_b255_miner) = if let Some((small, height)) = v2 {
+        let system_pages = usize::from(noid_chain::consensus::development_allocation::development_payout_due_at_height(height));
+        let requires_large = page_count > small.pages().saturating_sub(system_pages)
+            || usize::from(entry.n_inputs) > small.max_live_inputs();
+        (format!("B{}", if requires_large { 255 } else { small.pages() }), requires_large)
+    } else {
+        let proof_class = BlockProofClass::for_page_count(page_count)
+            .expect("admitted PagedSpend always fits a consensus proof class");
+        let large = matches!(proof_class, BlockProofClass::B255);
+        ((if large { "B255" } else { "B25" }).to_owned(), large)
+    };
     MempoolTxInfo {
         tx_hash: hex::encode(entry.tx_hash.0),
         fee_micronoid: entry.fee_micronoid,
@@ -484,7 +495,7 @@ fn mempool_tx_info(entry: noid_mempool::MempoolEntryMetadata) -> MempoolTxInfo {
         n_inputs: usize::from(entry.n_inputs),
         n_outputs: usize::from(entry.n_outputs),
         page_count,
-        minimum_proof_class: if requires_b255_miner { "B255" } else { "B25" }.to_owned(),
+        minimum_proof_class,
         requires_b255_miner,
         admitted_height: entry.admitted_height,
         has_authorization: entry.has_authorization,
@@ -909,7 +920,7 @@ pub struct RpcHandler {
     /// Pinned self-recursive HistoryStep runtime shared with local mining and
     /// inbound bundle verification.
     pub history_step_runtime:
-        Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+        Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     /// Process-wide prepared ghost authorization reused by every block attempt.
     pub history_step_ghost: Option<
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
@@ -953,6 +964,17 @@ fn is_wallet_fee_rejection(error: &noid_mempool::SubmitError) -> bool {
 }
 
 impl RpcHandler {
+    async fn pending_v2_class(&self) -> RpcResult<Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>> {
+        let height = self.chain.read().await.tip_height().saturating_add(1);
+        if !noid_chain::consensus::params::v2_active(height) {
+            return Ok(None);
+        }
+        let runtime = self.history_step_runtime.as_deref()
+            .ok_or_else(|| rpc_err("v2 history bank is unavailable"))?
+            .v2().map_err(rpc_err)?;
+        Ok(Some((runtime.bank().config().class(noid_recursive::acceptance::history_step::v2::banked::Class::Small), height)))
+    }
+
     fn require_mining_network(&self) -> RpcResult<()> {
         if *self.mining_network_ready.borrow() {
             Ok(())
@@ -1229,7 +1251,10 @@ impl RpcHandler {
             .unwrap_or_default()
             .as_secs();
 
-        let builder = TemplateBuilder::new(self.mempool.clone());
+        let builder = TemplateBuilder::new(self.mempool.clone()).with_history_protocol(
+            self.history_step_runtime.as_deref()
+                .ok_or_else(|| rpc_err("HistoryStep runtime is unavailable"))?,
+        );
         // Snapshot/reorg installation holds the same gate while it replaces
         // chain, mempool and wallet views. Capture the exact parent+payout
         // boundary under that gate, then release it before witness preparation.
@@ -1337,7 +1362,9 @@ impl RpcHandler {
                 .lock()
                 .map_err(|_| rpc_err("external mining capacity lock poisoned"))?;
             let previous = capacity.page_limit();
-            capacity.observe_preparation(proof_class, prepare_elapsed);
+            if let noid_miner::MiningProofClass::Legacy(class) = proof_class {
+                capacity.observe_preparation(class, prepare_elapsed);
+            }
             (
                 previous,
                 capacity.page_limit(),
@@ -1831,16 +1858,19 @@ impl ParanoidApiServer for RpcHandler {
             }));
         };
 
-        let (history_step_bytes, bundle_len) = match bundle_bytes {
+        let (history_step_bytes, bundle_len, terminal_class) = match bundle_bytes {
             Some(bytes) => {
                 let bundle = noid_chain::AcceptedBlockBundle::decode(&bytes)
                     .map_err(|error| rpc_err(format!("decode retained block bundle: {error}")))?;
                 (
                     bundle.history_step_terminal_bytes().len() as u64,
                     bytes.len() as u64,
+                    Some(noid_chain::history_step::HistoryStepTerminalMetadata::decode_prefix(
+                        bundle.history_step_terminal_bytes(),
+                    ).map_err(|error| rpc_err(error.to_string()))?.class_id()),
                 )
             }
-            None => (0, 0),
+            None => (0, 0, None),
         };
         let block = noid_chain::Block::from_bytes(&block_bytes)
             .map_err(|error| rpc_err(format!("decode retained block: {error:?}")))?;
@@ -2021,11 +2051,31 @@ impl ParanoidApiServer for RpcHandler {
             .map(|group| u128::from(group.spend.fee))
             .sum::<u128>()
             .to_string();
-        let proof_class = match stream.proof_class {
+        let proof_class = if noid_chain::consensus::params::v2_active(height) {
+            // Body occupancy cannot reveal which of the two v2 classes was
+            // actually proved. A pruned terminal leaves that detail unknown.
+            match terminal_class {
+                Some(class) => {
+                    let class = noid_recursive::acceptance::history_step::v2::banked::Class::from_wire(class)
+                        .map_err(|error| rpc_err(error.to_string()))?;
+                    match self.history_step_runtime.as_deref() {
+                        Some(runtime) => {
+                            let config = runtime.v2().map_err(rpc_err)?.bank().config().class(class);
+                            format!("B{} / m{}", config.pages(), config.outer_m())
+                        }
+                        // Body inspection is still useful if the verifier is
+                        // unavailable. Report only the retained class identity;
+                        // its resource limits require the pinned bank.
+                        None => format!("v2 / {class:?} / parameters unavailable"),
+                    }
+                }
+                None => "v2 / class unavailable".to_owned(),
+            }
+        } else { match stream.proof_class {
             noid_chain::consensus::BlockProofClass::B25 => "B25 / m22",
             noid_chain::consensus::BlockProofClass::B255 => "B255 / m24",
         }
-        .to_string();
+        .to_string() };
         let retained = RetainedBlockInfo {
             proof_class,
             logical_transactions: logical_txids.len() as u16,
@@ -2276,7 +2326,8 @@ impl ParanoidApiServer for RpcHandler {
         let hash_bytes = decode_32_byte_hex("txhash", &txhash)?;
         let hash = noid_poseidon2b::primitives::TxBodyHash(hash_bytes);
         let found = self.mempool.get_entry_metadata(&hash).await;
-        Ok(found.map(mempool_tx_info))
+        let v2 = self.pending_v2_class().await?;
+        Ok(found.map(|entry| mempool_tx_info(entry, v2)))
     }
 
     // -----------------------------------------------------------------------
@@ -2888,12 +2939,13 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn get_mempool_info(&self) -> RpcResult<MempoolInfo> {
         let snapshot = self.mempool.metadata_snapshot().await;
+        let v2 = self.pending_v2_class().await?;
 
         let txs: Vec<MempoolTxInfo> = snapshot
             .entries
             .iter()
             .copied()
-            .map(mempool_tx_info)
+            .map(|entry| mempool_tx_info(entry, v2))
             .collect();
 
         Ok(MempoolInfo {
@@ -3176,15 +3228,44 @@ mod tests {
             has_authorization: true,
         };
 
-        let b25 = mempool_tx_info(metadata(25));
+        let b25 = mempool_tx_info(metadata(25), None);
         assert_eq!(b25.page_count, 25);
         assert_eq!(b25.minimum_proof_class, "B25");
         assert!(!b25.requires_b255_miner);
 
-        let b255 = mempool_tx_info(metadata(26));
+        let b255 = mempool_tx_info(metadata(26), None);
         assert_eq!(b255.page_count, 26);
         assert_eq!(b255.minimum_proof_class, "B255");
         assert!(b255.requires_b255_miner);
+    }
+
+    #[test]
+    fn mempool_v2_status_follows_pinned_limits_and_system_page_reservation() {
+        use noid_chain::consensus::forks::ACTIVE_SCHEDULE;
+        use noid_recursive::acceptance::history_step::v2::V2Config;
+        let Some(at) = ACTIVE_SCHEDULE.v2() else { return; };
+        let small = V2Config::with_limits(23, 63, 504, 63, ACTIVE_SCHEDULE).unwrap();
+        let metadata = |pages, inputs| noid_mempool::MempoolEntryMetadata {
+            tx_hash: noid_poseidon2b::primitives::TxBodyHash([1; 32]),
+            fee_micronoid: 7,
+            fee_rate: 3,
+            n_inputs: inputs,
+            n_outputs: 1,
+            page_count: pages,
+            admitted_height: at.height() - 1,
+            has_authorization: true,
+        };
+        for (pages, large) in [(1, false), (26, false), (63, false), (64, true)] {
+            let info = mempool_tx_info(metadata(pages, 1), Some((small, at.height())));
+            assert_eq!(info.requires_b255_miner, large);
+            assert_eq!(info.minimum_proof_class, if large { "B255" } else { "B63" });
+        }
+        let daily = at.height() + 86_400 / at.block_time() - 1;
+        assert!(mempool_tx_info(metadata(63, 1), Some((small, daily))).requires_b255_miner);
+        assert!(!mempool_tx_info(metadata(62, 1), Some((small, daily))).requires_b255_miner);
+        let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
+        assert!(!mempool_tx_info(metadata(48, 384), Some((bounded, at.height()))).requires_b255_miner);
+        assert!(mempool_tx_info(metadata(49, 385), Some((bounded, at.height()))).requires_b255_miner);
     }
 
     #[test]
@@ -3284,7 +3365,7 @@ pub async fn start_rpc_server(
     cpu_backend: String,
     available_threads: usize,
     worker_threads: usize,
-    history_step_runtime: Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+    history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     history_step_ghost: Option<
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
     >,

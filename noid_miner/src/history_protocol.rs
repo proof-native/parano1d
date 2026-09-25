@@ -40,6 +40,7 @@ pub struct HistoryProtocolRuntime {
     canonical_store: OnceLock<noid_chain::storage::MdbxStore>,
     retirement_keys: Option<v2::PinnedRetirementKeys>,
     legacy_matrix_cache_available: bool,
+    large_v2_mining: bool,
 }
 
 impl HistoryProtocolRuntime {
@@ -65,7 +66,19 @@ impl HistoryProtocolRuntime {
             canonical_store: OnceLock::new(),
             retirement_keys: None,
             legacy_matrix_cache_available: true,
+            large_v2_mining: false,
         })
+    }
+
+    /// Producer policy only. Every node verifies both v2 classes regardless
+    /// of this explicit server opt-in; pre-v2 calibration is unaffected.
+    pub fn with_large_v2_mining(mut self, allowed: bool) -> Self {
+        self.large_v2_mining = allowed;
+        self
+    }
+
+    pub const fn large_v2_mining_allowed(&self) -> bool {
+        self.large_v2_mining
     }
 
     /// Preparation hint for the wallet. This grants no verification authority;

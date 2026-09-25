@@ -205,7 +205,7 @@ pub struct BlockMiner {
     /// Keep the channel open for library-only miners even when their caller
     /// does not retain a sender after construction.
     _template_change_sender: broadcast::Sender<()>,
-    history_step_runtime: Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>,
+    history_step_runtime: Arc<crate::HistoryProtocolRuntime>,
     ghost_authorization:
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
     /// Optional hook called synchronously after block is applied to chain, before
@@ -230,7 +230,7 @@ impl BlockMiner {
         proof_network_ready: watch::Receiver<bool>,
         nonce_network_ready: watch::Receiver<bool>,
         template_change_sender: broadcast::Sender<()>,
-        history_step_runtime: Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>,
+        history_step_runtime: Arc<crate::HistoryProtocolRuntime>,
         ghost_authorization: Arc<
             noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization,
         >,
@@ -354,7 +354,8 @@ impl BlockMiner {
     /// Main mining loop. Run in a dedicated `tokio::spawn` task.
     /// Never returns under normal operation.
     pub async fn run(mut self) {
-        let builder = TemplateBuilder::new(self.mempool.clone());
+        let builder = TemplateBuilder::new(self.mempool.clone())
+            .with_history_protocol(&self.history_step_runtime);
         let cancel = self.cancel_pow.clone();
         let mut heartbeat = interval(Duration::from_secs(self.config.refresh_interval_secs));
         let mut mempool_events = self.mempool.subscribe();
@@ -558,7 +559,9 @@ impl BlockMiner {
             // coinbase-only B25 therefore calibrates the hardware just as a
             // full B25 block does.
             let previous_page_limit = proof_capacity.page_limit();
-            proof_capacity.observe_preparation(proof_class, prepare_elapsed);
+            if let crate::MiningProofClass::Legacy(class) = proof_class {
+                proof_capacity.observe_preparation(class, prepare_elapsed);
+            }
             let next_page_limit = proof_capacity.page_limit();
             let b25_prepare_ms_ewma = proof_capacity.prepare_ms_ewma(BlockProofClass::B25);
             let b255_prepare_ms_ewma = proof_capacity.prepare_ms_ewma(BlockProofClass::B255);

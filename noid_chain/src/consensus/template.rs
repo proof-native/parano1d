@@ -604,11 +604,20 @@ fn build_block_template_with_post_state(
     }
     debug_assert!(source.next().is_none());
     candidates.sort_by(|left, right| {
-        right
-            .spend
-            .fee
-            .cmp(&left.spend.fee)
-            .then_with(|| left.spend.logical_txid.0.cmp(&right.spend.logical_txid.0))
+        let contract = |group: &CandidatePagedSpend| {
+            super::params::v2_active(child_height)
+                && group.pages[0].body.validity_bitmap & noid_tx::PAGED_SPEND_CONTRACT_BIT != 0
+        };
+        // The v2 relation uses a prefix of contract calls. Order complete
+        // groups before State application so proofs, roots and creation IDs
+        // all refer to the same physical stream. Legacy ordering is unchanged.
+        contract(right).cmp(&contract(left)).then_with(|| {
+            right
+                .spend
+                .fee
+                .cmp(&left.spend.fee)
+                .then_with(|| left.spend.logical_txid.0.cmp(&right.spend.logical_txid.0))
+        })
     });
 
     // 2. Determine expansion from the strict-majority hard-finalized window.
@@ -922,6 +931,94 @@ mod tests {
         body.fee = required_fee_for_tx_body(&body, parent.active_slot_count, parent.log_slots);
         body.outputs[0].amount -= body.fee;
         Transaction::new(body)
+    }
+
+    #[test]
+    fn contract_prefix_is_height_selected_before_state_and_creation_ids() {
+        use crate::fri_state::SlotValue;
+        let Some(fork) = super::super::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        // Include the backwards crossing and a system-record block. This is
+        // an ordering/state test; authorization is checked by the producer.
+        for height in [fork - 1, fork, fork + 1, fork - 1, fork + 2879] {
+            let owner = Address([4; 32]);
+            let mut state = ChainState::with_log_slots(8);
+            for slot in 1..=3 {
+                state
+                    .state
+                    .set_slot(
+                        slot,
+                        SlotValue::with_owner_fields(1_000_000, 1, owner.as_fields()),
+                    )
+                    .unwrap();
+            }
+            state.active_slot_count = 3;
+            state.alloc_counter = 3;
+            state.circulating_supply_micronoid = 3_000_000;
+            let mut parent = parent(&mut state);
+            parent.height = height - 1;
+            let mut pages = Vec::new();
+            for (input, output, extra_fee, contract) in [
+                (1, 11, 3_000, false),
+                (2, 12, 1_000, true),
+                (3, 13, 2_000, true),
+            ] {
+                let mut tx = user(input, output, 1_000_000, owner, &parent);
+                tx.body.fee += extra_fee;
+                tx.body.outputs[0].amount -= extra_fee;
+                if contract {
+                    tx.body.validity_bitmap |= noid_tx::PAGED_SPEND_CONTRACT_BIT;
+                }
+                pages.push(tx);
+            }
+            let (template, prepared) = build_node_owned_block_template(
+                &parent,
+                &state,
+                &[3; 18],
+                pages,
+                Address([9; 32]),
+                1,
+                [0xff; 32],
+            )
+            .unwrap();
+            let outputs: Vec<_> = template
+                .txs
+                .iter()
+                .map(|tx| tx.body.outputs[0].slot_index)
+                .collect();
+            assert_eq!(
+                outputs,
+                if height < fork {
+                    vec![11, 13, 12]
+                } else {
+                    vec![13, 12, 11]
+                }
+            );
+            let system_outputs = if template.development_payout.is_some() {
+                3
+            } else {
+                1
+            };
+            for (index, slot) in outputs.into_iter().enumerate() {
+                assert_eq!(
+                    prepared.post_state.state.slot(slot).creation_id(),
+                    state.alloc_counter + system_outputs + index as u64 + 1
+                );
+            }
+            let block = template.into_block(0);
+            let root = crate::materialize_accepted_block_state(&mut state, &block).unwrap();
+            assert_eq!(root, block.header.state_root);
+            assert_eq!(state.alloc_counter, prepared.post_state.alloc_counter);
+            assert_eq!(
+                state.active_slot_count,
+                prepared.post_state.active_slot_count
+            );
+            assert_eq!(
+                crate::block::compute_tx_root(&block.transactions),
+                block.header.tx_root
+            );
+        }
     }
 
     #[test]

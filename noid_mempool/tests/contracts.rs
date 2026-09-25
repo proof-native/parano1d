@@ -169,6 +169,7 @@ async fn scheduled_admission_relay_selection_and_backward_fork_reorg() {
                 contract_calls: 63,
             },
             None,
+            activation,
             expected.spend.pages[0].body.epoch_anchor,
         )
         .await

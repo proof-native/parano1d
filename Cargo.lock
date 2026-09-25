@@ -488,6 +488,7 @@ dependencies = [
  "noid_fri",
  "noid_fri_binius",
  "noid_gkr",
+ "noid_mempool",
  "noid_miner",
  "noid_poseidon2b",
  "noid_recursive",
@@ -495,6 +496,7 @@ dependencies = [
  "rayon",
  "serde_json",
  "tempfile",
+ "tokio",
  "tracing-subscriber",
  "zstd",
 ]

@@ -381,12 +381,15 @@ impl AsyncMempool {
             let executor = Arc::clone(&self.auth_verify_executor);
             let opening = opening.clone();
 
-            let _permit =
-                self.auth_verify_semaphore.acquire().await.map_err(|_| {
-                    SubmitError::Internal("proof-verification semaphore closed".into())
-                })?;
+            let permit = Arc::clone(&self.auth_verify_semaphore)
+                .acquire_owned()
+                .await
+                .map_err(|_| SubmitError::Internal("proof-verification semaphore closed".into()))?;
 
             tokio::task::spawn_blocking(move || {
+                // Cancelling an RPC or relay future cannot cancel an already
+                // running blocking worker. Keep its CPU slot until it exits.
+                let _permit = permit;
                 executor(Box::new(move || {
                     if let Some(opening) = opening {
                         let bundle = noid_gkr::WalletAuthorizationBundle::from_bytes(&proof_bytes)
@@ -603,6 +606,7 @@ impl AsyncMempool {
         &self,
         small: noid_chain::mempool::BlockSelectionBudget,
         large: Option<noid_chain::mempool::BlockSelectionBudget>,
+        candidate_height: u64,
         epoch_anchor: [u8; 32],
     ) -> Result<V2MempoolSelection, SubmitError> {
         let st = self.state.lock().await;
@@ -611,6 +615,11 @@ impl AsyncMempool {
             .tip_height
             .checked_add(1)
             .ok_or_else(|| SubmitError::Internal("height exhausted".into()))?;
+        if height != candidate_height {
+            return Err(SubmitError::MalformedIntent(
+                "mempool view does not match the candidate height".into(),
+            ));
+        }
         if !noid_chain::consensus::params::v2_active(height) {
             return Err(SubmitError::MalformedIntent(
                 "v2 is not active at the candidate height".into(),
@@ -1497,6 +1506,91 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cancelled_submission_keeps_its_cpu_permit_until_the_worker_exits() {
+        use noid_tx::PagedSpendIntent;
+        use std::sync::Arc;
+        let (mut pool, _, ids) = fee_test_pool_at(
+            &[40_000],
+            0,
+            MempoolConfig::default().with_auth_verify_workers(1),
+            0,
+        )
+        .await;
+        let pages = {
+            let mut state = pool.state.lock().await;
+            let pages = state.pool.remove(&ids[0]).unwrap().pages;
+            rebuild_slot_sets(&mut state);
+            pages
+        };
+        let intent = PagedSpendIntent::new(pages, vec![1; 20]).unwrap();
+        let bytes = intent.to_bytes().unwrap();
+        let (started, signal) = tokio::sync::oneshot::channel();
+        let started = std::sync::Mutex::new(Some(started));
+        let (release, waiting) = std::sync::mpsc::channel();
+        let waiting = std::sync::Mutex::new(waiting);
+        pool = pool.with_authorization_verification_executor(Arc::new(move |task| {
+            started.lock().unwrap().take().unwrap().send(()).unwrap();
+            waiting
+                .lock()
+                .unwrap()
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            task()
+        }));
+        let submitter = pool.clone();
+        let submitted = tokio::spawn(async move { submitter.submit(intent, bytes).await });
+        tokio::time::timeout(std::time::Duration::from_secs(5), signal)
+            .await
+            .unwrap()
+            .unwrap();
+        submitted.abort();
+        assert!(submitted.await.unwrap_err().is_cancelled());
+        assert_eq!(pool.auth_verify_semaphore.available_permits(), 0);
+        assert!(pool.auth_verify_semaphore.try_acquire().is_err());
+        release.send(()).unwrap();
+        let permit = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            pool.auth_verify_semaphore.acquire(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        drop(permit);
+        assert_eq!(pool.auth_verify_semaphore.available_permits(), 1);
+        assert!(pool.is_empty().await);
+    }
+
+    #[tokio::test]
+    async fn v2_selection_rejects_a_changed_candidate_height() {
+        use noid_chain::mempool::BlockSelectionBudget;
+        let Some(height) = noid_chain::consensus::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        let (pool, view, _) =
+            fee_test_pool_at(&[40_000], height - 1, MempoolConfig::default(), 0).await;
+        let budget = BlockSelectionBudget {
+            pages: 63,
+            live_inputs: 504,
+            contract_calls: 63,
+        };
+        for stale_height in [height - 1, height + 1] {
+            assert!(pool
+                .select_for_v2_mining(budget, None, stale_height, view.user_epoch_anchor_id)
+                .await
+                .is_err());
+        }
+        assert_eq!(
+            pool.select_for_v2_mining(budget, None, height, view.user_epoch_anchor_id)
+                .await
+                .unwrap()
+                .entries
+                .len(),
+            1
+        );
+        assert_eq!(pool.len().await, 1);
+    }
+
+    #[tokio::test]
     async fn optional_large_selection_preserves_the_more_valuable_small_call_set() {
         use noid_chain::mempool::BlockSelectionBudget;
         let Some(height) = noid_chain::consensus::params::V2_ACTIVATION_HEIGHT else {
@@ -1532,6 +1626,7 @@ mod tests {
                     .select_for_v2_mining(
                         small,
                         allowed.then_some(large),
+                        height,
                         view.user_epoch_anchor_id,
                     )
                     .await

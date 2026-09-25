@@ -97,6 +97,28 @@ fn read_candidate(
     Ok((parts, bank, paths))
 }
 
+/// Independent verification contexts share authenticated immutable matrices,
+/// never their successful-claim caches or accepted origins.
+pub(super) fn runtime_pair(output: &Path, pin: [u8; 32]) -> Result<[Arc<joint::Runtime>; 2]> {
+    let (parts, bank, paths) = read_candidate(output, pin)?;
+    let source = Arc::new(Source {
+        paths,
+        config: parts.config(),
+        digests: Class::ALL.map(|class| bank.matrix_digest(class)),
+        cache: Mutex::new([None, None]),
+    });
+    let make = || {
+        joint::Runtime::new(
+            bank.clone(),
+            parts.clone(),
+            Box::new(SharedSource(Arc::clone(&source))),
+        )
+        .map(Arc::new)
+        .map_err(err)
+    };
+    Ok([make()?, make()?])
+}
+
 /// Run separately under the receiver CPU/memory envelope. Matrix decoding
 /// and authentication are setup; cold means an empty checked-claim cache.
 pub fn verify_saved(args: &[String]) -> Result<()> {

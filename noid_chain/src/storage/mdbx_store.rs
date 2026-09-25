@@ -1006,6 +1006,30 @@ fn history_step_class_slot(effective_page_count: usize) -> Option<usize> {
     }
 }
 
+/// Legacy class selection is fixed by body size. In v2 the verified terminal
+/// selects its pinned class even for an empty block. Intermediate suffix
+/// markers carry no individual proof, so their class byte is a placeholder;
+/// they remain bound to the complete verified authority at the suffix tip.
+fn accepted_history_step_class_slot(
+    header: &BlockHeader,
+    effective_page_count: usize,
+    complete_terminal: Option<&[u8]>,
+) -> Option<usize> {
+    let legacy_class = history_step_class_slot(effective_page_count)?;
+    if !crate::consensus::params::v2_active(header.height) {
+        return Some(legacy_class);
+    }
+    match complete_terminal {
+        Some(bytes) => {
+            let (height, semantic_id, class) = history_step_terminal_metadata(bytes)?;
+            (height == header.height
+                && semantic_id == crate::block_header::semantic_header_id(header))
+            .then_some(class)
+        }
+        None => Some(0),
+    }
+}
+
 fn read_history_step_terminal(
     txn: &Transaction<'_, RO, NoWriteMap>,
     height: u64,
@@ -3167,9 +3191,11 @@ impl MdbxStore {
                     .ok_or(StoreError::Decode(
                         "accepted block is missing its coinbase record",
                     ))?;
-            let expected_class = history_step_class_slot(effective_page_count).ok_or(
-                StoreError::Decode("accepted block page count has no canonical HistoryStep tier"),
-            )?;
+            let expected_class =
+                accepted_history_step_class_slot(header, effective_page_count, complete_terminal)
+                    .ok_or(StoreError::Decode(
+                    "accepted block page count has no canonical HistoryStep tier",
+                ))?;
             let terminal_bytes: Cow<'_, [u8]> = match complete_terminal {
                 Some(terminal) => {
                     if !history_step_terminal_matches_class(
@@ -3975,7 +4001,13 @@ impl MdbxStore {
                     .transactions
                     .len()
                     .checked_sub(1)
-                    .and_then(history_step_class_slot)
+                    .and_then(|pages| {
+                        accepted_history_step_class_slot(
+                            &staged.header,
+                            pages,
+                            accepted.complete_terminal(),
+                        )
+                    })
                     .ok_or(StoreError::Decode(
                         "staged reorg transaction count has no canonical HistoryStep tier",
                     ))?;
@@ -4247,7 +4279,7 @@ mod tests {
     }
 
     fn terminal(height: u64, hash: [u8; 32], current_slot: u8) -> Vec<u8> {
-        let class_id = current_slot * crate::history_step::HISTORY_STEP_TIER_SLOT_COUNT;
+        let class_id = current_slot;
         let mut bytes =
             crate::history_step::HistoryStepTerminalMetadata::new(height, hash, class_id)
                 .unwrap()
@@ -4702,13 +4734,22 @@ mod tests {
         block: &crate::Block,
         parent_meta: &ConsensusMeta,
     ) -> ConsensusMeta {
+        commit_accepted_test_block_with_class(store, block, parent_meta, 0)
+    }
+
+    fn commit_accepted_test_block_with_class(
+        store: &MdbxStore,
+        block: &crate::Block,
+        parent_meta: &ConsensusMeta,
+        class: u8,
+    ) -> ConsensusMeta {
         let hash = crate::hash_block_header(&block.header);
         let bundle = crate::AcceptedBlockBundle::try_from_parts(
             block.to_bytes(),
             terminal(
                 block.header.height,
                 crate::block_header::semantic_header_id(&block.header),
-                0,
+                class,
             ),
         )
         .unwrap();
@@ -4746,6 +4787,115 @@ mod tests {
         let mut undo = BlockUndoLog::empty(block.header.height, block.header.log_slots);
         undo.tx_hashes = crate::block::try_compute_logical_txids(&block.transactions).unwrap();
         undo
+    }
+
+    #[test]
+    fn v2_storage_class_comes_from_the_terminal_not_body_occupancy() {
+        let Some(fork) = crate::consensus::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        let parent = crate::consensus::genesis_header();
+        for height in [fork - 1, fork, fork + 1] {
+            let candidate = block(&parent, height, 7);
+            let semantic = crate::block_header::semantic_header_id(&candidate.header);
+            for pages in [0, 25, 26, 63, 255] {
+                for class in [0, 1] {
+                    let bytes = terminal(height, semantic, class);
+                    let selected =
+                        accepted_history_step_class_slot(&candidate.header, pages, Some(&bytes));
+                    assert_eq!(
+                        selected,
+                        if height < fork {
+                            history_step_class_slot(pages)
+                        } else {
+                            Some(class as usize)
+                        }
+                    );
+                }
+            }
+            assert_eq!(
+                accepted_history_step_class_slot(&candidate.header, 256, None),
+                None
+            );
+            if height >= fork {
+                for bad in [
+                    terminal(height + 1, semantic, 0),
+                    terminal(height, [9; 32], 1),
+                ] {
+                    assert_eq!(
+                        accepted_history_step_class_slot(&candidate.header, 0, Some(&bad)),
+                        None
+                    );
+                }
+                let mut bad_class = terminal(height, semantic, 0);
+                bad_class[41] = crate::history_step::HISTORY_STEP_V2_CLASS_COUNT;
+                assert_eq!(
+                    accepted_history_step_class_slot(&candidate.header, 0, Some(&bad_class)),
+                    None
+                );
+                let placeholder =
+                    accepted_history_step_class_slot(&candidate.header, 255, None).unwrap();
+                assert_eq!(placeholder, 0);
+                let marker = encode_recursive_suffix_marker(
+                    &candidate.header,
+                    placeholder,
+                    height + 1,
+                    [3; 32],
+                )
+                .unwrap();
+                assert_eq!(
+                    recursive_suffix_marker_authority(&marker, height, semantic, None),
+                    Some((height + 1, [3; 32]))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn v2_empty_large_block_is_retained_and_reopened_with_its_exact_class() {
+        if !crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+            return;
+        }
+        let fork = crate::consensus::params::V2_ACTIVATION_HEIGHT.unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let store = MdbxStore::open(directory.path()).unwrap();
+        let (mut parent, mut meta) = commit_genesis(&store);
+        for height in 1..=fork + 1 {
+            let candidate = block(&parent, height, height as u8);
+            let class = u8::from(height == fork);
+            meta = commit_accepted_test_block_with_class(&store, &candidate, &meta, class);
+            let bytes = store
+                .get_recent_accepted_block_bundle_bounded(height)
+                .unwrap()
+                .unwrap();
+            let bundle = crate::AcceptedBlockBundle::decode(&bytes).unwrap();
+            let metadata = crate::history_step::HistoryStepTerminalMetadata::decode_prefix(
+                bundle.history_step_terminal_bytes(),
+            )
+            .unwrap();
+            assert_eq!(metadata.class_id(), class);
+            assert_eq!(
+                store
+                    .get_history_step_proof_object(height, metadata.terminal_hash(), class)
+                    .unwrap()
+                    .as_deref(),
+                Some(bundle.history_step_terminal_bytes())
+            );
+            parent = candidate.header;
+        }
+        let fork_header = store.get_header(fork).unwrap().unwrap();
+        drop(store);
+        let reopened = MdbxStore::open(directory.path()).unwrap();
+        let terminal = reopened
+            .get_history_step_terminal_at(fork, crate::hash_block_header(&fork_header))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            crate::history_step::HistoryStepTerminalMetadata::decode_prefix(&terminal)
+                .unwrap()
+                .class_id(),
+            1
+        );
     }
 
     #[test]

@@ -207,7 +207,10 @@ impl Chain {
         self.headers.push(block.header);
     }
     pub fn ordinary_slots(&self) -> Vec<u32> {
-        let owner = address(1).as_fields();
+        self.slots_owned_by(address(1))
+    }
+    pub fn slots_owned_by(&self, owner: Address) -> Vec<u32> {
+        let owner = owner.as_fields();
         self.outputs
             .iter()
             .copied()

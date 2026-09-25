@@ -58,6 +58,9 @@ use noid_node::snapshot_header_staging::{
     MAX_STAGED_HEADER_BATCH,
 };
 use noid_p2p::{NetworkEvent, P2PNetwork};
+
+mod origin_recovery;
+use origin_recovery::ensure_terminal_origin;
 use noid_rpc::types::NodeSyncStage;
 use noid_rpc::{start_rpc_server, ExternalMiningAttemptInvalidator, WalletOperationGate};
 
@@ -1025,7 +1028,8 @@ fn embedded_history_step_cache_ready(data_dir: &Path, class: HistoryStepCacheCla
 
 fn embedded_history_step_runtime(
     data_dir: &Path,
-) -> Result<Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>, String> {
+    large_v2_mining: bool,
+) -> Result<Option<Arc<noid_miner::HistoryProtocolRuntime>>, String> {
     let Some(pack) = embedded_history_step_pack::embedded_history_step_pack() else {
         return Ok(None);
     };
@@ -1041,6 +1045,7 @@ fn embedded_history_step_runtime(
     let matrix_source = pack
         .matrix_source(Some(cache_directory))
         .map_err(|error| format!("embedded HistoryStep matrices rejected: {error}"))?;
+    let retirement_keys = embedded_history_step_pack::embedded_retirement_keys(metadata.bank())?;
     let (bank, runtime_parts) = metadata.into_parts();
     let runtime = noid_recursive::acceptance::history_step::HistoryStepRuntime::new(
         bank,
@@ -1052,6 +1057,15 @@ fn embedded_history_step_runtime(
         embedded_matrix_mib = pack.embedded_bytes_total() / (1024 * 1024),
         "preflight-authenticated HistoryStep runtime images loaded from the executable"
     );
+    let mut runtime = noid_miner::HistoryProtocolRuntime::new(
+        Some(Arc::new(runtime)),
+        embedded_history_step_pack::embedded_v2_runtime()?,
+        data_dir.join("fork-origins"),
+    )?.with_legacy_matrix_cache_available(pack.has_legacy_matrices())
+      .with_large_v2_mining(large_v2_mining);
+    if let Some(keys) = retirement_keys {
+        runtime = runtime.with_retirement_keys(keys)?;
+    }
     Ok(Some(Arc::new(runtime)))
 }
 
@@ -1333,6 +1347,12 @@ struct Cli {
     ///   # Miner: getBlockTemplate("o1their_own_address")
     #[arg(long)]
     allow_custom_coinbase: bool,
+
+    /// Permit B255 production after v2. The default produces the small v2
+    /// class; verification always supports both. Applies to internal mining
+    /// and external PoW templates, with no change to pre-v2 calibration.
+    #[arg(long)]
+    v2_large_blocks: bool,
 
     /// Clear the complete chain database on startup and synchronize it again.
     /// Wallet files, receipts and the P2P identity are stored separately and remain.
@@ -1978,6 +1998,12 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     if let Some(class) = cli.prepare_history_step_cache {
+        if embedded_history_step_pack::embedded_history_step_pack()
+            .is_some_and(|pack| !pack.has_legacy_matrices())
+        {
+            println!("Legacy HistoryStep cache is not required by this build");
+            return Ok(());
+        }
         if embedded_history_step_cache_ready(&data_dir, class) {
             println!("HistoryStep {} matrix cache is ready", class.label());
             return Ok(());
@@ -1987,7 +2013,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|pack| pack.runtime_metadata_digest())
         .unwrap_or([0; 32]);
     let history_step_runtime =
-        embedded_history_step_runtime(&data_dir).map_err(anyhow::Error::msg)?;
+        embedded_history_step_runtime(&data_dir, cli.v2_large_blocks).map_err(anyhow::Error::msg)?;
     match &history_step_runtime {
         None => tracing::warn!(
             "HistoryStep verification unavailable in this pack-free development build"
@@ -2053,6 +2079,9 @@ async fn main() -> anyhow::Result<()> {
         purge_chain_state(&data_dir)?;
     }
     let ctx = MdbxChainContext::open_or_create(&data_dir).context("open MDBX")?;
+    if let Some(runtime) = &history_step_runtime {
+        runtime.attach_canonical_store(ctx.store.clone()).map_err(anyhow::Error::msg)?;
+    }
     let tip_height = ctx.tip_height();
     let state_root = hex::encode(ctx.tip_header().state_root);
     tracing::debug!(height = tip_height, state_root = %state_root, "chain loaded");
@@ -3912,6 +3941,10 @@ struct RetainedSnapshotHeaderAuthority {
 
 enum SnapshotBoundaryVerificationOutcome {
     Accepted(VerifiedHistoryStepSnapshot),
+    OriginUnavailable {
+        error: String,
+        authority: RetainedSnapshotHeaderAuthority,
+    },
     TerminalRejected {
         error: String,
         authority: RetainedSnapshotHeaderAuthority,
@@ -3944,7 +3977,7 @@ fn snapshot_header_completion_base_moved(error: &SnapshotHeaderStagingError) -> 
 
 fn verify_terminal_against_validated_snapshot_headers(
     chain: &RwLock<MdbxChainContext>,
-    runtime: &noid_recursive::acceptance::history_step::HistoryStepRuntime,
+    runtime: &noid_miner::HistoryProtocolRuntime,
     authority: RetainedSnapshotHeaderAuthority,
     terminal_bytes: Vec<u8>,
     inbound_memory_permit: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
@@ -4134,14 +4167,13 @@ fn validate_snapshot_staged_header_boundary(
 /// Verify the fused HistoryStep terminal for the exact uncommitted block.
 fn verify_history_step_terminal(
     claim: &noid_chain::storage::HistoryStepTerminalClaim<'_>,
-    runtime: Option<&noid_recursive::acceptance::history_step::HistoryStepRuntime>,
+    runtime: Option<&noid_miner::HistoryProtocolRuntime>,
 ) -> Result<(), String> {
     let Some(runtime) = runtime else {
         return Err("embedded HistoryStep verifier unavailable".to_string());
     };
     noid_miner::install_inbound_verifier_cpu(|| {
-        noid_recursive::acceptance::history_step::decode_verify_history_step_terminal(
-            runtime,
+        runtime.verify_terminal(
             claim.terminal_bytes,
             &claim.header,
             &claim.epoch_anchor_header,
@@ -4229,11 +4261,20 @@ async fn apply_exact_suffix_offthread(
     mempool: &AsyncMempool,
     wallet: &SharedWallet,
     fetched: noid_node::networking::suffix_sync::FetchedSuffix,
-    history_step_runtime: Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+    history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     wallet_operation_gate: &WalletOperationGate,
+    p2p_cmd: &noid_p2p::NetworkCommandSender,
 ) -> Result<AppliedExactSuffix, ExactSuffixApplyError> {
     use noid_node::networking::sync_plan::SyncPlanKind;
 
+    if let Some(runtime) = &history_step_runtime {
+        ensure_terminal_origin(runtime, &fetched.terminal_bytes, fetched.terminal_source, p2p_cmd)
+            .await.map_err(|error| match error {
+                origin_recovery::OriginRecoveryError::InvalidTerminal(error) =>
+                    ExactSuffixApplyError::terminal(fetched.terminal_source, error),
+                origin_recovery::OriginRecoveryError::Unavailable(error) => ExactSuffixApplyError::Other(error),
+            })?;
+    }
     let _wallet_operation = wallet_operation_gate.lock().await;
     let (reserved_input_slots, reserved_output_slots) = mempool.reserved_slots().await;
     let apply_chain = Arc::clone(chain);
@@ -8029,7 +8070,7 @@ async fn handle_p2p_events(
     template_changes: tokio::sync::broadcast::Sender<()>,
     wallet_operation_gate: WalletOperationGate,
     snapshot_staging_root: PathBuf,
-    history_step_runtime: Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+    history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     external_mining_attempts: ExternalMiningAttemptInvalidator,
     mut canonical_tip_changes: tokio::sync::watch::Receiver<noid_p2p::object_protocol::ChainPoint>,
 ) -> anyhow::Result<()> {
@@ -8337,6 +8378,7 @@ async fn handle_p2p_events(
     // recursive terminal has proved that its terminal service is unusable for
     // this process lifetime. Do not let a fast invalid hedge preempt an honest
     // peer again on the next snapshot generation.
+    let mut canonical_origin_recovery = origin_recovery::CanonicalOriginRecovery::default();
     let mut rejected_terminal_peers: std::collections::HashSet<libp2p::PeerId> =
         std::collections::HashSet::new();
     // Exact object bytes are content-addressed, but content identity alone
@@ -9056,6 +9098,7 @@ async fn handle_p2p_events(
             let terminal_bytes = payload.terminal_bytes;
             let inbound_memory_permit = payload.inbound_memory_permit;
             history_step_verification_inflight = Some(key);
+            let origin_commands = p2p_cmd.clone();
             tokio::task::spawn_blocking(move || {
                 let mut header_validation_elapsed = std::time::Duration::ZERO;
                 let mut terminal_measurement = None;
@@ -9156,6 +9199,11 @@ async fn handle_p2p_events(
                             authority: Some(authority),
                         };
                     }
+                    if let Err(error) = tokio::runtime::Handle::current().block_on(ensure_terminal_origin(
+                        &runtime, &terminal_bytes, terminal_from, &origin_commands,
+                    )) {
+                        return error.snapshot_outcome(authority);
+                    }
                     let (outcome, measurement) = verify_terminal_against_validated_snapshot_headers(
                         verification_chain.as_ref(),
                         runtime.as_ref(),
@@ -9241,6 +9289,7 @@ async fn handle_p2p_events(
             let terminal_bytes = payload.terminal_bytes;
             let inbound_memory_permit = payload.inbound_memory_permit;
             history_step_verification_inflight = Some(key);
+            let origin_commands = p2p_cmd.clone();
             tokio::task::spawn_blocking(move || {
                 let (result, terminal_measurement) =
                     if generation_guard.load(std::sync::atomic::Ordering::Acquire) != generation {
@@ -9251,6 +9300,10 @@ async fn handle_p2p_events(
                             },
                             None,
                         )
+                    } else if let Err(error) = tokio::runtime::Handle::current().block_on(ensure_terminal_origin(
+                        &runtime, &terminal_bytes, terminal_from, &origin_commands,
+                    )) {
+                        (error.snapshot_outcome(authority), None)
                     } else {
                         let (outcome, measurement) =
                             verify_terminal_against_validated_snapshot_headers(
@@ -9299,8 +9352,17 @@ async fn handle_p2p_events(
             let verification_chain = Arc::clone(&chain);
             let completion = boundary_proof_maintenance_tx.clone();
             boundary_proof_verification_inflight = Some(target);
+            let origin_commands = p2p_cmd.clone();
             tokio::task::spawn_blocking(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    if let Err(error) = tokio::runtime::Handle::current().block_on(ensure_terminal_origin(
+                        &runtime, &terminal_bytes, from, &origin_commands,
+                    )) {
+                        return match error {
+                            origin_recovery::OriginRecoveryError::InvalidTerminal(error) => BoundaryProofMaintenanceResult::TerminalRejected(error),
+                            origin_recovery::OriginRecoveryError::Unavailable(error) => BoundaryProofMaintenanceResult::LocalFailure(error),
+                        };
+                    }
                     let ctx = verification_chain.blocking_read();
                     match ctx.verify_snapshot_boundary(
                         target.header,
@@ -9577,6 +9639,7 @@ async fn handle_p2p_events(
                         let apply_wallet = Arc::clone(&wallet);
                         let apply_runtime = history_step_runtime.clone();
                         let apply_gate = wallet_operation_gate.clone();
+                        let origin_commands = p2p_cmd.clone();
                         let completion = exact_suffix_apply_tx.clone();
                         tokio::spawn(async move {
                             let result = apply_exact_suffix_offthread(
@@ -9586,6 +9649,7 @@ async fn handle_p2p_events(
                                 fetched,
                                 apply_runtime,
                                 &apply_gate,
+                                &origin_commands,
                             )
                             .await;
                             let _ = completion
@@ -9878,6 +9942,7 @@ async fn handle_p2p_events(
                 if height == our_height {
                     if announced_hash == our_hash {
                         mining_peer_quorum.confirm_tip(from, our_height, our_hash);
+                        canonical_origin_recovery.start(&chain, history_step_runtime.as_ref(), &p2p_cmd, from, our_height, our_hash);
                         continue;
                     }
                     let start_height = finalized_header_search_floor(our_height);
@@ -11035,6 +11100,7 @@ async fn handle_p2p_events(
                 match plan {
                     Ok(HeaderInventoryPlan::Confirmed { tip }) => {
                         finalized_divergent_peers.remove(&from);
+                        canonical_origin_recovery.start(&chain, history_step_runtime.as_ref(), &p2p_cmd, from, tip.height, tip.hash);
                         if active_suffix_sync.is_none() && tip.height >= highest_announced {
                             clear_manifest_round_state!();
                             mark_initial_sync_ready(&initial_sync_ready);
@@ -13976,6 +14042,14 @@ async fn handle_p2p_events(
 
             let verified_history_step = match completed.result {
                 SnapshotBoundaryVerificationOutcome::Accepted(verified) => verified,
+                SnapshotBoundaryVerificationOutcome::OriginUnavailable { error, authority } => {
+                    tracing::warn!(peer = %completed.key.terminal_from, %error, "snapshot waiting for its fork-origin certificate");
+                    snapshot_terminal_retry_after.insert(completed.key.terminal_from, Instant::now() + Duration::from_secs(5));
+                    retained_snapshot_headers = Some(authority);
+                    request_snapshot_generation_providers!(completed.key.terminal_from);
+                    ensure_snapshot_boundary_terminal_request!();
+                    continue;
+                }
                 SnapshotBoundaryVerificationOutcome::TerminalRejected {
                     error,
                     authority,

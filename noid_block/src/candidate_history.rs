@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Explicit scheduled-candidate witness preparation. This module is not called
-//! by mainnet admission or mining; no candidate parameters are release defaults.
+//! Scheduled v2 witness preparation using a class's pinned resource limits.
+//! Production mining and capacity qualification share this exact path; the
+//! embedded bank, rather than a local default, supplies the configuration.
 
 use noid_chain::{consensus::ConsensusError, Block};
 use noid_gkr::zk_authorization::ZkAuthorizationProof;
