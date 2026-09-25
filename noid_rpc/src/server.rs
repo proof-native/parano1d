@@ -1457,18 +1457,41 @@ impl RpcHandler {
                 capacity.prepare_ms_ewma(noid_chain::consensus::paged_spend::BlockProofClass::B255),
             )
         };
-        tracing::info!(
-            mining = "external",
-            user_pages,
-            ?proof_class,
-            max_effective_pages,
-            previous_page_limit,
-            next_page_limit,
-            history_step_ms = prepare_elapsed.as_millis(),
-            b25_prepare_ms_ewma,
-            b255_prepare_ms_ewma,
-            "external mining template proved"
-        );
+        match proof_class {
+            noid_miner::MiningProofClass::Legacy(_) => tracing::info!(
+                mining = "external",
+                user_pages,
+                ?proof_class,
+                max_effective_pages,
+                previous_page_limit,
+                next_page_limit,
+                history_step_ms = prepare_elapsed.as_millis(),
+                b25_prepare_ms_ewma,
+                b255_prepare_ms_ewma,
+                "external mining template proved"
+            ),
+            noid_miner::MiningProofClass::V2(class) => {
+                let limits = self
+                    .history_step_runtime
+                    .as_ref()
+                    .ok_or_else(|| rpc_err("HistoryStep runtime is unavailable"))?
+                    .v2()
+                    .map_err(rpc_err)?
+                    .bank()
+                    .config()
+                    .class(class);
+                tracing::info!(
+                    mining = "external",
+                    user_pages,
+                    ?proof_class,
+                    class_pages = limits.pages(),
+                    class_inputs = limits.max_live_inputs(),
+                    class_contract_calls = limits.contract_slots(),
+                    history_step_ms = prepare_elapsed.as_millis(),
+                    "external mining template proved"
+                );
+            }
+        }
 
         let parent_height = prepared.expected_parent_height();
         let parent_id = prepared.expected_parent_id();

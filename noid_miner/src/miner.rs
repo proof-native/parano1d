@@ -34,7 +34,6 @@ use std::sync::{
 use std::time::{Duration, Instant};
 
 use tokio::sync::{broadcast, watch, RwLock};
-use tokio::time::interval;
 
 use noid_chain::consensus::paged_spend::BlockProofClass;
 use noid_chain::consensus::pow::block_id;
@@ -68,8 +67,9 @@ pub struct MinerConfig {
     /// payout, or coinbase-only mempool input changes.
     /// This timer exists only for edge cases where both are silent.
     ///
-    /// Must be > BLOCK_TIME to avoid firing during active proving and
-    /// inserting unnecessary coinbase blocks. Default: 5 × BLOCK_TIME.
+    /// Zero selects five target block intervals at the candidate height:
+    /// 100 seconds before v2, 150 seconds after it. A positive value is an
+    /// explicit operator override. The timer starts after proving completes.
     pub refresh_interval_secs: u64,
 }
 
@@ -77,7 +77,7 @@ impl Default for MinerConfig {
     fn default() -> Self {
         Self {
             miner_address: Address([0u8; 32]),
-            refresh_interval_secs: noid_chain::consensus::params::BLOCK_TIME * 5,
+            refresh_interval_secs: 0,
         }
     }
 }
@@ -86,6 +86,16 @@ impl MinerConfig {
     pub fn with_address(mut self, addr: Address) -> Self {
         self.miner_address = addr;
         self
+    }
+
+    fn heartbeat_interval(&self, height: u64) -> Duration {
+        Duration::from_secs(if self.refresh_interval_secs == 0 {
+            noid_chain::consensus::forks::ACTIVE_SCHEDULE
+                .block_time(height)
+                .saturating_mul(5)
+        } else {
+            self.refresh_interval_secs
+        })
     }
 }
 
@@ -357,7 +367,6 @@ impl BlockMiner {
         let builder = TemplateBuilder::new(self.mempool.clone())
             .with_history_protocol(&self.history_step_runtime);
         let cancel = self.cancel_pow.clone();
-        let mut heartbeat = interval(Duration::from_secs(self.config.refresh_interval_secs));
         let mut mempool_events = self.mempool.subscribe();
         let mut proof_capacity = AdaptiveProofCapacity::default();
 
@@ -713,7 +722,8 @@ impl BlockMiner {
                 );
                 break;
             }
-            heartbeat.reset();
+            let heartbeat = tokio::time::sleep(self.config.heartbeat_interval(height));
+            tokio::pin!(heartbeat);
             let pow_start = Instant::now();
             let mut pow_handle = tokio::task::spawn_blocking(move || {
                 install_pow_phase_cpu(|| crate::pow::search_pow_parallel(&pow_header, &cancel_pow))
@@ -844,7 +854,7 @@ impl BlockMiner {
                     }
                 }
 
-                _ = heartbeat.tick(), if user_pages == 0 => {
+                _ = &mut heartbeat, if user_pages == 0 => {
                     cancel.store(true, Ordering::Relaxed);
                     let _ = pow_handle.await;
                     tracing::debug!("heartbeat: refreshing coinbase-only template (safety net)");
@@ -985,6 +995,35 @@ impl BlockMiner {
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicU8;
+
+    #[test]
+    fn heartbeat_tracks_the_candidate_height_and_preserves_explicit_overrides() {
+        let config = MinerConfig::default();
+        assert_eq!(config.heartbeat_interval(0), Duration::from_secs(100));
+        if let Some(at) = noid_chain::consensus::forks::ACTIVE_SCHEDULE.v2() {
+            assert_eq!(
+                config.heartbeat_interval(at.height() - 1),
+                Duration::from_secs(100)
+            );
+            assert_eq!(
+                config.heartbeat_interval(at.height()),
+                Duration::from_secs(150)
+            );
+            // A reorg below activation restores the old interval as well.
+            assert_eq!(
+                config.heartbeat_interval(at.height() - 1),
+                Duration::from_secs(100)
+            );
+            let overridden = MinerConfig {
+                refresh_interval_secs: 47,
+                ..config
+            };
+            assert_eq!(
+                overridden.heartbeat_interval(at.height()),
+                Duration::from_secs(47)
+            );
+        }
+    }
 
     #[test]
     fn payout_resolver_is_dynamic_while_configured_address_is_fixed() {

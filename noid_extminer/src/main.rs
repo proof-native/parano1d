@@ -94,6 +94,14 @@ struct Cli {
     #[arg(long, default_value_t = 500, value_name = "MS")]
     poll_ms: u64,
 
+    /// Maximum seconds per RPC, including the node's proven-template construction.
+    #[arg(long, default_value_t = 180, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..=3600))]
+    rpc_timeout: u64,
+
+    /// Exit after this many accepted blocks. Zero mines continuously.
+    #[arg(long, default_value_t = 0, value_name = "N")]
+    blocks: u64,
+
     /// Log level (error | warn | info | debug).
     #[arg(long, default_value = "info", value_name = "LEVEL")]
     log: String,
@@ -139,9 +147,9 @@ struct RpcClient {
 }
 
 impl RpcClient {
-    fn new(url: &str, key: Option<String>) -> Self {
+    fn new(url: &str, key: Option<String>, timeout: Duration) -> Self {
         let http = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(timeout)
             .build()
             .expect("build HTTP client");
         Self {
@@ -368,7 +376,7 @@ fn le256_lt(a: &[u8; 32], b: &[u8; 32]) -> bool {
 
 fn mine(cli: &Cli, key: Option<String>) -> Result<()> {
     let authenticated = key.is_some();
-    let rpc = RpcClient::new(&cli.rpc, key);
+    let rpc = RpcClient::new(&cli.rpc, key, Duration::from_secs(cli.rpc_timeout));
 
     // Configure rayon thread pool.
     if cli.threads > 0 {
@@ -487,6 +495,9 @@ fn mine(cli: &Cli, key: Option<String>) -> Result<()> {
                     elapsed.as_secs_f64(),
                     &hash[..20.min(hash.len())],
                 );
+                if cli.blocks != 0 && blocks_found >= cli.blocks {
+                    return Ok(());
+                }
             }
             Err(e) => {
                 let err = e.to_string();

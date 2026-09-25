@@ -2546,7 +2546,7 @@ async fn main() -> anyhow::Result<()> {
 
     // --- Startup Banner ---
     {
-        use noid_chain::consensus::emission::block_reward;
+        use noid_chain::consensus::emission::block_reward_at_height;
         use noid_chain::fri_state::LOG_SEGMENT_SIZE;
 
         let wallet_bech32 = {
@@ -2580,7 +2580,8 @@ async fn main() -> anyhow::Result<()> {
             .store
             .encoded_state_bytes()
             .context("read encoded state size for startup banner")?;
-        let reward = block_reward(log_slots) as f64 / 1_000_000.0;
+        let reward = block_reward_at_height(tip_hdr.height.saturating_add(1), log_slots) as f64
+            / 1_000_000.0;
 
         drop(ctx);
 
