@@ -227,7 +227,11 @@ mod tests {
 
     #[test]
     fn scheduled_payout_reverts_cleanly_before_replacement_branch() {
-        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
+        let due = if crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+            10 + 2880 - 1
+        } else {
+            4320
+        };
 
         let mut state = ChainState::with_log_slots(8);
         let parent_root = state.state_root();
@@ -236,7 +240,7 @@ mod tests {
             state_root: parent_root,
             tx_root: [0u8; 32],
             timestamp: 1,
-            height: TARGET_BLOCKS_PER_DAY - 1,
+            height: due - 1,
             miner_address: Address([1u8; 32]),
             nonce: 0,
             difficulty_target: GENESIS_TARGET,

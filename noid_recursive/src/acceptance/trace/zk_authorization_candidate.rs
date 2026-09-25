@@ -601,7 +601,11 @@ impl SelectedZkAuthorizationProofBatch {
     pub(super) fn entry_for_slot(&self, index: usize) -> &SelectedZkAuthorizationVerifiedEntry {
         let slot = self.canonical.slot(index);
         match slot.kind() {
-            CanonicalSelectedZkAuthorizationSlotKind::Live => &self.live_entries[index],
+            CanonicalSelectedZkAuthorizationSlotKind::Live => {
+                &self.live_entries[slot
+                    .live_entry_index()
+                    .expect("live selected authorization slot has a native proof index")]
+            }
             CanonicalSelectedZkAuthorizationSlotKind::Ghost
             | CanonicalSelectedZkAuthorizationSlotKind::Pad => &self.ghost_entry,
         }
@@ -675,6 +679,7 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     exact_state: &ExactStateRegionData,
     tx_root: &TxRootRegionData,
     spine: &SpineRegionData,
+    geometry: crate::region_sidecar::SelectedZkBlockGeometry,
 ) -> SelectedZkBlockRegionBinding {
     assert_eq!(
         prepared.live_entries.len(),
@@ -684,9 +689,10 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     for index in 0..canonical.len() {
         let slot = canonical.slot(index);
         let statement = match slot.kind() {
-            CanonicalSelectedZkAuthorizationSlotKind::Live => {
-                prepared.live_entries[index].statement()
-            }
+            CanonicalSelectedZkAuthorizationSlotKind::Live => prepared.live_entries[slot
+                .live_entry_index()
+                .expect("live selected authorization slot has a native proof index")]
+            .statement(),
             CanonicalSelectedZkAuthorizationSlotKind::Ghost
             | CanonicalSelectedZkAuthorizationSlotKind::Pad => prepared.ghost_entry.statement(),
         };
@@ -704,10 +710,16 @@ pub(in crate::acceptance) fn bind_selected_zk_block_region(
     let (canonical, authorization) = batch
         .into_canonical_and_raw_draft()
         .expect("selected raw authorization draft");
-    let allocation =
-        allocate_selected_zk_auth_pcs_region(b, authorization, exact_state, tx_root, spine)
-            .expect("selected authorization/Meta allocation");
-    bind_selected_zk_authorization_all_tiles_trace(b, allocation.draft(), &canonical)
+    let allocation = allocate_selected_zk_auth_pcs_region(
+        b,
+        authorization,
+        exact_state,
+        tx_root,
+        spine,
+        geometry,
+    )
+    .expect("selected authorization/Meta allocation");
+    bind_selected_zk_authorization_all_tiles_trace(b, allocation.draft(), &canonical, geometry)
         .expect("selected all-tiles binding");
     let (draft, paired) = allocation.into_parts();
     SelectedZkBlockRegionBinding { draft, paired }
@@ -815,20 +827,17 @@ fn bind_selected_zk_authorization_all_tiles_trace(
     b: &mut FieldR1csBuilder,
     draft: &SelectedZkBlockRegionDraft,
     canonical: &CanonicalSelectedZkAuthorizationCapability,
+    geometry: crate::region_sidecar::SelectedZkBlockGeometry,
 ) -> Result<(), ZkAuthorizationAllTilesTraceError> {
-    let geometry = crate::region_sidecar::selected_zk_block_geometry_for_auth_tiles(
-        canonical.len(),
-    )
-    .ok_or(ZkAuthorizationAllTilesTraceError::StatementCount {
-        expected: canonical.len().next_power_of_two(),
-        actual: canonical.len(),
-    })?;
+    // Capacities and input budgets can share an authorization axis while
+    // using different Meta offsets. Consume the owning allocator's geometry.
     if canonical.len() != geometry.auth_tiles {
         return Err(ZkAuthorizationAllTilesTraceError::StatementCount {
             expected: geometry.auth_tiles,
             actual: canonical.len(),
         });
     }
+    let overflow = WalletOverflowLayout::for_geometry(geometry);
     let schedules =
         crate::acceptance::zk_auth_capsule_schedule::ZkAuthCapsuleDuplexSchedules::selected();
     let owner_layout = schedules.owner_layout();
@@ -855,8 +864,10 @@ fn bind_selected_zk_authorization_all_tiles_trace(
     let meta_b = *vk.meta_b().slices();
 
     let ghost_statement = canonical_selected_zk_ghost_statement();
-    for index in geometry.tier..geometry.auth_tiles {
-        assert_eq!(canonical.slot(index).native_statement(), ghost_statement);
+    for index in 0..geometry.auth_tiles {
+        if canonical.slot(index).kind() == CanonicalSelectedZkAuthorizationSlotKind::Pad {
+            assert_eq!(canonical.slot(index).native_statement(), ghost_statement);
+        }
     }
     let fallback = canonical
         .slot(0)
@@ -892,7 +903,7 @@ fn bind_selected_zk_authorization_all_tiles_trace(
                     assert_eq!(slot.native_statement(), ghost_statement);
                 }
                 CanonicalSelectedZkAuthorizationSlotKind::Pad => {
-                    assert!(index >= geometry.tier && index < geometry.auth_tiles);
+                    assert!(index < geometry.auth_tiles);
                     assert_eq!(live, F128::ZERO);
                     assert!(slot.body_aliases().is_none());
                     assert_eq!(slot.native_statement(), ghost_statement);
@@ -922,6 +933,7 @@ fn bind_selected_zk_authorization_all_tiles_trace(
                 &wallet_b,
                 &meta_a,
                 &meta_b,
+                overflow,
                 tile_index,
                 statement,
             )
@@ -956,6 +968,7 @@ fn bind_selected_zk_authorization_all_tiles_trace(
             &wallet_b,
             &meta_a,
             &meta_b,
+            overflow,
             tile_index,
             statement,
         )
@@ -1548,6 +1561,7 @@ fn slice_range(slice: &WitnessSlice) -> std::ops::Range<usize> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct WalletOverflowLayout {
+    tile_count: usize,
     meta_a_w_log: usize,
     meta_a_family_bases: [usize; 2],
     meta_b_w_log: usize,
@@ -1555,16 +1569,12 @@ struct WalletOverflowLayout {
     meta_b_family_bases: [usize; 2],
 }
 
-fn wallet_overflow_layout(tile_count: usize) -> WalletOverflowLayout {
-    assert!(
-        tile_count.is_power_of_two(),
-        "authorization tile count is dyadic"
-    );
-    if let Some(geometry) =
-        crate::region_sidecar::selected_zk_block_geometry_for_auth_tiles(tile_count)
-    {
+impl WalletOverflowLayout {
+    fn for_geometry(geometry: crate::region_sidecar::SelectedZkBlockGeometry) -> Self {
+        let tile_count = geometry.auth_tiles;
         let source_base = 1usize << geometry.exact_state_region_log;
-        return WalletOverflowLayout {
+        Self {
+            tile_count,
             meta_a_w_log: geometry.meta_a_w_log,
             meta_a_family_bases: [
                 source_base,
@@ -1573,13 +1583,18 @@ fn wallet_overflow_layout(tile_count: usize) -> WalletOverflowLayout {
             meta_b_w_log: geometry.meta_b_w_log,
             meta_b_block_log: geometry.meta_b_block_log,
             meta_b_family_bases: geometry.wallet_overflow_bases,
-        };
+        }
     }
+}
 
+#[cfg(test)]
+fn raw_fixture_overflow_layout(tile_count: usize) -> WalletOverflowLayout {
+    assert!(tile_count.is_power_of_two());
     // Private raw-slice fixtures use the minimal packed overflow domains.
     let meta_a_slots = tile_count * 2 * C1_CAPSULE_LEAF_STRIDE;
     let meta_b_slots = tile_count * ZK_AUTH_WALLET_B_PATH_STRIDE;
     WalletOverflowLayout {
+        tile_count,
         meta_a_w_log: meta_a_slots.trailing_zeros() as usize,
         meta_a_family_bases: [0, tile_count * C1_CAPSULE_LEAF_STRIDE],
         meta_b_w_log: meta_b_slots.trailing_zeros() as usize,
@@ -1601,6 +1616,7 @@ fn validate_raw_slice_tile_fixture(
     wallet_b: &[WitnessSlice; ZK_AUTH_WALLET_B_COLUMNS],
     meta_a: &[WitnessSlice; ZK_AUTH_META_A_COLUMNS],
     meta_b: &[WitnessSlice; ZK_AUTH_META_B_COLUMNS],
+    overflow: WalletOverflowLayout,
     tile_index: usize,
 ) -> usize {
     let owner = owner_a.iter().chain(owner_c).copied().collect::<Vec<_>>();
@@ -1634,7 +1650,7 @@ fn validate_raw_slice_tile_fixture(
         tile_index < tile_counts[0],
         "authorization tile out of range"
     );
-    let overflow = wallet_overflow_layout(tile_counts[0]);
+    assert_eq!(tile_counts[0], overflow.tile_count, "overflow tile count");
     assert!(meta_a
         .iter()
         .all(|slice| slice.log2_len == overflow.meta_a_w_log));
@@ -1673,10 +1689,9 @@ fn wallet_external_aliases(
     wallet_b: &[WitnessSlice; ZK_AUTH_WALLET_B_COLUMNS],
     meta_a: &[WitnessSlice; ZK_AUTH_META_A_COLUMNS],
     meta_b: &[WitnessSlice; ZK_AUTH_META_B_COLUMNS],
+    overflow: WalletOverflowLayout,
     tile_index: usize,
 ) -> ZkAuthorizationCandidateExternalAliases {
-    let tile_count = 1usize << (wallet_a[0].log2_len - ZK_AUTH_WALLET_A_TILE_LOG);
-    let overflow = wallet_overflow_layout(tile_count);
     let wallet_a_base = tile_index << ZK_AUTH_WALLET_A_TILE_LOG;
     let wallet_b_base = tile_index << ZK_AUTH_WALLET_B_TILE_LOG;
     let source_a_base = wallet_a_base;
@@ -1795,14 +1810,12 @@ fn assert_outer_statement_aliases(
 
 fn composite_wallet_roots(
     b: &mut FieldR1csBuilder,
-    wallet_a: &[WitnessSlice; ZK_AUTH_WALLET_A_COLUMNS],
     wallet_b: &[WitnessSlice; ZK_AUTH_WALLET_B_COLUMNS],
     meta_b: &[WitnessSlice; ZK_AUTH_META_B_COLUMNS],
+    overflow: WalletOverflowLayout,
     tile_index: usize,
     family: usize,
 ) -> [[LinExpr; ZK_PHASE_B_CAP_DIGEST_LANES]; ZK_QUERY_COUNT] {
-    let tile_count = 1usize << (wallet_a[0].log2_len - ZK_AUTH_WALLET_A_TILE_LOG);
-    let overflow = wallet_overflow_layout(tile_count);
     let wallet_b_base = tile_index << ZK_AUTH_WALLET_B_TILE_LOG;
     let family_offset = if family == 0 {
         ZK_AUTH_WALLET_B_SOURCE_PATH_OFFSET
@@ -1865,11 +1878,13 @@ fn preflight_zk_authorization_raw_slice_tile_candidate_trace(
     wallet_b: &[WitnessSlice; ZK_AUTH_WALLET_B_COLUMNS],
     meta_a: &[WitnessSlice; ZK_AUTH_META_A_COLUMNS],
     meta_b: &[WitnessSlice; ZK_AUTH_META_B_COLUMNS],
+    overflow: WalletOverflowLayout,
     tile_index: usize,
     public: &SelectedZkAuthorizationStatementTrace,
 ) -> Result<ZkAuthorizationCandidateExternalAliases, ZkAuthorizationCandidateTraceError> {
     validate_raw_slice_tile_fixture(
-        b, owner_a, owner_c, main_a, main_c, wallet_a, wallet_b, meta_a, meta_b, tile_index,
+        b, owner_a, owner_c, main_a, main_c, wallet_a, wallet_b, meta_a, meta_b, overflow,
+        tile_index,
     );
     let raw = view_zk_auth_raw_split_transcript_tile(
         owner_layout,
@@ -1881,7 +1896,8 @@ fn preflight_zk_authorization_raw_slice_tile_candidate_trace(
         wallet_a,
         tile_index,
     );
-    let external = wallet_external_aliases(wallet_a, wallet_b, meta_a, meta_b, tile_index);
+    let external =
+        wallet_external_aliases(wallet_a, wallet_b, meta_a, meta_b, overflow, tile_index);
     preflight_raw_transcript_tile(b, &raw)?;
     preflight_external_aliases(b, &external)?;
     let committed_slices = owner_a
@@ -1912,6 +1928,7 @@ fn verify_zk_authorization_raw_slice_tile_candidate_trace(
     wallet_b: &[WitnessSlice; ZK_AUTH_WALLET_B_COLUMNS],
     meta_a: &[WitnessSlice; ZK_AUTH_META_A_COLUMNS],
     meta_b: &[WitnessSlice; ZK_AUTH_META_B_COLUMNS],
+    overflow: WalletOverflowLayout,
     tile_index: usize,
     public: &SelectedZkAuthorizationStatementTrace,
 ) -> Result<
@@ -1930,6 +1947,7 @@ fn verify_zk_authorization_raw_slice_tile_candidate_trace(
         wallet_b,
         meta_a,
         meta_b,
+        overflow,
         tile_index,
         public,
     )?;
@@ -1977,8 +1995,6 @@ fn verify_zk_authorization_raw_slice_tile_candidate_trace(
             + ZK_AUTH_SPLIT_BRIDGE_PIN_ROWS
     );
 
-    let tile_count = 1usize << (wallet_a[0].log2_len - ZK_AUTH_WALLET_A_TILE_LOG);
-    let overflow = wallet_overflow_layout(tile_count);
     let wallet_a_base = tile_index << ZK_AUTH_WALLET_A_TILE_LOG;
     let wallet_b_base = tile_index << ZK_AUTH_WALLET_B_TILE_LOG;
     for query in 0..ZK_QUERY_COUNT {
@@ -2043,8 +2059,8 @@ fn verify_zk_authorization_raw_slice_tile_candidate_trace(
     );
 
     external.source_path_roots =
-        composite_wallet_roots(b, wallet_a, wallet_b, meta_b, tile_index, 0);
-    external.mid_path_roots = composite_wallet_roots(b, wallet_a, wallet_b, meta_b, tile_index, 1);
+        composite_wallet_roots(b, wallet_b, meta_b, overflow, tile_index, 0);
+    external.mid_path_roots = composite_wallet_roots(b, wallet_b, meta_b, overflow, tile_index, 1);
     debug_assert_eq!(
         b.num_wires() - wrapper_start,
         ZK_AUTH_RAW_SLICE_PRE_CORE_ROWS
@@ -3073,6 +3089,7 @@ mod tests {
             &slices.wallet_b,
             &slices.meta_a,
             &slices.meta_b,
+            raw_fixture_overflow_layout(1),
             0,
             &public,
         )
@@ -3243,6 +3260,7 @@ mod tests {
             &wallet_b,
             &meta_a,
             &meta_b,
+            raw_fixture_overflow_layout(2),
             0,
             &public,
         )
@@ -3420,6 +3438,58 @@ mod tests {
                 expected_rows,
                 "B{tier} selected all-tiles rows"
             );
+        }
+    }
+
+    #[test]
+    fn overflow_aliases_distinguish_capacities_with_the_same_tile_count() {
+        fn slices<const N: usize>(log2_len: usize) -> [WitnessSlice; N] {
+            std::array::from_fn(|index| WitnessSlice {
+                log2_len,
+                index: index + 1,
+            })
+        }
+        // 64/96/127 all pad to 128 tiles; 128/255 both pad to 256.
+        // Their final query must still read its own Meta paths and leaves.
+        for (tier, leaf_base, path_base, path_stride) in [
+            (25, 1_024, 1_152, 2_048),
+            (63, 4_096, 960, 1_024),
+            (64, 4_096, 544, 1_024),
+            (96, 4_096, 672, 1_024),
+            (127, 8_192, 800, 1_024),
+            (128, 8_192, 400, 512),
+            (255, 8_192, 464, 512),
+        ] {
+            let geometry = crate::region_sidecar::selected_zk_block_geometry(tier).unwrap();
+            let wallet_a = slices(geometry.wallet_a_w_log);
+            let wallet_b = slices(geometry.wallet_b_w_log);
+            let meta_a = slices(geometry.meta_a_w_log);
+            let meta_b = slices(geometry.meta_b_w_log);
+            for tile in [0, geometry.auth_tiles - 1] {
+                let aliases = wallet_external_aliases(
+                    &wallet_a,
+                    &wallet_b,
+                    &meta_a,
+                    &meta_b,
+                    WalletOverflowLayout::for_geometry(geometry),
+                    tile,
+                );
+                assert_eq!(
+                    input_wire(&aliases.source_path_directions[64][0]),
+                    meta_b[8].start() + tile * path_stride + path_base,
+                    "capacity {tier}, tile {tile}: source path"
+                );
+                assert_eq!(
+                    input_wire(&aliases.mid_path_directions[64][0]),
+                    meta_b[8].start() + tile * path_stride + path_base + 10,
+                    "capacity {tier}, tile {tile}: mid path"
+                );
+                assert_eq!(
+                    input_wire(&aliases.joint_source_leaves[64][0]),
+                    meta_a[2].start() + leaf_base + tile * C1_CAPSULE_LEAF_STRIDE,
+                    "capacity {tier}, tile {tile}: source leaf"
+                );
+            }
         }
     }
 

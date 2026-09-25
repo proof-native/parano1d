@@ -81,3 +81,14 @@ node and GUI applications
 
 钱包选币同样属于策略。最终 `PagedSpend` 仍必须满足与其他实现构建交易
 完全相同的共识规则。
+
+## 合约组件
+
+`noid_tx::experimental_object` 定义规范公开条款、程序、策略及调用编码；
+`noid_tx::experimental_object::applications` 构造模板。`noid_recursive` 在区块关系内证明其执行。
+`noid_chain` 处理当前 State 检查、回执和分叉上下文；`noid_rpc` 提供类型化
+构造与钱包调用。`noid_gui` 管理表单、本地名称及文件导入合并。
+
+使用现有 ABI 的新程序可复用同一矩阵。更改操作码、操作数含义、权限规则或
+执行预算会改变证明关系，需要审查共识与矩阵。条款文件及回执日志属于应用
+数据，不能覆盖已承诺程序或当前 State。

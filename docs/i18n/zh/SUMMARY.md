@@ -10,8 +10,19 @@
 ## 核心概念
 
 - [证明原生 Layer 1](concepts/proof-native-layer-1.md)
+- [Proof-native 合约：从价值到权利](concepts/proof-native-contracts.md)
 - [无签名所有权](concepts/signatureless-ownership.md)
 - [收据与可裁剪历史](concepts/receipts.md)
+
+## 合约
+
+- [概述](contracts/index.md)
+- [生命周期与机制](contracts/lifecycle.md)
+- [整数内核与 ABI](contracts/core.md)
+- [模板](contracts/templates.md)
+- [API 与集成](contracts/api.md)
+- [GUI 指南](contracts/gui.md)
+- [回执与恢复](contracts/receipts-and-recovery.md)
 
 ## 架构
 
@@ -54,6 +65,7 @@
 - [地址](wallet/addresses.md)
 - [发送 NOID](wallet/send.md)
 - [收据](wallet/receipts.md)
+- [钱包中的合约](wallet/contracts.md)
 - [归集](wallet/consolidation.md)
 - [Scope 浏览器](wallet/scope.md)
 - [设置](wallet/settings.md)
@@ -77,7 +89,14 @@
 
 - [命令行接口](reference/cli.md)
 - [JSON-RPC API](reference/rpc.md)
+- [合约速查](reference/contracts.md)
 - [文件、端口与限制](reference/files-and-ports.md)
 - [协议参数](reference/parameters.md)
 - [性能测量](reference/performance.md)
 - [术语表](reference/glossary.md)
+
+## 归档
+
+- [归档概述](archive/index.md)
+- [v1 / v1.1 配置](archive/legacy-profiles.md)
+- [历史测量](archive/legacy-performance.md)

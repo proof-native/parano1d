@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "platform": "Linux x86_64",
+  "window_pixels": [
+    1200,
+    760
+  ],
+  "renderer": "wgpu / Mesa software Vulkan on Xvfb",
+  "gui_binary_sha256": "54a410f552b963d61f40698231bcab88c2d1ba8aa3471f753ddb101356b77a7c",
+  "node_binary_sha256": "ee6ebd4c26d91a27dac4d59198b72e6cdbd3a3b38a55037a187594b2e0ac4714",
+  "live_report_sha256": "3abaf11773993e89d90e7da5aa7b87d2d901c5cfa8b7c8804347097bb783114b",
+  "scope": "Packaged GUI connected to an isolated H132 node; cloned test wallet; no mining.",
+  "checks": [
+    "F7 Contracts and three top tabs",
+    "call-fee label and complete help popup",
+    "both parties visible in the journal",
+    "imported-call signer, recipient, fee, height and save-receipt action",
+    "closing-receipt preview via Open file",
+    "explicit Update my contract & open acceptance",
+    "local name and four unique operations preserved"
+  ],
+  "screenshots": {
+    "01-create.png": {
+      "sha256": "5d9d8cda6b3e13fb083270ad07232544b18c6f6d967af0ade08155288bcc1c24",
+      "bytes": 335974
+    },
+    "02-fee-help.png": {
+      "sha256": "2f5679a13a026d674d067386f939f64047c89deef3b0390152d61f4efbfcb527",
+      "bytes": 244601
+    },
+    "03-library.png": {
+      "sha256": "4a2f1f775c33d6084723a12225c06e2fd7ef5032e9967aa37a2b184f86cb2ff4",
+      "bytes": 350717
+    },
+    "04-journal.png": {
+      "sha256": "11df8cbec9e08065b60f2ecd668cfddcef7d44694a5869791340a4ec3a3cfe09",
+      "bytes": 368130
+    },
+    "05-imported-call.png": {
+      "sha256": "ff353eb8b070b6b8f1bfae9cc5aa419afcfe4a5c41b9bcb0d7eea1dd331c9bc1",
+      "bytes": 333915
+    },
+    "06-open-file.png": {
+      "sha256": "e9aa19425abfafafc6a66e0dff083fd4a818bac9d0ee091395e2efef2e7d8f55",
+      "bytes": 314190
+    },
+    "07-closing-preview.png": {
+      "sha256": "f4a51733c341eb431ff9226765b870a6d766141b3de82efffa3d3272a3b09c2e",
+      "bytes": 273465
+    },
+    "08-update-button.png": {
+      "sha256": "2af4df6a78b44b9df5c5646832087c5df4dea640380c2056b47200eafad94db6",
+      "bytes": 283414
+    },
+    "09-updated-contract.png": {
+      "sha256": "512d5cd04b521b4f3b37fcde1b594387b10d511c02071fac92c00a8278cb7412",
+      "bytes": 377326
+    }
+  },
+  "contract_count": 1,
+  "journal_count": 4,
+  "initial_virtual_display_attempt": "Hardware Vulkan could not present on Xvfb without DRI3; rerun used Mesa software Vulkan with the same GUI executable.",
+  "native_windows_macos_tested": false,
+  "interactive_file_dialog_tested_in_this_run": false,
+  "processes_stopped": true,
+  "package_source_commit": "5f5260fd1a4e4323c568a4d78df5f3dcd2442caf"
+}

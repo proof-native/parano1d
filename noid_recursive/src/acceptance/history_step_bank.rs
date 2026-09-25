@@ -23,7 +23,8 @@ use noid_core::Block128;
 use noid_ivc_core::challenger::{Challenger, FsLaneChallenger};
 use noid_ivc_core::field::{F128, F256};
 use noid_ivc_core::field_circuit::{f128_from_u128, f128_to_u128, FieldR1csBuilder, FsChannelOps};
-use std::sync::Arc;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use noid_ivc_core::field_r1cs::{CompactFieldR1cs, FieldR1cs};
 use noid_ivc_core::matrix_claim::c1::{
@@ -39,6 +40,8 @@ use noid_poseidon2b::native::poseidon2b_hash_byte_slices;
 use super::trace::flat_of;
 use super::trace::self_verify::flat_digest_lanes;
 use crate::accumulator::{ChainAccumulator, CHAIN_ACCUMULATOR_LANES};
+
+pub mod retirement;
 
 pub const ACC_LANES: usize = CHAIN_ACCUMULATOR_LANES;
 const HISTORY_STEP_PCS_LOG_INV_RATE: usize = 2;
@@ -903,10 +906,63 @@ enum PendingBankLane {
     Checked,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct MatrixRequirement {
     shape: FieldShape,
     digest: [u8; 32],
+}
+
+/// Process-local memoization of exact, successfully checked accumulated
+/// claims. It retains no matrix and accepts no serialized or caller-minted
+/// entries. A cache miss always takes the ordinary authenticated scan path.
+/// Eight entries cover a few competing tips without growing with history.
+#[derive(Default)]
+pub(in crate::acceptance) struct HistoryStepMatrixClaimCache {
+    entries: Mutex<VecDeque<CheckedMatrixClaim>>,
+}
+
+struct CheckedMatrixClaim {
+    bank: [u8; 32],
+    class: CanonicalHistoryStepClassId,
+    matrix: MatrixRequirement,
+    claim: C1MatrixAccClaim,
+}
+
+impl HistoryStepMatrixClaimCache {
+    const CAPACITY: usize = 8;
+
+    fn contains(
+        &self,
+        bank: [u8; 32],
+        class: CanonicalHistoryStepClassId,
+        matrix: MatrixRequirement,
+        claim: &C1MatrixAccClaim,
+    ) -> bool {
+        let Ok(mut entries) = self.entries.lock() else {
+            return false;
+        };
+        let Some(index) = entries.iter().position(|entry| {
+            entry.bank == bank
+                && entry.class == class
+                && entry.matrix == matrix
+                && entry.claim == *claim
+        }) else {
+            return false;
+        };
+        let entry = entries.remove(index).expect("located matrix claim");
+        entries.push_back(entry);
+        true
+    }
+
+    fn remember(&self, entry: CheckedMatrixClaim) {
+        let Ok(mut entries) = self.entries.lock() else {
+            return;
+        };
+        if entries.len() == Self::CAPACITY {
+            entries.pop_front();
+        }
+        entries.push_back(entry);
+    }
 }
 
 /// A replayed tip whose matrix obligations have not all been discharged.
@@ -1110,18 +1166,58 @@ impl PendingHistoryStepBankDecision {
     /// Discharge the fresh tip and every live accumulated lane one matrix at
     /// a time. Each owned lease is dropped before the next class is loaded.
     pub fn finish_with_matrix_loader<E>(
+        self,
+        load: impl FnMut(CanonicalHistoryStepClassId) -> Result<HistoryStepMatrixLease, E>,
+    ) -> Result<AcceptedHistoryStepBankTip, HistoryStepBankError> {
+        self.finish_with_optional_cache(load, None)
+    }
+
+    pub(in crate::acceptance) fn finish_with_matrix_loader_cached<E>(
+        self,
+        load: impl FnMut(CanonicalHistoryStepClassId) -> Result<HistoryStepMatrixLease, E>,
+        cache: &HistoryStepMatrixClaimCache,
+    ) -> Result<AcceptedHistoryStepBankTip, HistoryStepBankError> {
+        self.finish_with_optional_cache(load, Some(cache))
+    }
+
+    fn finish_with_optional_cache<E>(
         mut self,
         mut load: impl FnMut(CanonicalHistoryStepClassId) -> Result<HistoryStepMatrixLease, E>,
+        cache: Option<&HistoryStepMatrixClaimCache>,
     ) -> Result<AcceptedHistoryStepBankTip, HistoryStepBankError> {
         for index in 0..HISTORY_STEP_CLASS_COUNT {
             let class = CanonicalHistoryStepClassId::from_index(index)
                 .expect("resident bank contains only canonical classes");
             let has_fresh = self.tip_fresh.is_some() && class == self.tip_class;
             let has_accumulated = matches!(self.lanes[index], PendingBankLane::Pending(_));
+            // Only a carried lane can bypass its matrix scan. The tip's
+            // fresh obligation is always checked against its actual matrix,
+            // even when the accumulated part happens to have a cache hit.
+            if !has_fresh {
+                if let (Some(cache), PendingBankLane::Pending(claim)) = (cache, &self.lanes[index])
+                {
+                    if cache.contains(self.bank_digest, class, self.requirements[index], claim) {
+                        self.lanes[index] = PendingBankLane::Checked;
+                        continue;
+                    }
+                }
+            }
             if has_fresh || has_accumulated {
+                let accumulated = match (&self.lanes[index], cache) {
+                    (PendingBankLane::Pending(claim), Some(_)) => Some(claim.clone()),
+                    _ => None,
+                };
                 let matrix =
                     load(class).map_err(|_| HistoryStepBankError::MatrixEvaluation(class))?;
                 self.check_class_matrix_lease(class, &matrix)?;
+                if let (Some(cache), Some(claim)) = (cache, accumulated) {
+                    cache.remember(CheckedMatrixClaim {
+                        bank: self.bank_digest,
+                        class,
+                        matrix: self.requirements[index],
+                        claim,
+                    });
+                }
             }
         }
         self.finish()
@@ -1373,6 +1469,9 @@ impl core::fmt::Display for HistoryStepBankError {
 }
 
 impl std::error::Error for HistoryStepBankError {}
+
+#[cfg(test)]
+mod cache_tests;
 
 #[cfg(test)]
 mod tests {

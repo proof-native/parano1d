@@ -10,8 +10,19 @@
 ## Основные понятия
 
 - [Proof-native Layer 1](concepts/proof-native-layer-1.md)
+- [Proof-native контракты: от стоимости к правам](concepts/proof-native-contracts.md)
 - [Владение без подписей](concepts/signatureless-ownership.md)
 - [Чеки и удаляемая история](concepts/receipts.md)
+
+## Контракты
+
+- [Обзор](contracts/index.md)
+- [Жизненный цикл и механика](contracts/lifecycle.md)
+- [Целочисленное ядро и ABI](contracts/core.md)
+- [Шаблоны](contracts/templates.md)
+- [API и интеграция](contracts/api.md)
+- [Работа в GUI](contracts/gui.md)
+- [Квитанции и восстановление](contracts/receipts-and-recovery.md)
 
 ## Архитектура
 
@@ -54,6 +65,7 @@
 - [Адреса](wallet/addresses.md)
 - [Отправка NOID](wallet/send.md)
 - [Чеки](wallet/receipts.md)
+- [Контракты в кошельке](wallet/contracts.md)
 - [Консолидация](wallet/consolidation.md)
 - [Scope](wallet/scope.md)
 - [Настройки](wallet/settings.md)
@@ -77,7 +89,14 @@
 
 - [Интерфейс командной строки](reference/cli.md)
 - [JSON-RPC API](reference/rpc.md)
+- [Краткий справочник контрактов](reference/contracts.md)
 - [Файлы, порты и ограничения](reference/files-and-ports.md)
 - [Параметры протокола](reference/parameters.md)
 - [Измерения производительности](reference/performance.md)
 - [Глоссарий](reference/glossary.md)
+
+## Архив
+
+- [Обзор архива](archive/index.md)
+- [Профили v1 / v1.1](archive/legacy-profiles.md)
+- [Исторические замеры](archive/legacy-performance.md)

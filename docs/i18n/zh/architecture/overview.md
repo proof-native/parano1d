@@ -8,7 +8,7 @@ Parano1d 把每一项证明责任放在相应[见证数据](../reference/glossar
 
 钱包与矿工证明的是不同命题。
 
-钱包证明自己知道每个输入[所有者](../reference/glossary.md#owner)背后的 256 位秘密，并把授权绑定到完整[逻辑交易](../reference/glossary.md#logical-transaction)。它不负责证明输入当前尚未花费，因为钱包无需持有当前 Merkle 路径。
+对于普通付款，钱包证明自己知道输入[所有者](../reference/glossary.md#owner)背后的 256 位秘密，并把授权绑定到完整[逻辑交易](../reference/glossary.md#logical-transaction)。它不负责证明输入当前尚未花费，因为钱包无需持有当前 Merkle 路径。
 
 矿工证明公开执行命题：输入存在、输出槽位为空、数值守恒、手续费符合共识、槽位写入精确，而且得到的 [UTXO](../reference/glossary.md#utxo) 根正确。新证明内部还会验证前一个 [`HistoryStep`](../reference/glossary.md#historystep) [终端证明](../reference/glossary.md#terminal)。
 
@@ -77,3 +77,14 @@ Parano1d 把每一项证明责任放在相应[见证数据](../reference/glossar
 | `noid_rpc` | 本地节点、钱包与外部挖矿接口 |
 
 部署说明见[在 Linux 上运行节点](../operate/node.md)。
+
+## 合约执行
+
+合约输入承诺程序、策略及当前计数器。钱包使用当前领取方或恢复方的秘密授权
+调用。区块关系根据公开条款检查权限，执行有界程序，并证明准确的后继输出或
+关闭输出。普通付款与调用共用 State 及递归证明。
+参见 [Proof-native contracts](../concepts/proof-native-contracts.md)。
+
+在 H210537，首个 v2 证明通过分叉来源机制绑定准确的最后一个旧区块。
+后续证明保持此绑定；节点按高度选择规则与矩阵。
+[存档](../archive/legacy-profiles.md)说明旧配置及过渡。

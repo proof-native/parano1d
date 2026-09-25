@@ -20,8 +20,8 @@ use noid_ivc_core::deep_chain::schedule::{
 };
 use noid_ivc_core::deep_chain::source_tree::SourceTreeRefs;
 use noid_ivc_core::deep_chain::spine::{
-    spine_tree_exposure_terms, spine_tree_fixed_patterns, spine_wrap_fixed_patterns,
-    SPINE_TREE_SLOTS, SPINE_WRAP_SLOTS,
+    spine_contract_wrap_fixed_patterns, spine_tree_exposure_terms, spine_tree_fixed_patterns,
+    spine_wrap_fixed_patterns, SPINE_TREE_SLOTS, SPINE_V2_WRAP_SLOTS, SPINE_WRAP_SLOTS,
 };
 use noid_ivc_core::field::{F128, F256};
 use noid_ivc_core::pcs::{C1QuirkyDirectClaim, QuirkyDirectClaim};
@@ -89,6 +89,12 @@ pub enum WalkARegionDescriptor {
         exact_state_region_log: Option<usize>,
         spine_cap_log: Option<usize>,
     },
+    /// V2 body spine with bounded object program and policy commitments.
+    ObjectMeta {
+        tx_log: usize,
+        exact_state_region_log: Option<usize>,
+        spine_cap_log: Option<usize>,
+    },
 }
 
 impl WalkARegionDescriptor {
@@ -96,6 +102,7 @@ impl WalkARegionDescriptor {
         match self {
             Self::Wallet { .. } => 0,
             Self::Meta { .. } => 1,
+            Self::ObjectMeta { .. } => 2,
         }
     }
 
@@ -107,6 +114,11 @@ impl WalkARegionDescriptor {
                 push_usize(bytes, nq_log);
             }
             Self::Meta {
+                tx_log,
+                exact_state_region_log,
+                spine_cap_log,
+            }
+            | Self::ObjectMeta {
                 tx_log,
                 exact_state_region_log,
                 spine_cap_log,
@@ -138,6 +150,7 @@ impl WalkARegionSlices {
             (self, descriptor),
             (Self::Wallet(_), WalkARegionDescriptor::Wallet { .. })
                 | (Self::Meta(_), WalkARegionDescriptor::Meta { .. })
+                | (Self::Meta(_), WalkARegionDescriptor::ObjectMeta { .. })
         )
     }
 }
@@ -203,6 +216,24 @@ impl WalkARegionVk {
         Self::new(
             purpose,
             WalkARegionDescriptor::Meta {
+                tx_log,
+                exact_state_region_log,
+                spine_cap_log,
+            },
+            WalkARegionSlices::Meta(slices),
+        )
+    }
+
+    pub fn new_object_meta(
+        purpose: [u8; 32],
+        tx_log: usize,
+        exact_state_region_log: Option<usize>,
+        spine_cap_log: Option<usize>,
+        slices: [WitnessSlice; WALK_A_META_COMMITTED_COLUMNS],
+    ) -> Result<Self, RegionSidecarError> {
+        Self::new(
+            purpose,
+            WalkARegionDescriptor::ObjectMeta {
                 tx_log,
                 exact_state_region_log,
                 spine_cap_log,
@@ -916,7 +947,12 @@ fn canonical_protocol(
             tx_log,
             exact_state_region_log,
             spine_cap_log,
-        } => canonical_meta_protocol(tx_log, exact_state_region_log, spine_cap_log)?,
+        } => canonical_meta_protocol(tx_log, exact_state_region_log, spine_cap_log, false)?,
+        WalkARegionDescriptor::ObjectMeta {
+            tx_log,
+            exact_state_region_log,
+            spine_cap_log,
+        } => canonical_meta_protocol(tx_log, exact_state_region_log, spine_cap_log, true)?,
     };
     validate_fixed_preflight(protocol.w_log, &protocol.fixed)?;
     Ok(protocol)
@@ -926,7 +962,13 @@ fn canonical_meta_protocol(
     tx_log: usize,
     exact_state_region_log: Option<usize>,
     spine_cap_log: Option<usize>,
+    objects: bool,
 ) -> Result<CanonicalWalkAProtocol, RegionSidecarError> {
+    let wrap_slots = if objects {
+        SPINE_V2_WRAP_SLOTS
+    } else {
+        SPINE_WRAP_SLOTS
+    };
     if tx_log > MAX_WALK_A_TX_LOG {
         return Err(RegionSidecarError::UnsupportedVkShape);
     }
@@ -950,7 +992,7 @@ fn canonical_meta_protocol(
             let live = cap
                 .checked_mul(
                     SPINE_TREE_SLOTS
-                        .checked_add(SPINE_WRAP_SLOTS)
+                        .checked_add(wrap_slots)
                         .ok_or(RegionSidecarError::BadVk)?,
                 )
                 .ok_or(RegionSidecarError::BadVk)?;
@@ -969,7 +1011,12 @@ fn canonical_meta_protocol(
     let wallet_overflow = matches!(
         (tx_log, exact_state_region_log, spine_cap_log),
         (5, Some(10), Some(0)) | (8, Some(13), Some(0))
-    );
+    ) || (objects
+        && super::block::object_block_geometries().any(|geometry| {
+            tx_log == geometry.tx_log
+                && exact_state_region_log == Some(geometry.exact_state_region_log)
+                && spine_cap_log == Some(geometry.spine_cap_log)
+        }));
     let overflow_family_slots = if wallet_overflow {
         tx_count
             .checked_mul(C1_CAPSULE_LEAF_STRIDE)
@@ -1095,7 +1142,12 @@ fn canonical_meta_protocol(
         let wrap_base = cap
             .checked_mul(SPINE_TREE_SLOTS)
             .ok_or(RegionSidecarError::BadVk)?;
-        for pattern in spine_wrap_fixed_patterns() {
+        let wrap_patterns = if objects {
+            spine_contract_wrap_fixed_patterns()
+        } else {
+            spine_wrap_fixed_patterns()
+        };
+        for pattern in wrap_patterns {
             let tiled = common_period_pattern(&pattern.table, wrap_base, cap, block_log);
             fixed.push(pattern_in_dyadic_region(
                 tiled,
@@ -1523,6 +1575,18 @@ pub(in crate::region_sidecar) mod tests {
                     slices.try_into().expect("eight meta slices"),
                 )
                 .unwrap(),
+                WalkARegionDescriptor::ObjectMeta {
+                    tx_log,
+                    exact_state_region_log,
+                    spine_cap_log,
+                } => WalkARegionVk::new_object_meta(
+                    purpose,
+                    tx_log,
+                    exact_state_region_log,
+                    spine_cap_log,
+                    slices.try_into().expect("eight meta slices"),
+                )
+                .unwrap(),
             }
         }
     }
@@ -1568,10 +1632,22 @@ pub(in crate::region_sidecar) mod tests {
     }
 
     fn meta_fixture(exact_state: bool, spine: bool) -> Fixture {
-        let descriptor = WalkARegionDescriptor::Meta {
-            tx_log: 0,
-            exact_state_region_log: exact_state.then_some(1),
-            spine_cap_log: spine.then_some(0),
+        meta_fixture_profile(exact_state, spine, false)
+    }
+
+    fn meta_fixture_profile(exact_state: bool, spine: bool, objects: bool) -> Fixture {
+        let descriptor = if objects {
+            WalkARegionDescriptor::ObjectMeta {
+                tx_log: 0,
+                exact_state_region_log: exact_state.then_some(1),
+                spine_cap_log: spine.then_some(0),
+            }
+        } else {
+            WalkARegionDescriptor::Meta {
+                tx_log: 0,
+                exact_state_region_log: exact_state.then_some(1),
+                spine_cap_log: spine.then_some(0),
+            }
         };
         let protocol = canonical_protocol(descriptor).unwrap();
         let w = 1usize << protocol.w_log;
@@ -1607,26 +1683,36 @@ pub(in crate::region_sidecar) mod tests {
                     ]
                 }),
             };
-            let columns = build_spine_instance_columns(&instance);
+            let columns = if objects {
+                noid_ivc_core::deep_chain::spine::build_spine_instance_columns_with_contract(
+                    &instance, None,
+                )
+            } else {
+                build_spine_instance_columns(&instance)
+            };
+            let wrap_slots = if objects {
+                SPINE_V2_WRAP_SLOTS
+            } else {
+                SPINE_WRAP_SLOTS
+            };
             let base = protocol.spine_region_base.unwrap();
             let wrap = base + SPINE_TREE_SLOTS;
             for lane in 0..2 {
                 committed[META_KID0 + lane][base..base + SPINE_TREE_SLOTS]
                     .copy_from_slice(&columns.tree_kid[lane]);
-                committed[META_IN0 + lane][wrap..wrap + SPINE_WRAP_SLOTS]
+                committed[META_IN0 + lane][wrap..wrap + wrap_slots]
                     .copy_from_slice(&columns.wrap_in[lane]);
             }
             for lane in 0..4 {
                 committed[META_C0 + lane][base..base + SPINE_TREE_SLOTS]
                     .copy_from_slice(&columns.tree_c[lane]);
-                committed[META_C0 + lane][wrap..wrap + SPINE_WRAP_SLOTS]
+                committed[META_C0 + lane][wrap..wrap + wrap_slots]
                     .copy_from_slice(&columns.wrap_c[lane]);
                 s0[lane][base..base + SPINE_TREE_SLOTS].copy_from_slice(&columns.tree_s0[lane]);
-                s0[lane][wrap..wrap + SPINE_WRAP_SLOTS].copy_from_slice(&columns.wrap_s0[lane]);
+                s0[lane][wrap..wrap + wrap_slots].copy_from_slice(&columns.wrap_s0[lane]);
                 s_out[lane][base..base + SPINE_TREE_SLOTS]
                     .copy_from_slice(&columns.tree_s_out[lane]);
-                s_out[lane][wrap..wrap + SPINE_WRAP_SLOTS]
-                    .copy_from_slice(&columns.wrap_s_out[lane]);
+                s_out[lane][wrap..wrap + wrap_slots].copy_from_slice(&columns.wrap_s_out[lane]);
             }
         }
 
@@ -1952,6 +2038,29 @@ pub(in crate::region_sidecar) mod tests {
             .map(|claim| (claim.column, claim.point, claim.value))
             .collect::<Vec<_>>();
         assert_eq!(claims, reference_claims);
+    }
+
+    #[test]
+    fn object_meta_has_a_distinct_authenticated_recipe() {
+        let legacy = meta_fixture_profile(true, true, false);
+        let objects = meta_fixture_profile(true, true, true);
+        let (old_vk, old_z, old_proof) = direct_roundtrip_with_purpose(&legacy, [0x42; 32]);
+        let (new_vk, new_z, new_proof) = direct_roundtrip_with_purpose(&objects, [0x42; 32]);
+        assert_eq!(old_vk.slices(), new_vk.slices());
+        assert_ne!(old_vk.transcript_digest(), new_vk.transcript_digest());
+        assert_ne!(old_vk.descriptor(), new_vk.descriptor());
+        for (vk, z, proof) in [(&old_vk, &new_z, &new_proof), (&new_vk, &old_z, &old_proof)] {
+            let mut verifier = FsLaneChallenger::new(DIRECT_DOMAIN);
+            verifier.observe_bytes(b"outer-witness-root");
+            assert!(verify_walk_a_region_sidecar(
+                vk,
+                z.len().trailing_zeros() as usize,
+                proof,
+                &mut verifier,
+            )
+            .is_err());
+        }
+        assert_reference_parity(&objects);
     }
 
     #[test]

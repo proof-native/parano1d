@@ -10,7 +10,9 @@ use std::io::{BufReader, Read as _};
 use std::path::Path;
 use std::sync::Arc;
 
-use bench_prover::{HonestHistoryStepFixtureProvider, PreparedHistoryStepBackboneInput};
+use bench_prover::{
+    HonestHistoryStepFixtureProvider, PreparedHistoryStepBackboneInput, V2ResearchMutation,
+};
 use noid_ivc_core::field_r1cs::CompactFieldR1cs;
 use noid_miner::history_step_artifacts::{
     decode_history_step_runtime_metadata_pinned, history_step_matrix_file_name,
@@ -20,9 +22,12 @@ use noid_miner::history_step_artifacts::{
 };
 use noid_poseidon2b::native::poseidon2b_hash_byte_slices;
 use noid_recursive::{
-    acceptance::history_step::assemble_history_step_base, canonical_history_step_shape,
-    CanonicalHistoryStepClassId, HistoryStepMatrixLease, HistoryStepMatrixSource,
-    HistoryStepMatrixSourceError, HistoryStepRuntime,
+    acceptance::history_step::{
+        assemble_frozen_direct_block_research, assemble_frozen_history_step_base,
+        assemble_history_step_base,
+    },
+    canonical_history_step_shape, CanonicalHistoryStepClassId, HistoryStepMatrixLease,
+    HistoryStepMatrixSource, HistoryStepMatrixSourceError, HistoryStepRuntime,
 };
 
 const FIXTURE_SEED: u128 = 0x4849_5354_4550_5f56_31;
@@ -118,8 +123,200 @@ fn validate_launch_compatibility(
     Ok((built.class_id(), built.useful_rows()))
 }
 
+fn measure_legacy_full_history_step(
+    runtime: &HistoryStepRuntime,
+) -> Result<(CanonicalHistoryStepClassId, usize, [u8; 32], bool), String> {
+    let mut provider = HonestHistoryStepFixtureProvider::new(FIXTURE_SEED)?;
+    let genesis = noid_recursive::genesis_accumulator();
+    let step = provider
+        .next_backbone(&genesis)?
+        .ok_or_else(|| "honest HistoryStep launch fixture is missing".to_owned())?;
+    let PreparedHistoryStepBackboneInput::B25(prepared) = step.input else {
+        return Err("honest HistoryStep launch fixture is not B25".to_owned());
+    };
+    let (witness, nonce, start, end) = prepared.into_parts();
+    let (_, input) = witness
+        .finish(nonce, &start, &end)
+        .map_err(|error| format!("finish honest HistoryStep launch fixture: {error}"))?;
+    let built = assemble_frozen_history_step_base(runtime, input)
+        .map_err(|error| format!("assemble frozen legacy HistoryStep witness: {error}"))?;
+    let digest = built.matrix().statement_digest();
+    let satisfied = built.matrix().satisfies(built.witness());
+    if !satisfied || digest != runtime.bank().entry(built.class_id()).matrix_digest() {
+        return Err("rebuilt legacy relation does not match the pinned matrix".into());
+    }
+    Ok((built.class_id(), built.useful_rows(), digest, satisfied))
+}
+
+fn measure_v2_heterogeneous_direct_blocks() -> Result<(), String> {
+    let mut provider = HonestHistoryStepFixtureProvider::new(FIXTURE_SEED)?;
+    let mut expected = noid_recursive::genesis_accumulator();
+    loop {
+        let step = provider
+            .next_backbone(&expected)?
+            .ok_or_else(|| "honest backbone ended before B255 checkpoint".to_owned())?;
+        let captured = step.capture_parent_slot == Some(1);
+        expected = match &step.input {
+            PreparedHistoryStepBackboneInput::B25(input) => input.end_accumulator().clone(),
+            PreparedHistoryStepBackboneInput::B255(input) => input.end_accumulator().clone(),
+        };
+        if captured {
+            break;
+        }
+    }
+
+    let mut reference_digest = None;
+    let mut reference_rows = None;
+    for contract_count in [0usize, 1, 4, noid_recursive::V2_CONTRACT_SLOTS] {
+        let started = std::time::Instant::now();
+        let input = provider.v2_research_b25_input(contract_count)?;
+        let prepared_ms = started.elapsed().as_secs_f64() * 1e3;
+        let build_started = std::time::Instant::now();
+        let frozen = assemble_frozen_direct_block_research(input)
+            .map_err(|error| format!("assemble {contract_count}-call direct block: {error}"))?;
+        let build_ms = build_started.elapsed().as_secs_f64() * 1e3;
+        let digest = frozen.matrix().statement_digest();
+        let satisfied = frozen.matrix().satisfies(frozen.witness());
+        let rows = frozen.useful_rows();
+        if let Some(reference) = reference_digest {
+            if digest != reference {
+                return Err(format!(
+                    "{contract_count}-call direct matrix differs from zero-call matrix"
+                ));
+            }
+        } else {
+            reference_digest = Some(digest);
+        }
+        if let Some(reference) = reference_rows {
+            if rows != reference {
+                return Err(format!(
+                    "{contract_count}-call direct row count {rows} differs from {reference}"
+                ));
+            }
+        } else {
+            reference_rows = Some(rows);
+        }
+        if !satisfied {
+            return Err(format!(
+                "{contract_count}-call direct witness is unsatisfied"
+            ));
+        }
+        println!(
+            "v2-direct contracts={contract_count} pages=25 rows={rows} digest={} satisfied={satisfied} prepare_ms={prepared_ms:.1} build_and_scan_ms={build_ms:.1}",
+            hex::encode(digest),
+        );
+    }
+
+    let reference_digest = reference_digest.ok_or_else(|| "missing direct digest".to_owned())?;
+    let reference_rows = reference_rows.ok_or_else(|| "missing direct row count".to_owned())?;
+    for (label, contract_count, mutation) in [
+        (
+            "invalid-opcode-opening",
+            1usize,
+            V2ResearchMutation::InvalidOpcodeOpening,
+        ),
+        (
+            "wrong-next-opening",
+            1usize,
+            V2ResearchMutation::WrongNextOpening,
+        ),
+        (
+            "wrong-context-opening",
+            1usize,
+            V2ResearchMutation::WrongContextOpening,
+        ),
+        (
+            "wrong-terminal-recipient",
+            2usize,
+            V2ResearchMutation::WrongTerminalRecipient,
+        ),
+    ] {
+        let input = provider.v2_research_b25_input_with_mutation(contract_count, mutation)?;
+        let frozen = assemble_frozen_direct_block_research(input)
+            .map_err(|error| format!("assemble negative case {label}: {error}"))?;
+        let digest = frozen.matrix().statement_digest();
+        let rows = frozen.useful_rows();
+        let satisfied = frozen.matrix().satisfies(frozen.witness());
+        if digest != reference_digest || rows != reference_rows {
+            return Err(format!(
+                "negative case {label} changed fixed shape: rows={rows}, digest={}",
+                hex::encode(digest)
+            ));
+        }
+        if satisfied {
+            return Err(format!("negative case {label} unexpectedly satisfied"));
+        }
+        println!(
+            "v2-negative case={label} contracts={contract_count} rows={rows} digest={} satisfied={satisfied}",
+            hex::encode(digest),
+        );
+    }
+
+    match provider
+        .v2_research_b25_input_with_mutation(2, V2ResearchMutation::WrongBranchAuthorization)
+    {
+        Ok(_) => return Err("wrong-branch authorization unexpectedly prepared".to_owned()),
+        Err(error) => println!(
+            "v2-negative case=wrong-branch-authorization native_rejected=true error={error}"
+        ),
+    }
+
+    let mut reference_digest = None;
+    let mut reference_rows = None;
+    for contract_count in [0usize, 1, 4, noid_recursive::V2_CONTRACT_SLOTS] {
+        let started = std::time::Instant::now();
+        let input = provider.v2_research_b255_input(contract_count)?;
+        let prepared_ms = started.elapsed().as_secs_f64() * 1e3;
+        let build_started = std::time::Instant::now();
+        let frozen = assemble_frozen_direct_block_research(input).map_err(|error| {
+            format!("assemble B255 {contract_count}-call direct block: {error}")
+        })?;
+        let build_ms = build_started.elapsed().as_secs_f64() * 1e3;
+        let digest = frozen.matrix().statement_digest();
+        let satisfied = frozen.matrix().satisfies(frozen.witness());
+        let rows = frozen.useful_rows();
+        if let Some(reference) = reference_digest {
+            if digest != reference {
+                return Err(format!(
+                    "B255 {contract_count}-call direct matrix differs from zero-call matrix"
+                ));
+            }
+        } else {
+            reference_digest = Some(digest);
+        }
+        if let Some(reference) = reference_rows {
+            if rows != reference {
+                return Err(format!(
+                    "B255 {contract_count}-call direct row count {rows} differs from {reference}"
+                ));
+            }
+        } else {
+            reference_rows = Some(rows);
+        }
+        if !satisfied {
+            return Err(format!(
+                "B255 {contract_count}-call direct witness is unsatisfied"
+            ));
+        }
+        println!(
+            "v2-direct tier=255 contracts={contract_count} pages=26 rows={rows} digest={} satisfied={satisfied} prepare_ms={prepared_ms:.1} build_and_scan_ms={build_ms:.1}",
+            hex::encode(digest),
+        );
+    }
+    Ok(())
+}
+
 fn main() {
     noid_ivc_prover::init_perf_thread_pool();
+    assert!(
+        std::env::var_os("NOID_V2_FULL_ONLY").is_none(),
+        "the historical v2-at-genesis probe was removed; scheduled v2 needs its own bank"
+    );
+    if std::env::var_os("NOID_V2_DIRECT_ONLY").is_some() {
+        measure_v2_heterogeneous_direct_blocks()
+            .unwrap_or_else(|error| panic!("v2 heterogeneous direct-block measurement: {error}"));
+        return;
+    }
     let root = std::env::args()
         .nth(1)
         .expect("usage: noid_pack_pins <pack-root>");
@@ -184,6 +381,16 @@ fn main() {
         runtime_parts,
     )
     .expect("construct canonical HistoryStep runtime");
+    if std::env::var_os("NOID_LEGACY_FULL_MATRIX_AUDIT").is_some() {
+        let (class_id, rows, digest, satisfied) = measure_legacy_full_history_step(&runtime)
+            .unwrap_or_else(|error| panic!("legacy full HistoryStep audit: {error}"));
+        println!(
+            "legacy frozen launch matrix: c{:02}, {rows} useful rows, digest={}, satisfied={satisfied}",
+            class_id.index(),
+            hex::encode(digest),
+        );
+        return;
+    }
     let (validated_class, useful_rows) = validate_launch_compatibility(&runtime)
         .unwrap_or_else(|error| panic!("HistoryStep pack/source incompatibility: {error}"));
     assert_eq!(

@@ -20,6 +20,8 @@ noid_poseidon2b = { path = "../noid_poseidon2b" }
 serde = { version = "1", features = ["derive"] }
 bincode = "1"
 toml = "0.8"
+memmap2 = "0.9"
+tempfile = "3"
 
 [dev-dependencies]
 # Used by `LigeritoSecurityConfig` serde round-trip tests.

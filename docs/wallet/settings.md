@@ -1,6 +1,6 @@
 # Settings
 
-Open Settings with `F7`.
+Open Settings with `F8`.
 
 ![Wallet settings](../assets/wallet/settings.png)
 

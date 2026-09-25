@@ -1,0 +1,325 @@
+{
+  "status": "exploratory; mainnet parameters not selected",
+  "host": {
+    "cpu": "Intel Core i7-1365U",
+    "logical_cpus": 12,
+    "physical_cores": 10,
+    "memory_gib_approx": 31,
+    "os": "7.0.0-30-generic",
+    "backend": "avx2+vpclmul",
+    "rustc": "1.96.0"
+  },
+  "core_revision": "fc8b4592",
+  "prover_binary_sha256": "728919e80cb8ce054c38c77dae6ccda579f3a097b77bebda429320363915e463",
+  "receiver_binary_sha256": "4b49f75003dc6ad126445db83d6603262e2367badb048a47ffd4406975b31c16",
+  "candidate": {
+    "activation": 10,
+    "bank": "fb3e9c9ba518d563373bd7f6732bb96acd6463ee46adfec369d784b2867e8825",
+    "block_seconds": 30,
+    "block_vk": "98401da4676bebd64cc4f7581a4522e4855422bc10939afa7ee41de72fe7dc3e",
+    "legacy_fixture_directory": "isolated-v2-apps-20260923",
+    "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "legacy_v1_1_activation": 5,
+    "m": 23,
+    "matrix": "44d405f1e5609c2bd4f4622fcf15ebb68997466b22d6cf363f6d0aaeb2485579",
+    "matrix_zstd_bytes": 6388784,
+    "memory": {
+      "process_peak_rss_kib": 1581704,
+      "rss_kib": 858556
+    },
+    "pages": 63,
+    "parent_vk": "b8417cb26d057641e7aa9f62e0e349b478f42c38f1a80b4492fe61b40d9f0c0b",
+    "rayon_threads": 12,
+    "setup_ms": 90031.205988,
+    "status": "research; no release parameters selected",
+    "useful_rows": 5339938
+  },
+  "prover_notes": [
+    "One sample per occupancy on 12 threads.",
+    "Ordinary measured payments use one input and one output; not a maximum-segment or input-count case.",
+    "Every contract call exercises all eight instructions.",
+    "Wallet generation, proof input, assembly, proving and PoW are separate timings.",
+    "Whole-process peak includes freezing, previous blocks and matrix audits."
+  ],
+  "prover_samples": [
+    {
+      "assembly_ms": 3428.246534,
+      "body_bytes": 540,
+      "capacity": 63,
+      "contract_calls": 0,
+      "encode_ms": 14.027524,
+      "fixture_template_ms": 1.574885,
+      "height": 10,
+      "input_ms": 1.917078,
+      "label": "fork_empty",
+      "m": 23,
+      "materialize_ms": 1.560214,
+      "memory": {
+        "process_peak_rss_kib": 2697324,
+        "rss_kib": 1522788
+      },
+      "pages": 0,
+      "pow_ms": 1440.145527,
+      "prove_ms": 9456.34446,
+      "terminal_bytes": 915444,
+      "verify_ms": 437.0969,
+      "wallet_authorization_ms": 0.0
+    },
+    {
+      "assembly_ms": 4914.4918689999995,
+      "body_bytes": 540,
+      "capacity": 63,
+      "contract_calls": 0,
+      "encode_ms": 12.122309,
+      "fixture_template_ms": 1.3865640000000001,
+      "height": 16,
+      "input_ms": 1.683922,
+      "label": "sample_0_pages_0_contracts_0",
+      "m": 23,
+      "materialize_ms": 1.386462,
+      "memory": {
+        "process_peak_rss_kib": 3749836,
+        "rss_kib": 1538720
+      },
+      "pages": 0,
+      "pow_ms": 1272.809479,
+      "prove_ms": 9614.420703,
+      "terminal_bytes": 916116,
+      "verify_ms": 615.044888,
+      "wallet_authorization_ms": 0.0
+    },
+    {
+      "assembly_ms": 5080.128253,
+      "body_bytes": 1832,
+      "capacity": 63,
+      "contract_calls": 0,
+      "encode_ms": 18.398593,
+      "fixture_template_ms": 4.4797020000000005,
+      "height": 17,
+      "input_ms": 109.41421799999999,
+      "label": "sample_0_pages_4_contracts_0",
+      "m": 23,
+      "materialize_ms": 2.997789,
+      "memory": {
+        "process_peak_rss_kib": 3765824,
+        "rss_kib": 1596104
+      },
+      "pages": 4,
+      "pow_ms": 1686.91396,
+      "prove_ms": 11267.691458,
+      "terminal_bytes": 912212,
+      "verify_ms": 910.282775,
+      "wallet_authorization_ms": 3082.527641
+    },
+    {
+      "assembly_ms": 5881.281077,
+      "body_bytes": 20889,
+      "capacity": 63,
+      "contract_calls": 0,
+      "encode_ms": 15.755656,
+      "fixture_template_ms": 38.000527,
+      "height": 18,
+      "input_ms": 1463.19903,
+      "label": "sample_0_pages_63_contracts_0",
+      "m": 23,
+      "materialize_ms": 11.047069,
+      "memory": {
+        "process_peak_rss_kib": 3822820,
+        "rss_kib": 1540820
+      },
+      "pages": 63,
+      "pow_ms": 199.225123,
+      "prove_ms": 9070.609034000001,
+      "terminal_bytes": 913332,
+      "verify_ms": 612.847989,
+      "wallet_authorization_ms": 48922.52039900001
+    },
+    {
+      "assembly_ms": 5965.30792,
+      "body_bytes": 20889,
+      "capacity": 63,
+      "contract_calls": 1,
+      "encode_ms": 15.007642,
+      "fixture_template_ms": 37.935549,
+      "height": 19,
+      "input_ms": 1511.693245,
+      "label": "sample_0_pages_63_contracts_1",
+      "m": 23,
+      "materialize_ms": 11.280122,
+      "memory": {
+        "process_peak_rss_kib": 3822820,
+        "rss_kib": 1567076
+      },
+      "pages": 63,
+      "pow_ms": 344.27183,
+      "prove_ms": 9141.063994,
+      "terminal_bytes": 909716,
+      "verify_ms": 649.655018,
+      "wallet_authorization_ms": 45723.694243
+    },
+    {
+      "assembly_ms": 5756.829855999999,
+      "body_bytes": 20889,
+      "capacity": 63,
+      "contract_calls": 4,
+      "encode_ms": 20.315558,
+      "fixture_template_ms": 39.603829,
+      "height": 20,
+      "input_ms": 1588.145205,
+      "label": "sample_0_pages_63_contracts_4",
+      "m": 23,
+      "materialize_ms": 16.909877,
+      "memory": {
+        "process_peak_rss_kib": 3822820,
+        "rss_kib": 1531752
+      },
+      "pages": 63,
+      "pow_ms": 2899.891467,
+      "prove_ms": 13972.592762,
+      "terminal_bytes": 910516,
+      "verify_ms": 842.247631,
+      "wallet_authorization_ms": 46662.33203900001
+    },
+    {
+      "assembly_ms": 6076.431298,
+      "body_bytes": 20889,
+      "capacity": 63,
+      "contract_calls": 16,
+      "encode_ms": 13.278867,
+      "fixture_template_ms": 37.521105,
+      "height": 21,
+      "input_ms": 1532.055133,
+      "label": "sample_0_pages_63_contracts_16",
+      "m": 23,
+      "materialize_ms": 11.863422,
+      "memory": {
+        "process_peak_rss_kib": 3822820,
+        "rss_kib": 1545608
+      },
+      "pages": 63,
+      "pow_ms": 639.968894,
+      "prove_ms": 9310.437068000001,
+      "terminal_bytes": 909428,
+      "verify_ms": 651.3437260000001,
+      "wallet_authorization_ms": 47025.54205600003
+    }
+  ],
+  "audits": [
+    {
+      "height": 10,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "height": 11,
+      "phase": "terminal_adversarial_checks",
+      "rejected": 138
+    },
+    {
+      "audit_ms": 17711.846798,
+      "contracts": 16,
+      "height": 21,
+      "pages": 63,
+      "phase": "full_recursive_matrix_audit",
+      "satisfied": true
+    }
+  ],
+  "receiver_limits": {
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "physical_cores": "2 P cores + 2 E cores; no SMT siblings",
+    "rayon_threads": 4,
+    "memory_max_bytes": 8589934592,
+    "memory_swap_max_bytes": 0,
+    "full_node": false
+  },
+  "receiver": [
+    {
+      "m": 23,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 269572
+      },
+      "pages": 63,
+      "phase": "receiver_setup",
+      "rayon_threads": 4,
+      "setup_ms": 69129.225476
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273740
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "terminal_bytes": 909428,
+      "verify_ms": 1082.526896,
+      "warmup": true
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273760
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "terminal_bytes": 909428,
+      "verify_ms": 1136.2510260000001,
+      "warmup": false
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273776
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "terminal_bytes": 909428,
+      "verify_ms": 1148.4571740000001,
+      "warmup": false
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273780
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "terminal_bytes": 909428,
+      "verify_ms": 1107.5991530000001,
+      "warmup": false
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273788
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "terminal_bytes": 909428,
+      "verify_ms": 1129.2022610000001,
+      "warmup": false
+    },
+    {
+      "height": 21,
+      "memory": {
+        "process_peak_rss_kib": 518264,
+        "rss_kib": 273800
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "terminal_bytes": 909428,
+      "verify_ms": 1128.450018,
+      "warmup": false
+    }
+  ]
+}

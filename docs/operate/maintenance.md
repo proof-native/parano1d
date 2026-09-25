@@ -92,3 +92,11 @@ files from `snapshot-staging` into the canonical database.
 Undo data is retained for 36 blocks and complete block bodies for 42. These
 windows are managed automatically. Increasing local disk retention does not
 change the 18-block consensus finality rule.
+
+## Contract data
+
+Back up `wallet.contracts.json`, `contract-activity/` and the complete
+`objects/` directory, including `objects/terminals/`, together with wallet
+authority. They contain public terms, activity and proof evidence that cannot
+be reconstructed from the secret alone. Stop the node for a consistent copy.
+See [contract recovery](../contracts/receipts-and-recovery.md).

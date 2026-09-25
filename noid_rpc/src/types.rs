@@ -320,13 +320,13 @@ pub struct WalletSendPlan {
     pub fee_breakdown: FeeBreakdownInfo,
 }
 
-/// Stable JSON-RPC code for a payment that exceeds the canonical input limit.
+/// Stable JSON-RPC code for a payment that exceeds the active input limit.
 pub const WALLET_INPUT_LIMIT_EXCEEDED_CODE: i32 = -32011;
-/// Stable JSON-RPC message for a payment that exceeds the canonical input limit.
+/// Stable JSON-RPC message for a payment that exceeds the active input limit.
 pub const WALLET_INPUT_LIMIT_EXCEEDED_MESSAGE: &str = "InputLimitExceeded";
 
-/// JSON-RPC error data when no legal payment can be formed within the fixed
-/// transaction input bound.
+/// JSON-RPC error data when no legal payment can be formed within the wire
+/// bound or the candidate height's pinned block-class input budget.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WalletInputLimitExceeded {
     pub max_inputs: usize,
@@ -549,8 +549,11 @@ pub struct MiningInfo {
     pub block_reward_micronoid: u64,
     /// Block reward in NOID.
     pub block_reward_noid: f64,
-    /// Number of live UTXOs (determines reward via occupancy formula).
+    /// Number of live UTXOs in the current State.
     pub active_slot_count: u64,
+    /// Legacy lazy-cache preparations still useful for mining the next block.
+    /// An empty list means the authenticated v2 pack is already loaded.
+    pub matrix_cache_classes: Vec<String>,
 }
 
 /// Coarse initial synchronization stage for operator interfaces.
@@ -691,7 +694,9 @@ pub struct MempoolTxInfo {
     pub page_count: usize,
     /// Smallest block proof class capable of including the complete intent.
     pub minimum_proof_class: String,
-    /// True while this pending intent requires a B255-qualified producer.
+    /// True while this intent requires the large proof class. The legacy
+    /// field name is retained for API compatibility; from v2, the actual
+    /// pinned page capacity is reported by `minimum_proof_class`.
     pub requires_b255_miner: bool,
     /// Chain height at admission.
     pub admitted_height: u64,

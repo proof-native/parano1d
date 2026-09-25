@@ -1,0 +1,93 @@
+{
+  "schema": "parano1d-v2-heterogeneous-validation-v2",
+  "base_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "prototype_revision": "590b489a2bc5c7c78dfa16241b534fd921227beb",
+  "author": "Ignotus Nemo",
+  "prototype_status": "published-research-prototype",
+  "completed_utc_date": "2026-09-16",
+  "format_and_static_checks": {
+    "cargo_fmt": "passed",
+    "cargo_check_packages": [
+      "bench_prover",
+      "noid_recursive",
+      "noid_block",
+      "noid_gkr",
+      "noid-ivc-core",
+      "noid_tx"
+    ],
+    "git_diff_check": "passed"
+  },
+  "full_regression_before_envelope_scaling": [
+    {
+      "package": "noid-ivc-core",
+      "passed": 450,
+      "failed": 0,
+      "ignored": 11
+    },
+    {
+      "package": "noid_gkr",
+      "passed": 204,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "package": "noid_block",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "package": "noid_tx",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "package": "noid_recursive",
+      "passed": 400,
+      "failed": 0,
+      "ignored": 3,
+      "rust_min_stack_bytes": 16777216,
+      "elapsed_seconds": 2267.93
+    }
+  ],
+  "post_reordering_targeted_tests": [
+    {
+      "package": "noid_recursive",
+      "filter": "selected_zk_capability_tests",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "package": "noid_block",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "package": "noid_tx",
+      "passed": 24,
+      "failed": 0
+    }
+  ],
+  "test_harness_note": "A default-stack debug run exhausted one test thread in an existing large raw-slice ledger test after its preceding assertions had passed. The exact test and then the complete noid_recursive suite passed with RUST_MIN_STACK=16777216. After scaling and row reordering, affected capability tests, block tests, transaction tests, static checks and complete B25/B255 matrices were rerun.",
+  "matrix_checks": {
+    "b25_direct_positive_call_counts": [
+      0,
+      1,
+      4,
+      16
+    ],
+    "b25_direct_negative_cases": 5,
+    "b25_full_history_step_satisfied": true,
+    "b25_full_useful_rows": 4188799,
+    "b25_full_remaining_rows": 5505,
+    "b255_direct_positive_call_counts": [
+      0,
+      1,
+      4,
+      16
+    ],
+    "b255_saturated_authorization_positions_preserved": 255
+  },
+  "release_state": "research only, with no frozen matrix pack, consensus activation or soundness certificate"
+}

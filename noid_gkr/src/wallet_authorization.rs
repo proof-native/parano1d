@@ -321,6 +321,33 @@ pub fn prove_paged_spend_authorization(
     prove_selected_authorization(public, input_position, witness)
 }
 
+/// Research-v2 twin for an object contract. The logical transaction remains
+/// bound exactly as in the wallet path, while the private owner permutation
+/// proves the controller committed by the object opening rather than treating
+/// the object's State root as a wallet address. HistoryStep is responsible for
+/// binding that controller to the consumed object root.
+#[doc(hidden)]
+pub fn prove_v2_contract_controller_authorization(
+    pages: &[TxPage],
+    controller: [Block128; 2],
+    witness: OwnerAuthWitness,
+) -> Result<WalletAuthorizationBundle, ProveAuthorizationError> {
+    let canonical = canonical_paged_spend_auth(pages)?;
+    let input_position = pages
+        .iter()
+        .enumerate()
+        .find_map(|(page, page_body)| {
+            page_body
+                .body
+                .live_inputs()
+                .next()
+                .map(|(slot, _)| page * noid_tx::TX_INPUTS + slot)
+        })
+        .expect("canonical v2 contract call has a live input");
+    let public = OwnerAuthPublicInputs::new(canonical.logical_txid.as_fields(), controller);
+    prove_selected_authorization(public, input_position, witness)
+}
+
 fn prove_selected_authorization(
     public: OwnerAuthPublicInputs,
     input_position: usize,
@@ -348,6 +375,43 @@ fn prove_selected_authorization(
     let proof = prove_zk_authorization_from_state_table(&state, statement)
         .map_err(|_| ProveAuthorizationError::Proof)?;
     Ok(WalletAuthorizationBundle { proof })
+}
+
+/// Isolated v2 wallet path. Reject malformed programs and State effects before
+/// doing capsule work; derive the address from the opened timed policy.
+pub fn prove_experimental_object_authorization(
+    page: &TxPage,
+    opening: &noid_tx::experimental_object::ObjectOpening,
+    height: u64,
+    witness: OwnerAuthWitness,
+) -> Result<WalletAuthorizationBundle, ProveAuthorizationError> {
+    let checked = opening
+        .check_call(page, height)
+        .map_err(|e| ProveAuthorizationError::OwnerAuthStatement(e.to_string()))?;
+    prove_v2_contract_controller_authorization(
+        std::slice::from_ref(page),
+        checked.authority.as_fields(),
+        witness,
+    )
+}
+
+pub fn verify_experimental_object_authorization(
+    page: &TxPage,
+    opening: &noid_tx::experimental_object::ObjectOpening,
+    height: u64,
+    bundle: &WalletAuthorizationBundle,
+) -> Result<(), VerifyAuthorizationError> {
+    let checked = opening
+        .check_call(page, height)
+        .map_err(|e| VerifyAuthorizationError::OwnerAuthStatement(e.to_string()))?;
+    let canonical = canonical_paged_spend_auth(std::slice::from_ref(page))?;
+    let public = OwnerAuthPublicInputs::new(
+        canonical.logical_txid.as_fields(),
+        checked.authority.as_fields(),
+    );
+    verify_zk_authorization(selected_statement(&public), &bundle.proof)
+        .map(|_| ())
+        .map_err(|_| VerifyAuthorizationError::AuthProof)
 }
 
 pub fn verify_wallet_authorization(
@@ -548,6 +612,75 @@ mod tests {
             prove_wallet_authorization(&body, witness).expect("prove standard authorization");
         verify_wallet_authorization(&body, &bundle).expect("verify standard authorization");
         (body, secret_bytes, bundle)
+    }
+
+    #[test]
+    fn object_capsule_binds_the_opened_authority_and_deadline_branch() {
+        use noid_tx::experimental_object::{ObjectOpening, ObjectRules, PROGRAM_STEPS};
+        let claim = mk_secret_bytes(41);
+        let recovery = mk_secret_bytes(42);
+        let opening = ObjectOpening {
+            program: [[Block128(0); 2]; PROGRAM_STEPS],
+            state: Block128(19),
+            claim_authority: derive_address(&SpendSecret::from_bytes(claim)),
+            recovery_authority: derive_address(&SpendSecret::from_bytes(recovery)),
+            deadline: 10,
+            claim_recipient: Address([3; 32]),
+            recovery_recipient: Address([4; 32]),
+            rules: ObjectRules {
+                max_fee: 10,
+                min_retained: 0,
+                max_payout: 0,
+                modes: 15,
+            },
+        };
+        let page = opening
+            .build_call(
+                TxInput {
+                    slot_index: 1,
+                    amount: 100,
+                    creation_id: 1,
+                },
+                2,
+                5,
+                [7; 32],
+                9,
+                false,
+            )
+            .unwrap();
+        // The continuing body is valid on either side. Only the authorized
+        // branch changes, so this tests the capsule binding itself.
+        assert!(opening.check_call(&page, 10).is_ok());
+        let before = prove_experimental_object_authorization(
+            &page,
+            &opening,
+            9,
+            OwnerAuthWitness::new(SpendSecret::from_bytes(claim)),
+        )
+        .unwrap();
+        verify_experimental_object_authorization(&page, &opening, 9, &before).unwrap();
+        assert!(verify_experimental_object_authorization(&page, &opening, 10, &before).is_err());
+        assert!(verify_paged_spend_authorization(std::slice::from_ref(&page), &before).is_err());
+        let after = prove_experimental_object_authorization(
+            &page,
+            &opening,
+            10,
+            OwnerAuthWitness::new(SpendSecret::from_bytes(recovery)),
+        )
+        .unwrap();
+        verify_experimental_object_authorization(&page, &opening, 10, &after).unwrap();
+        assert!(verify_experimental_object_authorization(&page, &opening, 9, &after).is_err());
+        let mut changed = page.clone();
+        changed.body.epoch_anchor[0] ^= 1;
+        assert!(opening.check_call(&changed, 9).is_ok());
+        assert!(verify_experimental_object_authorization(&changed, &opening, 9, &before).is_err());
+        assert!(prove_experimental_object_authorization(
+            &page,
+            &opening,
+            9,
+            OwnerAuthWitness::new(SpendSecret::from_bytes(recovery)),
+        )
+        .is_err());
     }
 
     fn paged_fixture(statement_salt: u8) -> (Vec<TxPage>, [u8; 32]) {

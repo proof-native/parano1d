@@ -48,6 +48,8 @@ $Definition = Join-Path $ScriptDir "gui\windows\Parano1d.iss"
 $Icon = Join-Path $ReleaseRoot "noid_gui\assets\app-icons\Parano1d.ico"
 $License = Join-Path $ReleaseRoot "LICENSE"
 $Notice = Join-Path $ReleaseRoot "NOTICE"
+$UserGuide = Join-Path $ScriptDir "README.txt"
+$ContractGuide = Join-Path $ReleaseRoot "docs\reference\contracts.md"
 $OutputBaseFilename = "parano1d-gui-v$Version-$Platform-setup"
 $NumericVersion = [regex]::Match($Version, '^([0-9]+\.[0-9]+\.[0-9]+)').Groups[1].Value
 
@@ -60,6 +62,8 @@ $NumericVersion = [regex]::Match($Version, '^([0-9]+\.[0-9]+\.[0-9]+)').Groups[1
     "/DIconFile=$Icon" `
     "/DLicenseFile=$License" `
     "/DNoticeFile=$Notice" `
+    "/DUserGuideFile=$UserGuide" `
+    "/DContractGuideFile=$ContractGuide" `
     $Definition
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup exited with code $LASTEXITCODE"
@@ -94,10 +98,14 @@ try {
     $Node = Join-Path $InstallDir "parano1d-node.exe"
     $InstalledLicense = Join-Path $InstallDir "LICENSE.txt"
     $InstalledNotice = Join-Path $InstallDir "NOTICE.txt"
+    $InstalledGuide = Join-Path $InstallDir "README.txt"
+    $InstalledContracts = Join-Path $InstallDir "CONTRACTS.md"
     if (-not (Test-Path -Path $Wallet -PathType Leaf) -or
         -not (Test-Path -Path $Node -PathType Leaf) -or
         -not (Test-Path -Path $InstalledLicense -PathType Leaf) -or
-        -not (Test-Path -Path $InstalledNotice -PathType Leaf)) {
+        -not (Test-Path -Path $InstalledNotice -PathType Leaf) -or
+        -not (Test-Path -Path $InstalledGuide -PathType Leaf) -or
+        -not (Test-Path -Path $InstalledContracts -PathType Leaf)) {
         throw "GUI installer payload is incomplete"
     }
     foreach ($ForbiddenBinary in @("parano1d-cli.exe", "parano1d-miner.exe")) {

@@ -84,3 +84,17 @@ objects submitted to the node.
 
 Wallet coin selection is also policy. The resulting `PagedSpend` must still
 satisfy the same consensus rules as one built by another implementation.
+
+## Contract components
+
+`noid_tx::experimental_object` defines the canonical opening, program, policy and call
+encoding; `noid_tx::experimental_object::applications` builds the templates. `noid_recursive` proves
+their execution in the block relation. `noid_chain` handles live-state checks,
+receipts and fork context; `noid_rpc` exposes typed construction and wallet
+calls. `noid_gui` owns forms, local names and file import/merge.
+
+A new program expressed in the existing ABI can use the same matrices.
+Changing an opcode, operand meaning, authority rule or execution budget
+changes the proven relation and requires consensus and matrix review.
+Contract terms and receipt journals are application data; they cannot override
+the committed program or current State.

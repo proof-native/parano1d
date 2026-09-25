@@ -1,0 +1,29 @@
+{
+  "git_head": "fb640b614978864d1687ff7e66a6eb8c3c2c7764",
+  "qualification": "actual producer class selection, independent MDBX receiver, full small calls; not daemon/P2P or constrained receiver",
+  "sha256": {
+    "Cargo.lock": "3d6c30e2324573f5058ccdc216a9486b021266f0cf4c5e2fb60a9a0fd8e19408",
+    "bench_prover/Cargo.toml": "7ed46c05fc93e032e23299c1f5b1c047e6b3f9393cc41c5fc01a806f76f69539",
+    "bench_prover/src/bin/noid_v2_capacity.rs": "ddbf4f9863003ca37c3ea798ee96565dc1d6c177c018fae1ed71d87a55257d06",
+    "bench_prover/src/bin/v2_capacity_support/banked.rs": "c7c627e21c773db08a32b22b26e31b65c1f118d1e4d97184a06a4fc3c4859566",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "b4087bcf46affc5468efbf66b4043516de62f0e81d122246c6d5b052a7a3eaa9",
+    "bench_prover/src/bin/v2_capacity_support/state.rs": "3e60797bf5ae8948469e88af53afab01cf0abef6ec93bf9ada7010f488149f47",
+    "noid_block/src/candidate_history.rs": "f22a46c28b15c9b6b55467527c9ae27cc9fe0408c97038d02288a2386d95509a",
+    "noid_chain/src/consensus/template.rs": "8ae87fbbfdd3226007311a460907ca0a9500f52e793dc8b8be89cb3a62633872",
+    "noid_chain/src/storage/mdbx_store.rs": "9818cb7cc64eaa16431d497fa7e682b1350e93b5d7f4989ef8e6817e9544773a",
+    "noid_mempool/src/pool.rs": "4dd5a8bf7377ee6ddc9707a9c8067c6799dbf6d962d93aa289481a3a0469cfa6",
+    "noid_mempool/tests/contracts.rs": "f7b30741eb2012a9658ef8ec3018325a0c91f5190eaced35b4d2cabb81ba08df",
+    "noid_miner/src/block_production.rs": "4a38b5aff2e67eb1f9d5702e7d2807305dd15b5c1222d9d7e6b93e2484db7955",
+    "noid_miner/src/history_protocol.rs": "820799b7e499fbe0712eb05376313d37e08e59e45cd0ec431eae868c0d4c4388",
+    "noid_miner/src/lib.rs": "b96cba81323068ce77cd853eb2c9e804018a8e4d7a98576cf7aa64fba9010a03",
+    "noid_miner/src/miner.rs": "766ccfdd34749260b3311d855e75e334a00df4466575070f958b77f00a27891e",
+    "noid_miner/src/template.rs": "77b3eb4d32d93a71062fba1ea1aa51e074ce98b5f52337790ceaf822b62a5ca7",
+    "noid_node/build.rs": "1a727c3aaebc2845865e2deae7fe8898ebfc28273fec2ffd6d8f83985a66b126",
+    "noid_node/src/main.rs": "bd10f76174ad49b67a11e785224d7066cdbe5718a36b003c71ab161747d83a4f",
+    "noid_node/src/retained_rpc_tests.rs": "ea8988bb0af43a07d97769512d8ffcb62153e86a1641c958bb1c11e0026d7335",
+    "noid_rpc/src/server.rs": "ea9960eb68fbacd8d48712ae57ab59a47e6cafb5a42b1683da61c71b43d66c33",
+    "bench_prover/src/bin/v2_capacity_support/production.rs": "8afc32e38bee2d644695ef22e6065e374571b958d4f1f13986441a187e0ff37e",
+    "noid_node/src/origin_recovery.rs": "d6661d1d2202691347324aeee871ae0d777498e8badd8364ee68c485d2a82edf",
+    "target/release/noid_v2_capacity": "58a14910f5a2fbc1675a9d6efbb5aa11924aea30179430b0127aa20e4ab4fd59"
+  }
+}

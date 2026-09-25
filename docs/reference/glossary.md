@@ -19,27 +19,28 @@ wallet does not mix their UTXOs into a spend from the active address.
 
 ## Address
 
-The Poseidon2b image of a derived 256-bit owner secret. An address identifies
-an output owner without publishing a public key.
+An ordinary owner address encodes the Poseidon2b image of a derived 256-bit
+secret. A contract address instead encodes the object commitment. Both use
+canonical bech32m `o1…` encoding.
 
 ## ASERT
 
 The absolutely scheduled exponentially weighted target algorithm used to
 derive the exact proof-of-work target at every height. Parano1d uses a
-six-block reference epoch, a 120-second half-life and a 20-second target
+six-block reference epoch, a 180-second half-life and a 30-second target
 interval.
 
 ## Authorization capsule
 
 The detached, freshly randomized zero-knowledge proof attached to one logical
-transaction. It proves knowledge of the secret behind `input_owner` and binds
-that authority to the complete logical transaction ID.
+transaction. For an ordinary spend it proves the owner secret; for a contract call it
+proves the selected policy authority. It binds that authority to the complete logical transaction ID.
 
-## B25 / B255
+## Small / Large
 
-The two production `HistoryStep` proof classes authenticated by the official
-matrix pack. They prove the same relation with capacities of 25 and 255
-effective page positions respectively.
+The v2 proof classes: Small m23 permits 63 effective pages; Large m24 permits
+206. Both allow 504 live inputs and 63 calls, with calls sharing page space.
+Large production is server opt-in; all nodes verify both classes.
 
 ## Block–Tiwari FS-FRI security
 
@@ -98,7 +99,8 @@ value at a point while checking consistency with the commitment.
 
 The source identifier for the production wide-challenge proof profile. Its
 algebraic challenges are sampled from a trace-one affine support of size
-`2^255` in `GF(2^256)`. The name alone is not a NIST category result.
+`2^255` in `GF(2^256)`. Its resource assessment is derived separately in the
+[security model](../protocol/security-model.md).
 
 ## Completeness
 
@@ -479,3 +481,25 @@ and relayed transactions remain transparent.
 
 A reduction proving that a constraint polynomial vanishes over its required
 Boolean domain.
+
+## Proof-native contract
+
+A live output committing to a bounded integer program, authorization policy
+and two counters. A call proves the permitted successor or closing inside
+`HistoryStep`. See [contracts](../contracts/index.md).
+
+## Contract opening
+
+The 699-byte public encoding of a contract's immutable terms and current
+counters. It reconstructs the State owner commitment; wallets retain and share it.
+
+## Contract receipt
+
+Portable evidence of a contract call, including original and optional successor
+terms, inclusion and recursive proof evidence. It remains verifiable after body
+pruning. Current spendability is checked separately in State.
+
+## Contract instance
+
+One funded `(slot_index, creation_id)` under a specific opening. Separate
+deposits have independent balances and counters even when their terms match.

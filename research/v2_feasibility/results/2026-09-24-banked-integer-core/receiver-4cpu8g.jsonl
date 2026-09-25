@@ -1,0 +1,66 @@
+{"height": 1, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371488}, "phase": "reverify_legacy", "terminal_bytes": 971732, "verify_apply_ms": 109062.220153}
+{"height": 2, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371532}, "phase": "reverify_legacy", "terminal_bytes": 971732, "verify_apply_ms": 1757.731262}
+{"height": 3, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371552}, "phase": "reverify_legacy", "terminal_bytes": 971732, "verify_apply_ms": 1804.539465}
+{"height": 4, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371580}, "phase": "reverify_legacy", "terminal_bytes": 971732, "verify_apply_ms": 1825.501741}
+{"height": 5, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371596}, "phase": "reverify_legacy", "terminal_bytes": 872980, "verify_apply_ms": 1724.28179}
+{"height": 6, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371604}, "phase": "reverify_legacy", "terminal_bytes": 872276, "verify_apply_ms": 1729.593186}
+{"height": 7, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371604}, "phase": "reverify_legacy", "terminal_bytes": 871252, "verify_apply_ms": 1852.3439750000002}
+{"height": 8, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371612}, "phase": "reverify_legacy", "terminal_bytes": 873076, "verify_apply_ms": 1803.164256}
+{"height": 9, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1371616}, "phase": "reverify_legacy", "terminal_bytes": 874292, "verify_apply_ms": 1870.352366}
+{"bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd", "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1204844}, "ms": 790657.315635, "phase": "joint_receiver_setup", "threads": 4}
+{"checked_claim_cache_warm": false, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213316}, "ms": 8090.544852000001, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 979636}
+{"checked_claim_cache_warm": true, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213320}, "ms": 7527.232892, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 979636}
+{"checked_claim_cache_warm": false, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213332}, "ms": 8572.694634, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 979636}
+{"checked_claim_cache_warm": true, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 6890.403975, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 979636}
+{"checked_claim_cache_warm": false, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 8258.822087, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 979636}
+{"checked_claim_cache_warm": true, "class": 1, "height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 7465.843757, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 979636}
+{"height": 13, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 68.165133, "phase": "joint_fixture_native_replay"}
+{"height": 13, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 5858.010550999999, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 914612}
+{"checked_claim_cache_warm": true, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213336}, "ms": 2758.546176, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 914612}
+{"checked_claim_cache_warm": false, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 6131.081731, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 914612}
+{"checked_claim_cache_warm": true, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 3299.534654, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 914612}
+{"checked_claim_cache_warm": false, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 5966.222496, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 914612}
+{"checked_claim_cache_warm": true, "class": 0, "height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 2792.541471, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 914612}
+{"height": 14, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 73.70298799999999, "phase": "joint_fixture_native_replay"}
+{"height": 14, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 5922.92098, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 913236}
+{"checked_claim_cache_warm": true, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213340}, "ms": 2800.015378, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 913236}
+{"checked_claim_cache_warm": false, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 6515.895892, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 913236}
+{"checked_claim_cache_warm": true, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 3004.074717, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 913236}
+{"checked_claim_cache_warm": false, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 6582.8777709999995, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 913236}
+{"checked_claim_cache_warm": true, "class": 0, "height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 2961.0365779999997, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 913236}
+{"height": 17, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 114.624944, "phase": "joint_fixture_native_replay"}
+{"height": 17, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 6393.64891, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 915796}
+{"checked_claim_cache_warm": true, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 2852.202252, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 915796}
+{"checked_claim_cache_warm": false, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 6080.491402, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 915796}
+{"checked_claim_cache_warm": true, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 2867.128474, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 915796}
+{"checked_claim_cache_warm": false, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 6172.164405, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 915796}
+{"checked_claim_cache_warm": true, "class": 0, "height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 2973.010575, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 915796}
+{"height": 31, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213344}, "ms": 1292.9239029999999, "phase": "joint_fixture_native_replay"}
+{"height": 31, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 9530.942801, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 981044}
+{"checked_claim_cache_warm": true, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 8642.963017, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 981044}
+{"checked_claim_cache_warm": false, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 10326.81726, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 981044}
+{"checked_claim_cache_warm": true, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 8038.123584999999, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 981044}
+{"checked_claim_cache_warm": false, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 8857.330428000001, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 981044}
+{"checked_claim_cache_warm": true, "class": 1, "height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 6867.807671, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 981044}
+{"height": 33, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 1908.3072909999999, "phase": "joint_fixture_native_replay"}
+{"height": 33, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 5919.913184, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 914516}
+{"checked_claim_cache_warm": true, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2809.123252, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 914516}
+{"checked_claim_cache_warm": false, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 5882.019153, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 914516}
+{"checked_claim_cache_warm": true, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2743.908515, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 914516}
+{"checked_claim_cache_warm": false, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 6172.74312, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 914516}
+{"checked_claim_cache_warm": true, "class": 0, "height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2770.7760289999997, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 914516}
+{"height": 34, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 1956.650376, "phase": "joint_fixture_native_replay"}
+{"height": 34, "phase": "joint_terminal_adversarial_checks", "rejected": 245}
+{"checked_claim_cache_warm": false, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 5931.917009, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 916596}
+{"checked_claim_cache_warm": true, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2893.22114, "phase": "joint_receiver_verify", "sample": 0, "terminal_bytes": 916596}
+{"checked_claim_cache_warm": false, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 6445.747881, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 916596}
+{"checked_claim_cache_warm": true, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2777.4309559999997, "phase": "joint_receiver_verify", "sample": 1, "terminal_bytes": 916596}
+{"checked_claim_cache_warm": false, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 5981.76375, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 916596}
+{"checked_claim_cache_warm": true, "class": 0, "height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 2792.933809, "phase": "joint_receiver_verify", "sample": 2, "terminal_bytes": 916596}
+{"height": 37, "memory": {"process_peak_rss_kib": 1508964, "rss_kib": 1213756}, "ms": 1986.823265, "phase": "joint_fixture_native_replay"}
+{"height": 37, "phase": "joint_terminal_adversarial_checks", "rejected": 245}

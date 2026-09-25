@@ -4,6 +4,8 @@
 //! # noid_rpc — JSON-RPC Server for Paranoid Full Node
 
 pub mod api;
+pub mod object_receipts;
+pub mod object_types;
 pub mod server;
 pub mod types;
 pub mod wallet_ops;

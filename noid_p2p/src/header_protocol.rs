@@ -7,7 +7,7 @@ use noid_chain::{
     block::BLOCK_WIRE_HEADER_OFFSET,
     block_header::{block_id, semantic_header_id},
     consensus::wire_limits::{history_step_terminal_bytes_limit, MAX_BLOCK_BYTES},
-    history_step::{HistoryStepTerminalMetadata, HISTORY_STEP_CLASS_COUNT},
+    history_step::{history_step_class_count, HistoryStepTerminalMetadata},
     AcceptedBlockBundle, BlockHeader, BLOCK_HEADER_WIRE_SIZE,
 };
 use thiserror::Error;
@@ -219,7 +219,7 @@ impl HeaderInventoryRecord {
         if self.terminal.is_some_and(|terminal| {
             terminal.claim.height != self.header.height
                 || terminal.claim.semantic_header_id != semantic_header_id(&self.header)
-                || terminal.claim.proof_class >= HISTORY_STEP_CLASS_COUNT
+                || terminal.claim.proof_class >= history_step_class_count(self.header.height)
                 || terminal.encoded_len == 0
                 || terminal.encoded_len as usize
                     > history_step_terminal_bytes_limit(self.header.height)
@@ -401,7 +401,7 @@ impl HeaderAnnouncement {
         {
             return Err(HeaderAnnounceError::TerminalClaimMismatch);
         }
-        if self.terminal.claim.proof_class >= HISTORY_STEP_CLASS_COUNT {
+        if self.terminal.claim.proof_class >= history_step_class_count(self.header.height) {
             return Err(HeaderAnnounceError::InvalidProofClass(
                 self.terminal.claim.proof_class,
             ));
@@ -460,23 +460,53 @@ pub enum HeaderAnnounceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use noid_chain::{history_step::HISTORY_STEP_TERMINAL_VERSION, Block};
+    use noid_chain::Block;
 
     fn bundle() -> AcceptedBlockBundle {
+        bundle_at_height(1)
+    }
+
+    fn bundle_at_height(height: u64) -> AcceptedBlockBundle {
         let mut header = noid_chain::consensus::genesis_header();
-        header.height = 1;
+        header.height = height;
         header.prev_block_hash = block_id(&noid_chain::consensus::genesis_header());
         let block = Block {
             header,
             transactions: Vec::new(),
         };
-        let mut terminal = Vec::new();
-        terminal.push(HISTORY_STEP_TERMINAL_VERSION);
-        terminal.extend_from_slice(&header.height.to_le_bytes());
-        terminal.extend_from_slice(&semantic_header_id(&header));
-        terminal.push(0);
+        let mut terminal = HistoryStepTerminalMetadata::new(height, semantic_header_id(&header), 0)
+            .unwrap()
+            .encode_prefix()
+            .to_vec();
         terminal.push(0xA5);
         AcceptedBlockBundle::try_from_parts(block.to_bytes(), terminal).unwrap()
+    }
+
+    #[test]
+    fn announcement_and_inventory_bound_classes_at_the_announced_height() {
+        let Some(activation) = noid_chain::consensus::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        for height in [activation - 1, activation, activation + 1, activation - 1] {
+            let accepted = bundle_at_height(height);
+            let original = HeaderAnnouncement::from_accepted_bundle(
+                &accepted,
+                ProviderFlags::new(true, true, false),
+            )
+            .unwrap();
+            for class in 0..=4 {
+                let mut announcement = original;
+                announcement.terminal.claim.proof_class = class;
+                let valid = class < history_step_class_count(height);
+                assert_eq!(announcement.validate().is_ok(), valid);
+                assert_eq!(
+                    HeaderInventoryRecord::from_announcement(announcement)
+                        .validate()
+                        .is_ok(),
+                    valid
+                );
+            }
+        }
     }
 
     #[test]

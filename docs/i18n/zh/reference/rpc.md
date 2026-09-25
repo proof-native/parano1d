@@ -6,7 +6,7 @@ Core 通过 HTTP 提供 JSON-RPC 2.0，并拒绝 WebSocket 升级。默认端点
 http://127.0.0.1:9601
 ```
 
-所有方法都带有 `paranoid_` namespace 前缀。参数使用位置 JSON 数组。请求体限制为 1 MiB，JSON-RPC batch 在该请求体限制内继续受支持。
+所有方法都带有 `paranoid_` namespace 前缀。参数使用位置 JSON 数组。请求体限制为 2,237,632 字节，JSON-RPC batch 在该请求体限制内继续受支持。
 
 ```sh
 curl --silent --show-error \
@@ -122,6 +122,9 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 详细费用要求 1–1,020 个输入和 1–256 个输出。返回费用包含当前中继费率
 下限。
 
+费用估计接受格式级计数，不等于允许相应区块容量。v2 钱包规划和准入仍执行
+504 个输入及类别页数限制。
+
 ## 工具与提交方法
 
 | 方法后缀 | 位置参数 | 结果 |
@@ -136,8 +139,7 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 256 项；若找不到足够空槽，返回项可能更少。解码后的 salt 上限为 256
 字节。
 
-`submitTxIntent` 接受一份规范编码的 `PagedSpendIntent`，其中包含分离的
-授权证明封装。解析和证明验证前，解码输入上限为 303,495 字节。
+`submitTxIntent` 接受规范编码的普通付款或 v2 合约意图，包含分离的授权证明封装。解析和证明验证前，解码输入上限为 303,495 字节。
 
 ## 内存池方法
 
@@ -188,7 +190,6 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 所有者缓存替换而改变，不能跨钱包或节点重启复用。`walletListUtxos` 仍返回
 完整列表。条件快照方法不可用时 GUI 使用该方法，operator 权限范围不会扩大。
 
-
 | 方法后缀 | 位置参数 | 结果 |
 |---|---|---|
 | `walletStatus` | `[]` | `WalletStatus` |
@@ -218,6 +219,191 @@ Token 缺失或不匹配时返回 HTTP `401`，没有 JSON-RPC 结果。有效�
 
 `walletConsolidate` 绑定报价。槽位列表、费用和输出金额必须与最新计划完全
 一致，否则调用失败，客户端必须重新获取报价。
+
+## 合约方法
+
+所有方法使用 `paranoid_` 前缀及**本地所有者权限**。安装的 v2 二进制在
+H210537 之前提供条款、元数据和本地观察。`walletFundObject`、
+`previewObjectCall`、`walletCallObject` 要求下一个候选高度已启用 v2，
+且 `runtime_available = true`。
+
+| 方法后缀 | 位置参数 | 结果 |
+| --- | --- | --- |
+| `getContractProtocol` | `[]` | `ObjectProtocolInfo` |
+| `createObject` | `[definition]` | `ObjectInfo` |
+| `getObjectStatus` | `[opening_hex, slot_index]` | `ObjectStatus` |
+| `getObjectInstances` | `[opening_hex, from_slot, limit]` | `ObjectInstances` |
+| `previewObjectCall` | `[request]` | `ObjectCallPreview` |
+| `walletFundObject` | `[opening_hex, amount_micronoid, fee_micronoid, expected_sender?]` | `WalletSendResult` |
+| `walletCallObject` | `[request]` | `ObjectCallResult` |
+| `walletGetObjectOpening` | `[address]` | `ObjectInfo` |
+| `walletWatchObject` | `[opening_hex]` | `ObjectInfo` |
+| `walletListObjectStates` | `[opening_hex, after_root, limit]` | `ObjectKnownStates` |
+| `walletListObjectReceipts` | `[opening_hex, after_cursor, limit]` | `ObjectActivityPage` |
+| `exportObjectReceipt` | `[opening_hex, txid]` | `hex` |
+| `verifyObjectReceipt` | `[receipt_hex]` | `ObjectReceiptResult` |
+| `walletImportObjectReceipt` | `[receipt_hex, expected_opening_hex?]` | `ObjectReceiptResult` |
+
+`getObjectInstances` 使用包含式槽位游标，limit 为 1–256。状态及活动列表使用
+可空排他游标，limit 为 1–64，响应包含观察高度与链尖哈希。活动包含双方保留
+调用及 `canonical` 状态。导入按 txid 合并已验证证据并保留自己的记录，余额从 State 查询。
+
+[合约 API 指南](../contracts/api.md)定义构造器、自定义程序字段、审阅保护、
+错误恢复及 CLI。合约回执使用 `verifyObjectReceipt` / `walletImportObjectReceipt`，
+解码上限为 1,110,624 字节。普通 `verifyReceipt` 保留独立 128 KiB 付款格式。
+`createObject` 免费创建公开条款，`max_fee_micronoid` 限制以后调用。
+计数器及指令立即数为规范十进制 u64 字符串。
+
+### 合约结构
+
+`ObjectDefinition` 及 `ObjectProgramStep` 格式见 [API](../contracts/api.md)与
+[内核](../contracts/core.md)。`ObjectCallDetails` 字段直接平铺到回执和活动对象。
+回执认证过去调用，当前 State 应单独查询。
+
+```text
+ObjectInfo {
+  abi_version: u16
+  state: [decimal u64 string, decimal u64 string]
+  address: string
+  opening_hex: string
+  code_id: string
+  state_hex: string
+  program: ObjectProgramStep[16]
+  claim_authority: string
+  recovery_authority: string
+  claim_recipient: string
+  recovery_recipient: string
+  deadline_height: u64
+  max_fee_micronoid: u64
+  max_payout_micronoid: u64
+  min_retained_micronoid: u64
+  claim_can_continue: bool
+  claim_can_close: bool
+  recovery_can_continue: bool
+  recovery_can_close: bool
+  unrestricted_payout_recipient: bool
+}
+
+ObjectStatus {
+  object: ObjectInfo
+  slot: SlotInfo
+  matches_opening: bool
+  tip_height: u64
+  next_call_height: u64
+  active_authority: string
+}
+
+ObjectInstances {
+  address: string
+  height: u64
+  tip_hash: string
+  slots: SlotInfo[]
+  next_slot: u32 | null
+}
+
+ObjectKnownState {
+  object: ObjectInfo
+  has_balance: bool
+}
+
+ObjectKnownStates {
+  states: ObjectKnownState[]
+  height: u64
+  tip_hash: string
+  next_root: string | null
+}
+
+ObjectPayout {
+  address: string
+  amount_micronoid: u64
+}
+
+ObjectCallRequest {
+  opening_hex: string
+  slot_index: u32
+  creation_id: u64
+  terminal: bool
+  payout: ObjectPayout | null
+  fee_micronoid: u64
+  expected_recovery: bool | null
+  expected_authority: string | null
+  expected_call_height: u64 | null
+  expected_txid: string | null
+}
+
+ObjectCallPreview {
+  txid: string
+  call_height: u64
+  authority: string
+  recovery: bool
+  terminal: bool
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+  successor: ObjectInfo | null
+}
+
+ObjectCallResult {
+  transaction: WalletSendResult
+  call_height: u64
+  successor: ObjectInfo | null
+  output_slot: u32
+}
+
+ObjectReceiptResult {
+  valid: bool
+  ...ObjectCallDetails
+}
+
+ObjectCallDetails {
+  height: u64
+  txid: string
+  terminal: bool
+  authority: string
+  original: ObjectInfo
+  successor: ObjectInfo | null
+  input_micronoid: u64
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+}
+
+ObjectActivityEntry {
+  ...ObjectCallDetails
+  block_hash: string
+  canonical: bool
+}
+
+ObjectActivityPage {
+  height: u64
+  tip_hash: string
+  entries: ObjectActivityEntry[]
+  next_cursor: string | null
+}
+
+ObjectClassLimits {
+  class: string
+  pages: usize
+  live_inputs: usize
+  contract_calls: usize
+}
+
+ObjectProtocolInfo {
+  tip_height: u64
+  activation_height: u64 | null
+  active_at_next_block: bool
+  runtime_available: bool
+  next_block_time_seconds: u64
+  abi_version: u16
+  instructions: usize
+  persistent_registers: usize
+  classes: ObjectClassLimits[]
+}
+```
+
+可选请求保护字段可省略或为 null，`creation_id` 必填。关闭使用
+`terminal: true`、`payout: null`，语义结果显示关闭付款且没有后继。
+零手续费请求策略上限内的当前最低值。提交响应仍需等待纳入。
 
 ## 响应 schema
 
@@ -732,7 +918,7 @@ BlockTemplateResponse {
   "code": -32011,
   "message": "InputLimitExceeded",
   "data": {
-    "max_inputs": 1020
+    "max_inputs": 504
   }
 }
 ```
@@ -745,3 +931,9 @@ BlockTemplateResponse {
 2. 检查 JSON-RPC `error` 对象；
 3. 根据已文档化的稳定代码分支；
 4. 其他应用消息直接展示给运营者，不要解析其文字。
+
+`requires_b255_miner` 为兼容 API 保留旧字段名，v2 中表示需要 Large，
+实际预算由 `getContractProtocol` 返回。
+
+合约持有输出通过对象方法查询，普通钱包余额枚举钱包所有者，
+不包含任意合约承诺。交易体裁剪后 `getTx` 保留索引指针。

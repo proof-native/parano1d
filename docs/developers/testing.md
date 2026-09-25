@@ -55,8 +55,9 @@ NOID_CPU_BACKEND=scalar \
 
 ## Release gates
 
-`scripts/build_release.sh` authenticates the canonical matrix pack, embeds it,
-runs the native release suite and smoke-tests:
+`scripts/build_release.sh` authenticates and embeds the release matrix packs
+and smoke-tests the native executables. Run source checks and tests separately
+before packaging. The package smoke tests cover:
 
 - hardware preflight;
 - node help and startup boundary;
@@ -77,7 +78,7 @@ exercise real processes, RPC, P2P, MDBX and the production proof path.
 | `live_cli_wallet_scenarios.py` | Three-node CLI, relay, address, send, history and receipt lifecycle |
 | `live_single_transaction_scenario.py` | Wallet → mempool → miner → canonical block |
 | `live_multi_transaction_mempool_scenario.py` | Three non-conflicting intents and relay |
-| `live_large_mempool_single_miner_scenario.py` | 128 intents drained by B25 blocks |
+| `live_large_mempool_single_miner_scenario.py` | 128 intents drained under the fixture’s active class |
 | `live_large_mempool_two_miners_scenario.py` | Large mempool under miner competition |
 | `live_two_miner_fork_reorg_scenario.py` | Competing children and shallow reorg |
 | `live_connected_miner_restart_sync_scenario.py` | Restarting miners and stale-parent prevention |
@@ -122,7 +123,31 @@ vectors, not only a long-running happy path. Cover:
 - shared-path terminal round trips, malformed encodings and decode caps;
 - mempool count/byte pressure at 50% and 80%, empty-pool reset and Auto retries;
 - partial mempool recovery, duplicate deliveries and disconnected sources;
-- B25/B255 selection and reserved system-mint slots, including all-reserved fallback.
+- Small/Large selection and reserved system-mint slots, including all-reserved fallback.
 
 Tests should use isolated data directories. They may use different ports to run
 concurrently, but must not mutate fixtures or production data.
+
+## V2 qualification
+
+The `live_v2_*` scripts use isolated, loopback-only networks and binaries with
+early test heights. Read each script's required matrix bank, environment and
+stopped-fixture inputs before running it. Mainnet source uses H210537; a pack
+for an early test height cannot be used in a mainnet build.
+
+| Script | Coverage |
+| --- | --- |
+| `live_v2_contract_scenario.py` | Contract programs, both authorities, pruning and restart |
+| `live_v2_capacity_scenario.py` | Full Small/Large payments and calls; Small after Large |
+| `live_v2_boundary_reorg_scenario.py` | Fork boundary, shallow competing ancestry and recovery |
+| `live_v2_retired_sync_scenario.py` | Cold synchronization without embedded legacy matrices |
+| `live_v2_retired_mining_scenario.py` | Continuing production after legacy-matrix retirement |
+| `live_v2_contract_discovery_scenario.py` | Related contract states and retained receipt discovery |
+| `live_v2_shared_receipts_scenario.py` | Shared terminal storage and receipt integrity |
+| `live_v2_contract_wallet_scenario.py` | Two wallets, both parties, offline gaps and merging after pruning |
+
+Boundary vectors also cover H−1/H/H+1, both legacy predecessor classes, mixed
+ASERT intervals, annual issuance steps, contract deadlines, checked u64
+arithmetic and competing spends. Full workloads share the page, input and call
+budgets. Validate the mainnet bank separately from the early-height bank;
+[performance](../reference/performance.md) identifies measured artifacts.

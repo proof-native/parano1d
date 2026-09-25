@@ -16,6 +16,100 @@ use crate::types::{
 
 #[rpc(server, namespace = "paranoid")]
 pub trait ParanoidApi {
+    #[method(name = "getContractProtocol")]
+    async fn get_contract_protocol(&self) -> RpcResult<crate::object_types::ObjectProtocolInfo>;
+
+    #[method(name = "previewObjectCall")]
+    async fn preview_object_call(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallPreview>;
+
+    #[method(name = "createObject")]
+    async fn create_object(
+        &self,
+        definition: crate::object_types::ObjectDefinition,
+    ) -> RpcResult<crate::object_types::ObjectInfo>;
+
+    #[method(name = "getObjectStatus")]
+    async fn get_object_status(
+        &self,
+        opening_hex: String,
+        slot_index: u32,
+    ) -> RpcResult<crate::object_types::ObjectStatus>;
+
+    #[method(name = "getObjectInstances")]
+    async fn get_object_instances(
+        &self,
+        opening_hex: String,
+        from_slot: u32,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectInstances>;
+
+    #[method(name = "walletFundObject")]
+    async fn wallet_fund_object(
+        &self,
+        opening_hex: String,
+        amount_micronoid: u64,
+        fee_micronoid: u64,
+        expected_sender: Option<String>,
+    ) -> RpcResult<WalletSendResult>;
+
+    #[method(name = "walletCallObject")]
+    async fn wallet_call_object(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallResult>;
+
+    #[method(name = "walletGetObjectOpening")]
+    async fn wallet_get_object_opening(
+        &self,
+        address: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo>;
+
+    /// Retain a public opening and automatically capture its future receipts.
+    #[method(name = "walletWatchObject")]
+    async fn wallet_watch_object(
+        &self,
+        opening_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo>;
+
+    /// Browse locally retained counters with the same immutable program and
+    /// policies. Each page checks balances against one selected chain tip.
+    #[method(name = "walletListObjectStates")]
+    async fn wallet_list_object_states(
+        &self,
+        opening_hex: String,
+        after_root: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectKnownStates>;
+
+    /// Locally retained calls by any authority under these immutable rules.
+    #[method(name = "walletListObjectReceipts")]
+    async fn wallet_list_object_receipts(
+        &self,
+        opening_hex: String,
+        after_cursor: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectActivityPage>;
+
+    #[method(name = "exportObjectReceipt")]
+    async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String>;
+
+    #[method(name = "verifyObjectReceipt")]
+    async fn verify_object_receipt(
+        &self,
+        receipt_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult>;
+
+    /// Verify and retain a received call, its original terms and successor.
+    #[method(name = "walletImportObjectReceipt")]
+    async fn wallet_import_object_receipt(
+        &self,
+        receipt_hex: String,
+        expected_opening_hex: Option<String>,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult>;
+
     // =========================================================================
     // Chain
     // =========================================================================

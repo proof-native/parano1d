@@ -1,0 +1,368 @@
+[
+  {
+    "small_pages": 63,
+    "large_pages": 211,
+    "inputs_per_class": 504,
+    "calls_per_class": 63,
+    "run": {
+      "exit_code": 1,
+      "seconds": 82.59575227097957,
+      "output": "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p211-i504-c63-a-20260925"
+    },
+    "status": "rejected_shape",
+    "used_rows": 16784497,
+    "row_limit": 16777216,
+    "excess_rows": 7281,
+    "source": {
+      "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+      "binary_sha256": "2088151d592f721a8fe6235b9fbf902e45ca36801dce18a4eb5fb553a362eafe",
+      "command": [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--unit=noid-v2-common-p63-p211-i504-c63-a",
+        "-p",
+        "MemoryMax=20G",
+        "-p",
+        "MemorySwapMax=0",
+        "/usr/bin/time",
+        "-v",
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "joint",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p211-i504-c63-a-20260925",
+        "63",
+        "504",
+        "63",
+        "504",
+        "63",
+        "--freeze-only",
+        "--large-pages=211"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "12",
+        "RUST_MIN_STACK": "16777216",
+        "NOID_CPU_BACKEND": "automatic"
+      },
+      "modified_source_sha256": {
+        "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+        "bench_prover/src/bin/v2_capacity_support/banked.rs": "e589eeb630c199b0fc7d9be9d895732c30f11df9dd69801166ec401e1e593123",
+        "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "1a942cfa2080afb955d2f4f65bd6cc7ead5430124e5438448412bbfdb7c4033b",
+        "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+        "noid_miner/src/block_production.rs": "ab22e24bc66b4f667b2b99d5175d1a3f0f2c2828b3c27cea2bff9d4af158f9c0",
+        "noid_miner/src/template.rs": "4cadfb05342bb4f8e41b5385c25c7b1a64f9cb67c2c442f24cc49b3f73a4b4a9",
+        "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+        "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+        "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "9f99518fa060126fc72e2b0c6e8966fc099e0302e6fa887dea84c8d857eb7b1e",
+        "noid_recursive/src/acceptance/history_step/v2/config.rs": "dbdfa4c4eca20cacf95050e601f1b0422cacb57e8a49e2e72a43fb6e5c99d7eb",
+        "noid_recursive/src/region_sidecar/block.rs": "a001efbf18aa84306bf9298f655bc7e8e0720c09b82d45ada8f666f6b3eecf20",
+        "noid_rpc/src/server.rs": "afc121a72d6f37136ca405f839a8ff741cf7faef1aaa40bb88019180c8c307a4",
+        "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+        "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "67de8c3b41729a68e4b1fee4fb72eee3939b19d5fdd9ffb1536f1b702c34c218"
+      }
+    }
+  },
+  {
+    "small_pages": 63,
+    "large_pages": 210,
+    "inputs_per_class": 504,
+    "calls_per_class": 63,
+    "run": {
+      "exit_code": 1,
+      "seconds": 80.2250336970028,
+      "output": "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p210-i504-c63-b-20260925"
+    },
+    "status": "rejected_shape",
+    "used_rows": 16782703,
+    "row_limit": 16777216,
+    "excess_rows": 5487,
+    "source": {
+      "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+      "binary_sha256": "7360f9a137f8504baf146d4cc12695e1b101415449755a5d0fbabcb2164efc6e",
+      "command": [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--unit=noid-v2-common-p63-p210-i504-c63-b",
+        "-p",
+        "MemoryMax=20G",
+        "-p",
+        "MemorySwapMax=0",
+        "/usr/bin/time",
+        "-v",
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "joint",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p210-i504-c63-b-20260925",
+        "63",
+        "504",
+        "63",
+        "504",
+        "63",
+        "--freeze-only",
+        "--large-pages=210"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "12",
+        "RUST_MIN_STACK": "16777216",
+        "NOID_CPU_BACKEND": "automatic"
+      },
+      "modified_source_sha256": {
+        "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+        "bench_prover/src/bin/v2_capacity_support/banked.rs": "a61d2b4671a17f3c84090d19a8ed6836db6f4ab6bfc7763e5f756760c6bf16b4",
+        "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "4afe00f2113facfa5c461edcbd46804265c6b00e4a97e6ca03167c676ce9fe32",
+        "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+        "noid_miner/src/block_production.rs": "15feb20d86ae2f266bf5ccd53fea87e54df54dd2624b1c51740393a0303de2d2",
+        "noid_miner/src/template.rs": "4cadfb05342bb4f8e41b5385c25c7b1a64f9cb67c2c442f24cc49b3f73a4b4a9",
+        "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+        "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+        "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "131572886924c63611990bd64f891de8478ba2b170f68fcdc08dbab520fde67d",
+        "noid_recursive/src/acceptance/history_step/v2/config.rs": "76ddffdf15e6cb234935ccb120d28b12687ba853131a04888c4ef516470d5f37",
+        "noid_recursive/src/region_sidecar/block.rs": "0c3bdfe77b33af3364736ce2b315d599675553b37f89f65b2ec506940c39e674",
+        "noid_rpc/src/server.rs": "afc121a72d6f37136ca405f839a8ff741cf7faef1aaa40bb88019180c8c307a4",
+        "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+        "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "343dcae43dd449ce8726a44884595273fd94cbdaba73094aadb02c2536f38141"
+      }
+    }
+  },
+  {
+    "small_pages": 63,
+    "large_pages": 209,
+    "inputs_per_class": 504,
+    "calls_per_class": 63,
+    "run": {
+      "exit_code": 1,
+      "seconds": 78.59346758498577,
+      "output": "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p209-i504-c63-b-20260925"
+    },
+    "status": "rejected_shape",
+    "used_rows": 16781223,
+    "row_limit": 16777216,
+    "excess_rows": 4007,
+    "source": {
+      "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+      "binary_sha256": "7360f9a137f8504baf146d4cc12695e1b101415449755a5d0fbabcb2164efc6e",
+      "command": [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--unit=noid-v2-common-p63-p209-i504-c63-b",
+        "-p",
+        "MemoryMax=20G",
+        "-p",
+        "MemorySwapMax=0",
+        "/usr/bin/time",
+        "-v",
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "joint",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p209-i504-c63-b-20260925",
+        "63",
+        "504",
+        "63",
+        "504",
+        "63",
+        "--freeze-only",
+        "--large-pages=209"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "12",
+        "RUST_MIN_STACK": "16777216",
+        "NOID_CPU_BACKEND": "automatic"
+      },
+      "modified_source_sha256": {
+        "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+        "bench_prover/src/bin/v2_capacity_support/banked.rs": "a61d2b4671a17f3c84090d19a8ed6836db6f4ab6bfc7763e5f756760c6bf16b4",
+        "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "4afe00f2113facfa5c461edcbd46804265c6b00e4a97e6ca03167c676ce9fe32",
+        "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+        "noid_miner/src/block_production.rs": "15feb20d86ae2f266bf5ccd53fea87e54df54dd2624b1c51740393a0303de2d2",
+        "noid_miner/src/template.rs": "4cadfb05342bb4f8e41b5385c25c7b1a64f9cb67c2c442f24cc49b3f73a4b4a9",
+        "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+        "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+        "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "131572886924c63611990bd64f891de8478ba2b170f68fcdc08dbab520fde67d",
+        "noid_recursive/src/acceptance/history_step/v2/config.rs": "76ddffdf15e6cb234935ccb120d28b12687ba853131a04888c4ef516470d5f37",
+        "noid_recursive/src/region_sidecar/block.rs": "0c3bdfe77b33af3364736ce2b315d599675553b37f89f65b2ec506940c39e674",
+        "noid_rpc/src/server.rs": "afc121a72d6f37136ca405f839a8ff741cf7faef1aaa40bb88019180c8c307a4",
+        "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+        "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "343dcae43dd449ce8726a44884595273fd94cbdaba73094aadb02c2536f38141"
+      }
+    }
+  },
+  {
+    "small_pages": 63,
+    "large_pages": 207,
+    "inputs_per_class": 504,
+    "calls_per_class": 63,
+    "run": {
+      "exit_code": 1,
+      "seconds": 85.20907571999123,
+      "output": "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p207-i504-c63-c-20260925"
+    },
+    "status": "rejected_shape",
+    "used_rows": 16778193,
+    "row_limit": 16777216,
+    "excess_rows": 977,
+    "source": {
+      "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+      "binary_sha256": "4792f0481151b9f2a3058301992575f14be5efa392da6fc89c559920a8452b00",
+      "command": [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--unit=noid-v2-common-p63-p207-i504-c63-c",
+        "-p",
+        "MemoryMax=20G",
+        "-p",
+        "MemorySwapMax=0",
+        "/usr/bin/time",
+        "-v",
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "joint",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p207-i504-c63-c-20260925",
+        "63",
+        "504",
+        "63",
+        "504",
+        "63",
+        "--freeze-only",
+        "--large-pages=207"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "12",
+        "RUST_MIN_STACK": "16777216",
+        "NOID_CPU_BACKEND": "automatic"
+      },
+      "modified_source_sha256": {
+        "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+        "bench_prover/src/bin/v2_capacity_support/banked.rs": "2c27ab2271072872e2560c278bf1ecd7cb7d596eb1149ed65ae855efd6be68d9",
+        "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "63c515f8920e3e3e71ce1d32516861617cf03277790a9a3623d10ec41d3aea02",
+        "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+        "noid_miner/src/block_production.rs": "aedb51c3610b23ab630137ec9fac36e6a32c3cb67307c715da46e8692ef729a1",
+        "noid_miner/src/template.rs": "4cadfb05342bb4f8e41b5385c25c7b1a64f9cb67c2c442f24cc49b3f73a4b4a9",
+        "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+        "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+        "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "c62e853b0283e0cc9d1ee39fccb771e1d6a7ca990c207a006b51b01907622e9d",
+        "noid_recursive/src/acceptance/history_step/v2/config.rs": "046f656162241476a14139c115089d7d5a802d5cd4a7c460c0c1cd500dfd21b2",
+        "noid_recursive/src/region_sidecar/block.rs": "2d670288193055b2e6b77386ced03eb7f1572f63516055269a309ac665206e64",
+        "noid_rpc/src/server.rs": "afc121a72d6f37136ca405f839a8ff741cf7faef1aaa40bb88019180c8c307a4",
+        "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+        "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "ced4c95283b86d7dfedd7672285e2f513184972f0d137817dc6770d08e795367"
+      }
+    }
+  },
+  {
+    "small_pages": 63,
+    "large_pages": 206,
+    "inputs_per_class": 504,
+    "calls_per_class": 63,
+    "run": {
+      "exit_code": 0,
+      "seconds": 271.2626808110217,
+      "output": "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-c-20260925"
+    },
+    "status": "full_freeze_pass",
+    "manifest": {
+      "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+      "cpu_backend": "avx2+vpclmul",
+      "entries": [
+        {
+          "calls": 63,
+          "class": 0,
+          "file": "pass1-class0.field-r1cs.zst",
+          "inputs": 504,
+          "m": 23,
+          "matrix": "0a286f5bf9e73a6bb154a4bb4a90636cabe6303c868c3b1b3ee6187fbc355c5a",
+          "matrix_zstd_bytes": 10464568,
+          "pages": 63,
+          "rows": 6936657,
+          "terminal_bound": 1014132
+        },
+        {
+          "calls": 63,
+          "class": 1,
+          "file": "pass1-class1.field-r1cs.zst",
+          "inputs": 504,
+          "m": 24,
+          "matrix": "8110969aaeb71dd68069d105a6324e1b7819fe2ccefafa7985ed67486d53377f",
+          "matrix_zstd_bytes": 21475021,
+          "pages": 206,
+          "rows": 16776687,
+          "terminal_bound": 1081396
+        }
+      ],
+      "legacy_fixture_directory": "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+      "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+      "memory": {
+        "process_peak_rss_kib": 3577220,
+        "rss_kib": 910220
+      },
+      "rayon_threads": 12,
+      "setup_ms": 229768.180203,
+      "status": "research joint bank; no release capacity selected"
+    },
+    "source": {
+      "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+      "binary_sha256": "4792f0481151b9f2a3058301992575f14be5efa392da6fc89c559920a8452b00",
+      "command": [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--unit=noid-v2-common-p63-p206-i504-c63-c",
+        "-p",
+        "MemoryMax=20G",
+        "-p",
+        "MemorySwapMax=0",
+        "/usr/bin/time",
+        "-v",
+        "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+        "joint",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+        "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-c-20260925",
+        "63",
+        "504",
+        "63",
+        "504",
+        "63",
+        "--freeze-only",
+        "--large-pages=206"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "12",
+        "RUST_MIN_STACK": "16777216",
+        "NOID_CPU_BACKEND": "automatic"
+      },
+      "modified_source_sha256": {
+        "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+        "bench_prover/src/bin/v2_capacity_support/banked.rs": "2c27ab2271072872e2560c278bf1ecd7cb7d596eb1149ed65ae855efd6be68d9",
+        "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "63c515f8920e3e3e71ce1d32516861617cf03277790a9a3623d10ec41d3aea02",
+        "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+        "noid_miner/src/block_production.rs": "aedb51c3610b23ab630137ec9fac36e6a32c3cb67307c715da46e8692ef729a1",
+        "noid_miner/src/template.rs": "4cadfb05342bb4f8e41b5385c25c7b1a64f9cb67c2c442f24cc49b3f73a4b4a9",
+        "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+        "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+        "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "c62e853b0283e0cc9d1ee39fccb771e1d6a7ca990c207a006b51b01907622e9d",
+        "noid_recursive/src/acceptance/history_step/v2/config.rs": "046f656162241476a14139c115089d7d5a802d5cd4a7c460c0c1cd500dfd21b2",
+        "noid_recursive/src/region_sidecar/block.rs": "2d670288193055b2e6b77386ced03eb7f1572f63516055269a309ac665206e64",
+        "noid_rpc/src/server.rs": "afc121a72d6f37136ca405f839a8ff741cf7faef1aaa40bb88019180c8c307a4",
+        "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+        "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "ced4c95283b86d7dfedd7672285e2f513184972f0d137817dc6770d08e795367"
+      }
+    }
+  }
+]

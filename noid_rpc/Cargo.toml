@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 noid_chain      = { path = "../noid_chain" }
+noid_block      = { path = "../noid_block" }
 noid_tx         = { path = "../noid_tx" }
 noid_poseidon2b = { path = "../noid_poseidon2b" }
 noid_mempool    = { path = "../noid_mempool" }

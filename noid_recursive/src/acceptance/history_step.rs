@@ -32,7 +32,8 @@ use noid_ivc_prover::field_prover::{
 
 use super::block_slots::{
     build_block_slots_selected_zk, build_block_slots_selected_zk_prefix,
-    finalize_selected_zk_block_region, ParentSealTrace, SelectedZkBlockSlotsAssembly,
+    finalize_selected_zk_block_region, BlockRelationProfile, ParentSealTrace,
+    SelectedZkBlockSlotsAssembly,
 };
 use super::trace::accepted_claim_batch::digest_lanes;
 use super::trace::flat_of;
@@ -65,6 +66,7 @@ mod freezer;
 mod gated_recorder;
 mod relation;
 mod runtime_parts_codec;
+pub mod v2;
 mod wire;
 
 pub use crate::acceptance::history_step_bank::HistoryStepMatrixLease;
@@ -79,16 +81,17 @@ pub use freezer::{
     HistoryStepFreezeStage,
 };
 pub use relation::{
-    assemble_frozen_history_step_base, assemble_frozen_history_step_recursive,
-    assemble_history_step_base, assemble_history_step_recursive,
-    derive_history_step_direct_block_vk, derive_history_step_runtime_parts,
-    pin_history_step_class_bank, prepare_history_step_for_pow, prove_built_history_step_terminal,
+    assemble_frozen_direct_block_research, assemble_frozen_history_step_base,
+    assemble_frozen_history_step_recursive, assemble_history_step_base,
+    assemble_history_step_recursive, derive_history_step_direct_block_vk,
+    derive_history_step_runtime_parts, pin_history_step_class_bank, prepare_history_step_for_pow,
+    prepare_history_step_retirement, prove_built_history_step_terminal,
     prove_built_history_step_terminal_cancellable, prove_history_step,
-    verify_history_step_terminal, AcceptedHistoryStepTerminal, BuiltHistoryStep, FrozenHistoryStep,
-    HistoryStepError, HistoryStepMatrixSource, HistoryStepMatrixSourceError, HistoryStepParent,
-    HistoryStepParentTranscriptLayout, HistoryStepRuntime, HistoryStepRuntimeParts,
-    HistoryStepSidecarOperation, HistoryStepTerminal, PreparedHistoryStepForPow,
-    HISTORY_STEP_WIRE_VERSION,
+    verify_history_step_terminal, AcceptedHistoryStepTerminal, BuiltHistoryStep,
+    FrozenDirectBlockResearch, FrozenHistoryStep, HistoryStepError, HistoryStepMatrixSource,
+    HistoryStepMatrixSourceError, HistoryStepParent, HistoryStepParentTranscriptLayout,
+    HistoryStepRuntime, HistoryStepRuntimeParts, HistoryStepSidecarOperation, HistoryStepTerminal,
+    PreparedHistoryStepForPow, HISTORY_STEP_WIRE_VERSION,
 };
 pub use runtime_parts_codec::{
     HISTORY_STEP_RUNTIME_PARTS_COMPACT_MAX_BYTES, HISTORY_STEP_RUNTIME_PARTS_COMPACT_VERSION,
@@ -106,6 +109,34 @@ pub struct AuthorizationComponentInput {
     pub tx_index: usize,
     pub tx_body_hash: [noid_core::Block128; 2],
     pub public: noid_gkr::OwnerAuthPublicInputs,
+}
+
+pub const V2_CONTRACT_PROGRAM_STEPS: usize = noid_tx::experimental_object::PROGRAM_STEPS;
+const _: () = assert!(
+    V2_CONTRACT_PROGRAM_STEPS == noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS
+);
+pub const V2_CONTRACT_SLOTS: usize = 16;
+
+/// Research-only contract opening associated with one physical user body.
+/// It is deliberately not part of the v1 wire or consensus API.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V2ContractComponentInput {
+    /// Index in `tx_body_inputs`, including coinbase and an optional payout.
+    pub body_index: usize,
+    pub live: bool,
+    pub program: [[noid_core::Block128; 2]; V2_CONTRACT_PROGRAM_STEPS],
+    pub current: noid_core::Block128,
+    pub contexts: [noid_core::Block128; noid_tx::experimental_object::BODY_CONTEXT_FIELDS],
+    pub next: noid_core::Block128,
+    /// Claim authority used before the deadline.
+    pub controller: [noid_core::Block128; 2],
+    /// Recovery authority used at or after the deadline.
+    pub refund_authority: [noid_core::Block128; 2],
+    pub terminal: bool,
+    pub deadline: u64,
+    pub claim_recipient: [noid_core::Block128; 2],
+    pub refund_recipient: [noid_core::Block128; 2],
+    pub rules: noid_tx::experimental_object::ObjectRules,
 }
 
 /// Sibling-only exact-state carrier. Merkle topology is verifier-derived from
@@ -142,6 +173,9 @@ pub struct HistoryStepBlockComponents {
     pub tx_body_hashes: Vec<[noid_core::Block128; 2]>,
     pub tx_root_inputs: Vec<noid_gkr::MerklePathInputs>,
     pub authorization_inputs: Vec<AuthorizationComponentInput>,
+    /// Empty for v1. The isolated v2 feasibility builder populates at most
+    /// fixed contract-capable prefix and never serializes this field.
+    pub v2_contract_inputs: Vec<V2ContractComponentInput>,
     pub exact_state: ExactStateStructuralFrontierInputs,
 }
 
@@ -218,6 +252,32 @@ pub fn prepare_history_step_authorizations<const TIER: usize>(
     {
         return Err(HistoryStepAuthorizationError::NonCanonicalTier);
     }
+    prepare_checked_authorizations(inputs, proofs, ghost)
+}
+
+/// Explicit research candidate capacity; ordinary nodes continue to select
+/// only the two legacy classes through the entry point above.
+pub fn prepare_candidate_authorizations(
+    config: v2::V2Config,
+    effective_page_count: usize,
+    inputs: &[AuthorizationComponentInput],
+    proofs: Vec<noid_gkr::zk_authorization::ZkAuthorizationProof>,
+    ghost: &PreparedHistoryStepGhostAuthorization,
+) -> Result<PreparedHistoryStepAuthorizations, HistoryStepAuthorizationError> {
+    if effective_page_count > config.pages()
+        || inputs.len() > effective_page_count
+        || proofs.len() != inputs.len()
+    {
+        return Err(HistoryStepAuthorizationError::ComponentShape);
+    }
+    prepare_checked_authorizations(inputs, proofs, ghost)
+}
+
+fn prepare_checked_authorizations(
+    inputs: &[AuthorizationComponentInput],
+    proofs: Vec<noid_gkr::zk_authorization::ZkAuthorizationProof>,
+    ghost: &PreparedHistoryStepGhostAuthorization,
+) -> Result<PreparedHistoryStepAuthorizations, HistoryStepAuthorizationError> {
     if inputs.iter().any(|input| {
         input.public.layout != noid_gkr::OwnerAuthLayout::FIXED
             || input.tx_body_hash != input.public.tx_body_hash
@@ -261,6 +321,55 @@ impl<const TIER: usize> HistoryStepBlockInput<TIER> {
         sealed_header: &BlockHeader,
         parent_header: &BlockHeader,
     ) -> Result<Self, HistoryStepInputError> {
+        Self::try_new_inner(
+            start_accumulator,
+            end_accumulator,
+            components,
+            authorizations,
+            sealed_header,
+            parent_header,
+            true,
+        )
+    }
+
+    pub fn try_new_candidate(
+        config: v2::V2Config,
+        start_accumulator: &ChainAccumulator,
+        end_accumulator: &ChainAccumulator,
+        components: HistoryStepBlockComponents,
+        authorizations: PreparedHistoryStepAuthorizations,
+        sealed_header: &BlockHeader,
+        parent_header: &BlockHeader,
+    ) -> Result<Self, HistoryStepInputError> {
+        if TIER != config.pages()
+            || sealed_header.height < config.activation_height()
+            || components.effective_page_count() > TIER
+        {
+            return Err(HistoryStepInputError::NonCanonicalTier { tier: TIER });
+        }
+        if components.v2_contract_inputs.len() > config.contract_slots() {
+            return Err(HistoryStepInputError::ComponentShape);
+        }
+        Self::try_new_inner(
+            start_accumulator,
+            end_accumulator,
+            components,
+            authorizations,
+            sealed_header,
+            parent_header,
+            false,
+        )
+    }
+
+    fn try_new_inner(
+        start_accumulator: &ChainAccumulator,
+        end_accumulator: &ChainAccumulator,
+        components: HistoryStepBlockComponents,
+        authorizations: PreparedHistoryStepAuthorizations,
+        sealed_header: &BlockHeader,
+        parent_header: &BlockHeader,
+        legacy_class: bool,
+    ) -> Result<Self, HistoryStepInputError> {
         if crate::region_sidecar::selected_zk_block_geometry(TIER).is_none() {
             return Err(HistoryStepInputError::NonCanonicalTier { tier: TIER });
         }
@@ -277,7 +386,7 @@ impl<const TIER: usize> HistoryStepBlockInput<TIER> {
             effective_page_count,
         )
         .map(|class| class.page_capacity());
-        if actual_tier != Some(TIER) {
+        if legacy_class && actual_tier != Some(TIER) {
             return Err(HistoryStepInputError::WrongTier {
                 expected_tier: TIER,
                 live_authorizations,

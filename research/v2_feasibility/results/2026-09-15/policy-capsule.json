@@ -1,0 +1,83 @@
+{
+  "cases": [
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000000",
+      "current_state_hex": "00000000000000000000000000000009",
+      "explicit_masked_carrier_ms": 131.907436,
+      "main_relation_max_degree": 3,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "arithmetic_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "00000000000000000000000000000014",
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000000e15",
+      "public_boundary_claims": 8,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 4.767734,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "79c33a7b9725e5187d7f2a98a3b5cb7b",
+        "639ecd8d53c95ad89ad609f4241ccc0b"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "trace_rows_used": 17
+    },
+    {
+      "algebraic_owner_payload_fields_unchanged": 117,
+      "bank_cells": 2048,
+      "context_hex": "00000000000000000000000000000001",
+      "current_state_hex": "0000000000000000000000000000000b",
+      "explicit_masked_carrier_ms": 126.90749100000001,
+      "main_relation_max_degree": 4,
+      "masked_round_degree": 10,
+      "mle_variables": 11,
+      "name": "context_selected_state_transition",
+      "negative_checks_passed": 4,
+      "next_state_hex": "000000000000000000000000000000d6",
+      "program_bytes": 16,
+      "program_steps": 16,
+      "program_word_hex": "00000000000000000000000000001eab",
+      "public_boundary_claims": 8,
+      "rounds": 11,
+      "serialized_coefficients_per_round": 10,
+      "shape_build_ms": 1.205423,
+      "state_cells": 512,
+      "statement_digest_hex": [
+        "092c989d9ab3edce63243121cab0da24",
+        "9a689e8097b04fa00c69e92749babbb7"
+      ],
+      "stored_trace_rows": 128,
+      "terminal_dynamic_operand_claims": 5,
+      "trace_rows_used": 17
+    }
+  ],
+  "established": [
+    "two distinct 128-bit programs use one fixed transition relation",
+    "existing 2^11 bank and 512-cell State-table geometry",
+    "eleven masked MLE-check rounds with degree-ten serialized shape",
+    "five terminal dynamic operand claims",
+    "current and next State plus context and nonce boundary binding",
+    "program, State, context and nonce statement digest sensitivity"
+  ],
+  "kind": "programmable_authorization_capsule_algebraic_floor_not_complete_pcs_or_historystep",
+  "not_established": [
+    "complete authorization PCS proof and wire roundtrip",
+    "recursive HistoryStep acceptance",
+    "binding the synthetic policy statement to the production Tx8x2 body",
+    "contract code larger than 128 bits",
+    "branches, memory, bounded integers, multiple objects and read-only references",
+    "privacy of contract State",
+    "soundness accounting for a changed relation"
+  ],
+  "same_existing_bank_geometry": true,
+  "same_verifier_algorithm_for_distinct_non_whitelisted_programs": true,
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789490741
+}

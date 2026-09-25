@@ -1,0 +1,440 @@
+{
+  "status": "passed local native package qualification",
+  "selected_local_package": {
+    "profile": "transition",
+    "previous_path": "/home/neo/rust/parano1d-artifacts/v2-common-local-release-retired-20260925-a",
+    "selected_path": "/home/neo/rust/parano1d-artifacts/v2-common-local-release-transition-20260925-a",
+    "pointer": "/home/neo/rust/paranoid/target/release-builds/LAST_RELEASE",
+    "reason": "The transition package is the local pre-fork deliverable; the retired package qualifies a later release."
+  },
+  "platform": "x86_64-unknown-linux-gnu",
+  "cpu_baseline": "portable x86-64; accelerated arithmetic selected at runtime",
+  "version": {
+    "version": "2.0.0",
+    "packages": [
+      "bench_prover",
+      "noid-extminer",
+      "noid-ivc-core",
+      "noid-ivc-prover",
+      "noid_block",
+      "noid_chain",
+      "noid_core",
+      "noid_fri",
+      "noid_fri_binius",
+      "noid_gkr",
+      "noid_gui",
+      "noid_mempool",
+      "noid_miner",
+      "noid_node",
+      "noid_p2p",
+      "noid_poseidon2b",
+      "noid_recursive",
+      "noid_rpc",
+      "noid_soundness",
+      "noid_tx"
+    ],
+    "external_dependencies_changed": false,
+    "old_lock_sha256": "9dee381bd50de8f4bc02e0e36992df5743c6570b30bbb6690af9871857b20298",
+    "new_lock_sha256": "143b9c0e559c03a1b8f9cfb1e1b916a44f52c9ad2b82a606150d3e94d1b1c230",
+    "metadata_check": "cargo metadata --locked --offline --no-deps --format-version 1"
+  },
+  "source_head": "7d80ef202edbcd20545028f735caaf39ee4abfc6",
+  "profiles": [
+    {
+      "profile": "transition",
+      "source_record_sha256": "918deb8f403b0f52a4fee04fc5103f9d21f92901c9401a2c2ad8262f207038cb",
+      "status_record_sha256": "c52df990ac1f7be74c826309f85360cb457c8f62356261b0153cf9288455ac64",
+      "result": {
+        "profile": "transition",
+        "output": "/home/neo/rust/parano1d-artifacts/v2-common-local-release-transition-20260925-a",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-package-transition",
+          "-p",
+          "MemoryMax=20G",
+          "-p",
+          "MemorySwapMax=0",
+          "/home/neo/rust/paranoid/scripts/build_release.sh",
+          "--pack",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+          "--v2-pack",
+          "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a",
+          "--v2-pins",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/common-mainnet-pins.env",
+          "--retirement-keys",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1",
+          "--output",
+          "/home/neo/rust/parano1d-artifacts/v2-common-local-release-transition-20260925-a"
+        ],
+        "source_head": "7d80ef202edbcd20545028f735caaf39ee4abfc6",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "version": "2.0.0",
+        "pins": {
+          "NOID_V2_RELEASE_BANK": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+          "NOID_RETIREMENT_KEY_0_PIN": "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "NOID_RETIREMENT_KEY_1_PIN": "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        },
+        "helper_sha256": "605a66b142238ed2deee0a6de1357c096bbd3f6a0e8af73fdda1d5d8cc9e65cf",
+        "material": {
+          "legacy_metadata": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+            "sha256": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+            "bytes": 2214607
+          },
+          "legacy_small": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step-c00.field-r1cs.zst",
+            "sha256": "72adc8770c2acb10fc67e844a2e96d92dac358ec2b6db781888733e25662d6bc",
+            "bytes": 3865200
+          },
+          "legacy_large": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step-c01.field-r1cs.zst",
+            "sha256": "6bc11c87595edff1e0f85857b20ed9c3554d0d331f0b1d1604dfed18963414f9",
+            "bytes": 13240352
+          },
+          "v2_metadata": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-runtime-metadata.bin",
+            "sha256": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2",
+            "bytes": 2258540
+          },
+          "v2_small": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-small.field-r1cs.zst",
+            "sha256": "83abfdc69bffb154efce2452715773cfa4750a94e8f6238470cd82a01c6bf317",
+            "bytes": 10465911
+          },
+          "v2_large": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-large.field-r1cs.zst",
+            "sha256": "45ff8187894d976f56dcb7bd14b3bb6a6caef2752f93c8312234449956d21db5",
+            "bytes": 21478342
+          },
+          "key0": {
+            "path": "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+            "sha256": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+            "bytes": 304
+          },
+          "key1": {
+            "path": "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+            "sha256": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8",
+            "bytes": 304
+          }
+        },
+        "build_exit_code": 0,
+        "build_seconds": 784.4937268990034,
+        "binaries": {
+          "parano1d": {
+            "bytes": 87242792,
+            "sha256": "0c62ce3cb9812968b078ef592e7cce011e757b8d33802fd1f395df4a69c4df7b",
+            "version": "parano1d 2.0.0"
+          },
+          "parano1d-cli": {
+            "bytes": 6125976,
+            "sha256": "0dd501bca01e65243ec198fec15e38c7604c7831de5f973e6b1204579cf29c2e",
+            "version": "parano1d-cli 2.0.0"
+          },
+          "parano1d-miner": {
+            "bytes": 4693016,
+            "sha256": "dad0e9b25e3cd158b3bf018242d7a45f42b5221db6ff75e8b0dd7bf683cd1310",
+            "version": "parano1d-miner 2.0.0"
+          },
+          "parano1d-gui": {
+            "bytes": 29108768,
+            "sha256": "20973154b23b6fb7b9672beb7c7c3ac998801125f3c9eee8152ee8578af6627d",
+            "version": "Parano1d 2.0.0"
+          }
+        },
+        "embedded_material": {
+          "legacy_metadata": {
+            "present": true,
+            "offset": 53490963
+          },
+          "legacy_small": {
+            "present": true,
+            "offset": 36385411
+          },
+          "legacy_large": {
+            "present": true,
+            "offset": 40250611
+          },
+          "v2_metadata": {
+            "present": true,
+            "offset": 2182010
+          },
+          "v2_small": {
+            "present": true,
+            "offset": 4440550
+          },
+          "v2_large": {
+            "present": true,
+            "offset": 14906461
+          },
+          "key0": {
+            "present": true,
+            "offset": 36384803
+          },
+          "key1": {
+            "present": true,
+            "offset": 36385107
+          }
+        },
+        "status": "passed",
+        "exit_code": 0,
+        "checksums": {
+          "parano1d-core-v2.0.0-linux-x86_64.tar.gz": "055870c8e01307d6111ab94d45666f2aff07a3f0d59874ee6eb25b2d02bc89d1",
+          "parano1d-gui-v2.0.0-linux-x86_64.deb": "a8f57c465e5097eb385d5a8c3a9ebd6287a8c92c2c5e6e0531d0a4a2133c4c2d"
+        },
+        "smoke": {
+          "status": "passed",
+          "binary_sha256": "0c62ce3cb9812968b078ef592e7cce011e757b8d33802fd1f395df4a69c4df7b",
+          "scope": "Packaged mainnet executable, isolated network, fresh data, no peers or mining.",
+          "startup_seconds": 12.527521726995474,
+          "tip": {
+            "height": 0,
+            "best_hash": "860e70453390bf815718e933aa4927167a13d098b0151391eefd722ee1add610",
+            "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+            "active_slot_count": 0,
+            "log_slots": 24,
+            "circulating_supply_micronoid": "0"
+          },
+          "protocol": {
+            "tip_height": 0,
+            "activation_height": 210537,
+            "active_at_next_block": false,
+            "runtime_available": true,
+            "next_block_time_seconds": 20,
+            "abi_version": 3,
+            "instructions": 16,
+            "persistent_registers": 2,
+            "classes": [
+              {
+                "class": "small",
+                "pages": 63,
+                "live_inputs": 504,
+                "contract_calls": 63
+              },
+              {
+                "class": "large",
+                "pages": 206,
+                "live_inputs": 504,
+                "contract_calls": 63
+              }
+            ]
+          }
+        },
+        "package_sizes": {
+          "parano1d-core-v2.0.0-linux-x86_64.tar.gz": 63958106,
+          "parano1d-gui-v2.0.0-linux-x86_64.deb": 64332734
+        },
+        "build_log_sha256": "8af626fa432b1326ab5c29d7bea34dfa989e5ababaee66e271ebec86d5511d38",
+        "packages_installed": false,
+        "published": false
+      }
+    },
+    {
+      "profile": "retired",
+      "source_record_sha256": "97281888a49922588cd712511cdfd5bba660cf692ea2fbc15c174e7d01513615",
+      "status_record_sha256": "f93da832f59b451b8c8e9bbb4405e191db0d7f545d47fa5bc27dc97d4d966f90",
+      "result": {
+        "profile": "retired",
+        "output": "/home/neo/rust/parano1d-artifacts/v2-common-local-release-retired-20260925-a",
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-package-retired",
+          "-p",
+          "MemoryMax=20G",
+          "-p",
+          "MemorySwapMax=0",
+          "/home/neo/rust/paranoid/scripts/build_release.sh",
+          "--pack",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+          "--v2-pack",
+          "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a",
+          "--v2-pins",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/common-mainnet-pins.env",
+          "--retirement-keys",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1",
+          "--output",
+          "/home/neo/rust/parano1d-artifacts/v2-common-local-release-retired-20260925-a",
+          "--retired-history"
+        ],
+        "source_head": "7d80ef202edbcd20545028f735caaf39ee4abfc6",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "version": "2.0.0",
+        "pins": {
+          "NOID_V2_RELEASE_BANK": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+          "NOID_RETIREMENT_KEY_0_PIN": "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "NOID_RETIREMENT_KEY_1_PIN": "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        },
+        "helper_sha256": "605a66b142238ed2deee0a6de1357c096bbd3f6a0e8af73fdda1d5d8cc9e65cf",
+        "material": {
+          "legacy_metadata": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+            "sha256": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+            "bytes": 2214607
+          },
+          "legacy_small": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step-c00.field-r1cs.zst",
+            "sha256": "72adc8770c2acb10fc67e844a2e96d92dac358ec2b6db781888733e25662d6bc",
+            "bytes": 3865200
+          },
+          "legacy_large": {
+            "path": "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step-c01.field-r1cs.zst",
+            "sha256": "6bc11c87595edff1e0f85857b20ed9c3554d0d331f0b1d1604dfed18963414f9",
+            "bytes": 13240352
+          },
+          "v2_metadata": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-runtime-metadata.bin",
+            "sha256": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2",
+            "bytes": 2258540
+          },
+          "v2_small": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-small.field-r1cs.zst",
+            "sha256": "83abfdc69bffb154efce2452715773cfa4750a94e8f6238470cd82a01c6bf317",
+            "bytes": 10465911
+          },
+          "v2_large": {
+            "path": "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-large.field-r1cs.zst",
+            "sha256": "45ff8187894d976f56dcb7bd14b3bb6a6caef2752f93c8312234449956d21db5",
+            "bytes": 21478342
+          },
+          "key0": {
+            "path": "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+            "sha256": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+            "bytes": 304
+          },
+          "key1": {
+            "path": "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+            "sha256": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8",
+            "bytes": 304
+          }
+        },
+        "build_exit_code": 0,
+        "build_seconds": 371.49706235999474,
+        "binaries": {
+          "parano1d": {
+            "bytes": 70101312,
+            "sha256": "f80cae6e5832435c9e8d8833a41aeeee306addc7d24c05673014573161124317",
+            "version": "parano1d 2.0.0"
+          },
+          "parano1d-cli": {
+            "bytes": 6125976,
+            "sha256": "f636c7ca2ef5606e4a82d5fc13966645cf001e94af96e99e4dcb42252fb953c7",
+            "version": "parano1d-cli 2.0.0"
+          },
+          "parano1d-miner": {
+            "bytes": 4693016,
+            "sha256": "dad0e9b25e3cd158b3bf018242d7a45f42b5221db6ff75e8b0dd7bf683cd1310",
+            "version": "parano1d-miner 2.0.0"
+          },
+          "parano1d-gui": {
+            "bytes": 29108768,
+            "sha256": "20973154b23b6fb7b9672beb7c7c3ac998801125f3c9eee8152ee8578af6627d",
+            "version": "Parano1d 2.0.0"
+          }
+        },
+        "embedded_material": {
+          "legacy_metadata": {
+            "present": true,
+            "offset": 36383923
+          },
+          "legacy_small": {
+            "present": false,
+            "offset": null
+          },
+          "legacy_large": {
+            "present": false,
+            "offset": null
+          },
+          "v2_metadata": {
+            "present": true,
+            "offset": 2180522
+          },
+          "v2_small": {
+            "present": true,
+            "offset": 4439062
+          },
+          "v2_large": {
+            "present": true,
+            "offset": 14904973
+          },
+          "key0": {
+            "present": true,
+            "offset": 36383315
+          },
+          "key1": {
+            "present": true,
+            "offset": 36383619
+          }
+        },
+        "status": "passed",
+        "exit_code": 0,
+        "checksums": {
+          "parano1d-core-v2.0.0-linux-x86_64.tar.gz": "20d50210453260814e8c0d6b4ad6ae762f67809c92c69f9fa25ea7f453c03b14",
+          "parano1d-gui-v2.0.0-linux-x86_64.deb": "68b8246adc42339afff916d1b5ae36aedf5cc31ccb3d1f23cb8dacf0fa343413"
+        },
+        "smoke": {
+          "status": "passed",
+          "binary_sha256": "f80cae6e5832435c9e8d8833a41aeeee306addc7d24c05673014573161124317",
+          "scope": "Packaged mainnet executable, isolated network, fresh data, no peers or mining.",
+          "startup_seconds": 10.528707279998343,
+          "tip": {
+            "height": 0,
+            "best_hash": "860e70453390bf815718e933aa4927167a13d098b0151391eefd722ee1add610",
+            "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+            "active_slot_count": 0,
+            "log_slots": 24,
+            "circulating_supply_micronoid": "0"
+          },
+          "protocol": {
+            "tip_height": 0,
+            "activation_height": 210537,
+            "active_at_next_block": false,
+            "runtime_available": true,
+            "next_block_time_seconds": 20,
+            "abi_version": 3,
+            "instructions": 16,
+            "persistent_registers": 2,
+            "classes": [
+              {
+                "class": "small",
+                "pages": 63,
+                "live_inputs": 504,
+                "contract_calls": 63
+              },
+              {
+                "class": "large",
+                "pages": 206,
+                "live_inputs": 504,
+                "contract_calls": 63
+              }
+            ]
+          }
+        },
+        "package_sizes": {
+          "parano1d-core-v2.0.0-linux-x86_64.tar.gz": 47658340,
+          "parano1d-gui-v2.0.0-linux-x86_64.deb": 48521818
+        },
+        "build_log_sha256": "af1d282a1ef8d2cec2965c288e5082f939f00e421a892fe5a3d9e055b1f2ac12",
+        "packages_installed": false,
+        "published": false
+      }
+    }
+  ],
+  "node_bytes_saved_by_omitting_legacy_rows": 17141480,
+  "scope": [
+    "Local server archive and GUI Debian package for each profile; neither installed nor published.",
+    "Build authenticates both final mainnet matrices and pinned legacy material; packaging never regenerates matrices.",
+    "Archive and Debian contents, four executable versions, GUI self-check and exact embedded bytes inspected.",
+    "Each final node starts in a fresh loopback-only namespace, without peers or mining; RPC reports the source-pinned mainnet schedule.",
+    "Earlier integrated transition/contract/reorg/pruning/retirement tests use the matching isolated bank and are recorded separately.",
+    "The transition profile is the pre-fork release form. The retired profile is for a later release with a valid origin certificate.",
+    "The future mainnet retirement certificate depends on the actual fork predecessor and is not included.",
+    "No Windows, macOS, ARM, public-network load or new AVX-512 measurements are claimed."
+  ],
+  "record_helper_sha256": "8e12aa75634b303eb0065d4fc8a61596699c8b8a11292af862615ed559082812",
+  "smoke_helper_sha256": "61989fcc02aa4883dc7e8142705fc4efbfa8cbe04758b521cfcb8caf74538953"
+}

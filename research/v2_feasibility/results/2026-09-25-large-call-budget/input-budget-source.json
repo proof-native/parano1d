@@ -1,0 +1,39 @@
+{
+  "base": "141df467cd65a0e7d673fb3729c9b2924b78ffae",
+  "binary_sha256": "c9865c72337ee7d07cba3806e288d1d262822f74afa3c8f796292356fa66fecb",
+  "command": [
+    "systemd-run",
+    "--user",
+    "--scope",
+    "--quiet",
+    "--unit=noid-v2-joint-budget-i384-a",
+    "-p",
+    "MemoryMax=20G",
+    "-p",
+    "MemorySwapMax=0",
+    "/usr/bin/time",
+    "-v",
+    "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+    "joint-budgets",
+    "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+    "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-p63-c63-p255-i384-c40-20260925-a",
+    "8510e012152310a68a2e58a028368a8855e31c658f6a8baae215c1baa6871603",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-i384-budget-20260925-a",
+    "37"
+  ],
+  "environment": {
+    "RAYON_NUM_THREADS": "12",
+    "RUST_MIN_STACK": "16777216",
+    "NOID_CPU_BACKEND": "automatic"
+  },
+  "source_sha256": {
+    "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+    "bench_prover/src/bin/v2_capacity_support/banked.rs": "4f54450a48cc192ada455de1a57ec58460b2c0c2c89909ef2f251075a7e8d7aa",
+    "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "020eb315f71df0ec9a8106cbcafe8cd34ac35d3de1dc1eae8cd46175aaf06ca6",
+    "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22"
+  },
+  "source_archive_patch": "input-budget-source.patch",
+  "note": "This executable predates the height-only emission revision. Apply the patch to base for the exact qualification source, not the later working tree."
+}

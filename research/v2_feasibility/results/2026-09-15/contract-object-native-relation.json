@@ -1,0 +1,181 @@
+{
+  "bank_layout": {
+    "active_relation_equations": 1088,
+    "bank_cells": 2048,
+    "boundary_linear_claims": 28,
+    "candidate_trace_capacity_cells": 1267,
+    "fragment_jump_edges": [
+      [
+        127,
+        194
+      ],
+      [
+        255,
+        386
+      ]
+    ],
+    "libra_reserved_range": [
+      512,
+      768
+    ],
+    "remaining_trace_cells": 159,
+    "source_coin_reserved_range": [
+      1024,
+      1544
+    ],
+    "terminal_pad_reserved_range": [
+      768,
+      773
+    ],
+    "used_trace_cells": 1108
+  },
+  "cases": [
+    {
+      "build_ms": 2,
+      "context": "00000000000000000000000000000000",
+      "current": "000000000000000c48761e7dd1d1b1a4",
+      "name": "arithmetic",
+      "native_relation_verify_ms": 32,
+      "new_root": [
+        "ebe506541df65a2e491561f6da950287",
+        "e8a20d9970fe82d9956e17a95a9c21f4"
+      ],
+      "next": "00000000000000da602dc2f3acac26b6",
+      "old_root": [
+        "83812655c2513d8255a30148ad787857",
+        "d63c9c1b59209883115444f603409457"
+      ],
+      "program_hex": "0000001600750000000e004d002e001d",
+      "rejections": [
+        {
+          "name": "wrong-program",
+          "rejected": true
+        },
+        {
+          "name": "wrong-current",
+          "rejected": true
+        },
+        {
+          "name": "wrong-next",
+          "rejected": true
+        },
+        {
+          "name": "wrong-context",
+          "rejected": true
+        },
+        {
+          "name": "wrong-nonce",
+          "rejected": true
+        },
+        {
+          "name": "wrong-controller",
+          "rejected": true
+        },
+        {
+          "name": "wrong-old-root",
+          "rejected": true
+        },
+        {
+          "name": "wrong-new-root",
+          "rejected": true
+        },
+        {
+          "name": "corrupted-poseidon-trace",
+          "rejected": true
+        }
+      ],
+      "valid_relation_accepted": true
+    },
+    {
+      "build_ms": 0,
+      "context": "00000000000000000000000000000001",
+      "current": "82f72a060000000ed5336963eefba1fc",
+      "name": "context-select",
+      "native_relation_verify_ms": 25,
+      "new_root": [
+        "8ed649d8427298d1197830641cb4db72",
+        "564aefea18da3e254060bf9e7a5d291d"
+      ],
+      "next": "0000000000000000000000000000002c",
+      "old_root": [
+        "8fc2339f3b4868134286505c52f59c7e",
+        "710c1c21f6617b7860b1d9cc163bc401"
+      ],
+      "program_hex": "000000460000003501370026001500ab",
+      "rejections": [
+        {
+          "name": "wrong-program",
+          "rejected": true
+        },
+        {
+          "name": "wrong-current",
+          "rejected": true
+        },
+        {
+          "name": "wrong-next",
+          "rejected": true
+        },
+        {
+          "name": "wrong-context",
+          "rejected": true
+        },
+        {
+          "name": "wrong-nonce",
+          "rejected": true
+        },
+        {
+          "name": "wrong-controller",
+          "rejected": true
+        },
+        {
+          "name": "wrong-old-root",
+          "rejected": true
+        },
+        {
+          "name": "wrong-new-root",
+          "rejected": true
+        },
+        {
+          "name": "corrupted-poseidon-trace",
+          "rejected": true
+        }
+      ],
+      "valid_relation_accepted": true
+    }
+  ],
+  "established": [
+    "Four complete production-parameter Poseidon2b traces and an eight-step dynamic program fit in the candidate bank with 159 trace cells left.",
+    "The exact 16-byte program is committed directly. The two tested programs use one verifier relation and no consensus whitelist.",
+    "The relation binds old and new object roots, current and next state, controller, context, and call nonce.",
+    "The five terminal operands suffice for all four Poseidon traces and the program trace.",
+    "All Boolean equations, random-point terminal evaluation, and one RLC post-claim against the fragmented committed bank agree.",
+    "Every tested statement or trace mutation is rejected."
+  ],
+  "generated_unix_seconds": 1789496451,
+  "kind": "v2-contract-object-native-relation",
+  "not_established": [
+    "A zero-knowledge PCS proof using the shortened 520-coin layout.",
+    "Recursive verifier row count for the fragmented post-claim map and 28 boundaries.",
+    "Binding the public statement to exact Tx8x2 fields inside HistoryStep.",
+    "Asset conservation, output policy, height derivation, or a production contract ABI.",
+    "General memory, calls, unbounded execution, or programs longer than 16 bytes.",
+    "A complete soundness or hiding certificate for this contract mode."
+  ],
+  "object_model": {
+    "controller_bits": 256,
+    "owner_commitment_bits": 256,
+    "owner_commitment_fields": [
+      "exact-program-word-128",
+      "state-word-128",
+      "controller-hi-128",
+      "controller-lo-128"
+    ],
+    "persistent_state_bits": 128,
+    "poseidon_permutations_old_and_new": 4,
+    "program_encoding_bytes": 16,
+    "program_steps": 8,
+    "program_whitelist": false
+  },
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "status": "native-relation-established-pcs-and-recursion-not-established"
+}

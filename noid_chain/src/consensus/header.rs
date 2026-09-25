@@ -57,6 +57,7 @@ pub fn validate_header(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
     )
 }
 
@@ -88,6 +89,7 @@ pub fn validate_header_template(
         anchor_timestamp,
         anchor_target,
         false,
+        None,
     )
 }
 
@@ -115,6 +117,7 @@ pub fn validate_header_timeless(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
     )
 }
 
@@ -148,6 +151,36 @@ pub fn validate_header_timeless_prehashed_parent(
         anchor_timestamp,
         anchor_target,
         true,
+        None,
+    )
+}
+
+/// Entry point with explicit height-selected timing for isolated profiles.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_header_with_schedule(
+    header: &BlockHeader,
+    parent: &BlockHeader,
+    prev_timestamps: &[u64],
+    finalized_active_counts: &[u64],
+    local_time: Option<u64>,
+    anchor_height: u64,
+    anchor_timestamp: u64,
+    anchor_target: &[u8; 32],
+    check_pow: bool,
+    schedule: super::forks::ForkSchedule,
+) -> Result<(), ConsensusError> {
+    validate_header_inner(
+        header,
+        parent,
+        block_id(parent),
+        prev_timestamps,
+        finalized_active_counts,
+        local_time,
+        anchor_height,
+        anchor_timestamp,
+        anchor_target,
+        check_pow,
+        Some(schedule),
     )
 }
 
@@ -163,6 +196,7 @@ fn validate_header_inner(
     anchor_timestamp: u64,
     anchor_target: &[u8; 32],
     check_pow: bool,
+    schedule: Option<super::forks::ForkSchedule>,
 ) -> Result<(), ConsensusError> {
     // 1. Parent hash linkage.
     if header.prev_block_hash != expected_parent_hash {
@@ -175,13 +209,23 @@ fn validate_header_inner(
     }
 
     // 3. Difficulty target matches ASERT expectation.
-    let expected_target = next_target(
-        anchor_height,
-        anchor_timestamp,
-        anchor_target,
-        header.height,
-        header.timestamp,
-    );
+    let expected_target = match schedule {
+        Some(schedule) => super::difficulty::next_target_with_schedule(
+            anchor_height,
+            anchor_timestamp,
+            anchor_target,
+            header.height,
+            header.timestamp,
+            schedule,
+        ),
+        None => next_target(
+            anchor_height,
+            anchor_timestamp,
+            anchor_target,
+            header.height,
+            header.timestamp,
+        ),
+    };
     if header.difficulty_target != expected_target {
         return Err(ConsensusError::BadDifficultyTarget);
     }
@@ -222,8 +266,21 @@ fn validate_header_inner(
 ///
 /// The anchor is the block at the most recent epoch boundary:
 /// `anchor_height = largest H ≤ current_height where H % EPOCH_LENGTH == 0`.
+/// The v2 interval starts from its actual predecessor until the next regular
+/// epoch boundary, avoiding a difficulty discontinuity from the old interval.
 pub fn asert_anchor_height(current_height: u64) -> u64 {
-    (current_height / EPOCH_LENGTH) * EPOCH_LENGTH
+    asert_anchor_height_with_schedule(current_height, super::forks::ACTIVE_SCHEDULE)
+}
+
+pub fn asert_anchor_height_with_schedule(
+    current_height: u64,
+    schedule: super::forks::ForkSchedule,
+) -> u64 {
+    let regular = (current_height / EPOCH_LENGTH) * EPOCH_LENGTH;
+    match schedule.v2() {
+        Some(at) if current_height >= at.height() - 1 => regular.max(at.height() - 1),
+        _ => regular,
+    }
 }
 
 /// Returns `true` if a block at `height` is considered final (cannot be reorged).
@@ -460,9 +517,32 @@ mod tests {
         assert_eq!(asert_anchor_height(0), 0);
         assert_eq!(asert_anchor_height(5), 0);
         assert_eq!(asert_anchor_height(6), 6);
-        assert_eq!(asert_anchor_height(11), 6);
+        assert_eq!(
+            asert_anchor_height(11),
+            if super::super::params::ISOLATED_V2_FORK_TESTNET {
+                9
+            } else {
+                6
+            }
+        );
         assert_eq!(asert_anchor_height(12), 12);
         assert_eq!(asert_anchor_height(100), 96);
+    }
+
+    #[test]
+    fn v2_anchors_to_its_predecessor_until_the_next_epoch() {
+        use crate::consensus::forks::{ForkSchedule, V2Activation};
+        for h in [10, 12, 13, 219_177] {
+            let schedule = ForkSchedule::new(Some(5), V2Activation::new(h, 30)).unwrap();
+            let anchor = |tip| asert_anchor_height_with_schedule(tip, schedule);
+            assert_eq!(anchor(h - 2), (h - 2) / 6 * 6);
+            assert_eq!(anchor(h - 1), h - 1);
+            for tip in h..h + 6 {
+                let regular = tip / 6 * 6;
+                assert_eq!(anchor(tip), regular.max(h - 1));
+            }
+            assert_eq!(anchor(h - 2), (h - 2) / 6 * 6);
+        }
     }
 
     #[test]

@@ -13,21 +13,34 @@ DEFAULT_RELEASE_DIR="$RELEASE_ROOT_DIR/target/release-builds/$BUILD_ID"
 LAST_RELEASE_FILE="$RELEASE_ROOT_DIR/target/release-builds/LAST_RELEASE"
 PACK_DIR=
 RELEASE_DIR=
+V2_PACK_DIR=
+V2_PIN_FILE=
+RETIREMENT_KEYS_DIR=
+RETIRED_HISTORY=0
 usage() {
   cat <<'EOF'
-Usage: ./scripts/build_release.sh --pack PACK_DIR [--output RELEASE_DIR]
+Usage: ./scripts/build_release.sh --pack LEGACY_PACK --v2-pack V2_PACK \
+  --v2-pins PIN_FILE --retirement-keys KEY_DIR [--output RELEASE_DIR] \
+  [--retired-history]
 
-Embed one already authenticated canonical HistoryStep pack into the node and
+Embed authenticated legacy and scheduled v2 release material into the node and
 build two native deliverables for the current host:
 the operator bundle (node, CLI, external miner) and the independently
 installable GUI wallet (GUI plus its private node). This command never
-regenerates or re-authenticates matrices. Source checks and tests are separate
+regenerates matrices. The node build authenticates the v2 material and rejects
+a pack for a different source schedule. Source checks and tests are separate
 pre-build gates.
 
 Options:
-  --pack DIR       Canonical HistoryStep pack root (required).
-  --output DIR     Fresh output directory. Defaults under target/release-builds/.
-  -h, --help       Show this help.
+  --pack DIR             Canonical legacy HistoryStep pack root.
+  --v2-pack DIR          Frozen source-scheduled v2 matrix pack.
+  --v2-pins FILE         Three reviewed assignments: NOID_V2_RELEASE_BANK,
+                        NOID_RETIREMENT_KEY_0_PIN, NOID_RETIREMENT_KEY_1_PIN.
+  --retirement-keys DIR  Authenticated class-0.key and class-1.key files.
+  --retired-history     Later release without embedded legacy matrices;
+                        requires certificate availability on the network.
+  --output DIR          Fresh directory, default under target/release-builds/.
+  -h, --help            Show this help.
 
 Environment:
   NOID_MACOS_SIGN_IDENTITY        Optional Developer ID identity; defaults to
@@ -51,6 +64,25 @@ while (( $# > 0 )); do
       RELEASE_DIR=$2
       shift 2
       ;;
+    --v2-pack)
+      (( $# >= 2 )) || release_die "--v2-pack requires a directory"
+      V2_PACK_DIR=$2
+      shift 2
+      ;;
+    --v2-pins)
+      (( $# >= 2 )) || release_die "--v2-pins requires a file"
+      V2_PIN_FILE=$2
+      shift 2
+      ;;
+    --retirement-keys)
+      (( $# >= 2 )) || release_die "--retirement-keys requires a directory"
+      RETIREMENT_KEYS_DIR=$2
+      shift 2
+      ;;
+    --retired-history)
+      RETIRED_HISTORY=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -68,6 +100,22 @@ done
 }
 PACK_DIR=$(release_absolute_from_root "$PACK_DIR")
 PACK_DIR=$(release_canonical_directory "$PACK_DIR")
+[[ -n $V2_PACK_DIR && -n $V2_PIN_FILE && -n $RETIREMENT_KEYS_DIR ]] || \
+  release_die "scheduled v2 builds require --v2-pack, --v2-pins and --retirement-keys"
+V2_PACK_DIR=$(release_absolute_from_root "$V2_PACK_DIR")
+V2_PACK_DIR=$(release_canonical_directory "$V2_PACK_DIR")
+RETIREMENT_KEYS_DIR=$(release_absolute_from_root "$RETIREMENT_KEYS_DIR")
+RETIREMENT_KEYS_DIR=$(release_canonical_directory "$RETIREMENT_KEYS_DIR")
+V2_PIN_FILE=$(release_absolute_from_root "$V2_PIN_FILE")
+release_read_v2_pin_file "$V2_PIN_FILE"
+release_validate_v2_layout "$V2_PACK_DIR" "$RETIREMENT_KEYS_DIR"
+if [[ $RETIRED_HISTORY == 1 ]]; then
+  release_validate_retired_legacy_layout "$PACK_DIR"
+else
+  release_validate_pack_layout "$PACK_DIR" 1
+fi
+release_read_pin_file "$PACK_DIR/pins.env"
+RELEASE_METADATA_DIGEST=$RELEASE_FILE_METADATA_DIGEST
 if [[ -z $RELEASE_DIR ]]; then
   RELEASE_DIR=$DEFAULT_RELEASE_DIR
 else
@@ -188,12 +236,18 @@ cd "$RELEASE_ROOT_DIR"
 unset CARGO_BUILD_TARGET CARGO_ENCODED_RUSTFLAGS RUSTFLAGS
 unset NOID_HISTORY_STEP_PACK_DIR
 unset NOID_HISTORY_STEP_RUNTIME_METADATA_RELEASE_DIGEST
+unset NOID_HISTORY_STEP_PACK_LEAF_DIGESTS
+unset NOID_V2_PACK_DIR NOID_V2_RELEASE_BANK
+unset NOID_RETIREMENT_KEYS_DIR NOID_RETIREMENT_KEY_0_PIN NOID_RETIREMENT_KEY_1_PIN
 unset TAR_OPTIONS GZIP GZIP_OPT
 export CARGO_TARGET_DIR="$RELEASE_ROOT_DIR/target"
 
 printf 'ParanO(1)d self-contained release build\n'
 printf '  source:       %s\n' "$RELEASE_ROOT_DIR"
 printf '  matrix pack:  %s\n' "$PACK_DIR"
+printf '  v2 pack:      %s\n' "$V2_PACK_DIR"
+printf '  v2 bank:      %s\n' "$RELEASE_V2_BANK"
+printf '  legacy rows:  %s\n' "$((1 - RETIRED_HISTORY))"
 printf '  release dir:  %s\n' "$RELEASE_DIR"
 printf '  version:      %s\n' "$RELEASE_VERSION"
 printf '  target:       %s\n' "$HOST_TRIPLE"
@@ -203,18 +257,29 @@ printf '  GUI package:  %s\n' "$GUI_ARTIFACT_NAME"
 printf '  rustc:        %s\n' "$(rustc --version)"
 printf '  cargo:        %s\n' "$(cargo --version)"
 
-CURRENT_STAGE='pack metadata load'
-release_validate_pack_layout "$PACK_DIR" 1
-release_read_pin_file "$PACK_DIR/pins.env"
-RELEASE_METADATA_DIGEST=$RELEASE_FILE_METADATA_DIGEST
-
 export RUSTFLAGS="$RELEASE_RUSTFLAGS"
 export NOID_HISTORY_STEP_PACK_DIR="$PACK_DIR"
 export NOID_HISTORY_STEP_RUNTIME_METADATA_RELEASE_DIGEST="$RELEASE_METADATA_DIGEST"
+export NOID_V2_PACK_DIR="$V2_PACK_DIR"
+export NOID_V2_RELEASE_BANK="$RELEASE_V2_BANK"
+export NOID_RETIREMENT_KEYS_DIR="$RETIREMENT_KEYS_DIR"
+export NOID_RETIREMENT_KEY_0_PIN="$RELEASE_RETIREMENT_KEY_0_PIN"
+export NOID_RETIREMENT_KEY_1_PIN="$RELEASE_RETIREMENT_KEY_1_PIN"
+NODE_BUILD_ARGS=(--locked --release --target "$HOST_TRIPLE" -p noid_node --bins)
+if [[ $RETIRED_HISTORY == 1 ]]; then
+  NODE_BUILD_ARGS+=(--features retired-history)
+fi
+{
+  printf 'NOID_HISTORY_STEP_RUNTIME_METADATA_RELEASE_DIGEST=%s\n' "$RELEASE_METADATA_DIGEST"
+  printf 'NOID_V2_RELEASE_BANK=%s\n' "$RELEASE_V2_BANK"
+  printf 'NOID_RETIREMENT_KEY_0_PIN=%s\n' "$RELEASE_RETIREMENT_KEY_0_PIN"
+  printf 'NOID_RETIREMENT_KEY_1_PIN=%s\n' "$RELEASE_RETIREMENT_KEY_1_PIN"
+  printf 'RETIRED_HISTORY=%s\n' "$RETIRED_HISTORY"
+} > "$RELEASE_DIR/proof-pins.env"
 
 CURRENT_STAGE='self-contained binary build'
 printf '\n==> Building matrix-embedded native binaries\n'
-cargo build --locked --release --target "$HOST_TRIPLE" -p noid_node --bins
+cargo build "${NODE_BUILD_ARGS[@]}"
 cargo build --locked --release --target "$HOST_TRIPLE" \
   -p noid-extminer --bin parano1d-miner
 cargo build --locked --release --target "$HOST_TRIPLE" \
@@ -276,13 +341,15 @@ esac
 [[ -f $GUI_ARTIFACT && -s $GUI_ARTIFACT ]] || \
   release_die "GUI package is missing or empty: $GUI_ARTIFACT"
 cp -- "$USER_GUIDE_SOURCE" "$BIN_DIR/README.txt"
+cp -- "$RELEASE_ROOT_DIR/docs/reference/contracts.md" "$BIN_DIR/CONTRACTS.md"
 cp -- "$LICENSE_SOURCE" "$BIN_DIR/LICENSE"
 cp -- "$NOTICE_SOURCE" "$BIN_DIR/NOTICE"
-chmod 0644 "$BIN_DIR/README.txt" 2>/dev/null || true
+chmod 0644 "$BIN_DIR/README.txt" "$BIN_DIR/CONTRACTS.md" 2>/dev/null || true
 chmod 0644 "$BIN_DIR/LICENSE" "$BIN_DIR/NOTICE" 2>/dev/null || true
 
 archive_entries=(
   README.txt
+  CONTRACTS.md
   LICENSE
   NOTICE
   "parano1d$BINARY_SUFFIX"

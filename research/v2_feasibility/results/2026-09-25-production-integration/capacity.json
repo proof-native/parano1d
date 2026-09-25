@@ -1,0 +1,86 @@
+{
+  "bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "complete": true,
+  "daemon_p2p_qualified": false,
+  "durable_reopen": true,
+  "memory": {
+    "process_peak_rss_kib": 8376608,
+    "rss_kib": 2505672
+  },
+  "mode": "capacity",
+  "records": [
+    {
+      "admission_ms": 6527.060887000001,
+      "auth_ms": 99857.413896,
+      "calls": 0,
+      "class": 0,
+      "height": 34,
+      "label": "manual_large_production",
+      "memory": {
+        "process_peak_rss_kib": 6131816,
+        "rss_kib": 2628380
+      },
+      "pages": 63,
+      "pow_ms": 595.829429,
+      "preparation_ms": 20303.248318,
+      "template_ms": 27.537164,
+      "terminal_bytes": 914836,
+      "verify_apply_ms": 1531.7843340000002
+    },
+    {
+      "admission_ms": 6431.049449,
+      "auth_ms": 101708.643293,
+      "calls": 0,
+      "class": 1,
+      "height": 35,
+      "label": "manual_large_production",
+      "memory": {
+        "process_peak_rss_kib": 6271452,
+        "rss_kib": 3908140
+      },
+      "pages": 255,
+      "pow_ms": 290.726229,
+      "preparation_ms": 49032.156783,
+      "template_ms": 76.422216,
+      "terminal_bytes": 981908,
+      "verify_apply_ms": 2354.059689
+    },
+    {
+      "admission_ms": 6292.429771,
+      "auth_ms": 104081.339007,
+      "calls": 0,
+      "class": 0,
+      "height": 36,
+      "label": "manual_large_production",
+      "memory": {
+        "process_peak_rss_kib": 8376608,
+        "rss_kib": 3937680
+      },
+      "pages": 63,
+      "pow_ms": 343.886983,
+      "preparation_ms": 20406.877577,
+      "template_ms": 21.341933,
+      "terminal_bytes": 912724,
+      "verify_apply_ms": 1659.1381350000001
+    },
+    {
+      "admission_ms": 1644.3202999999999,
+      "auth_ms": 26412.35879,
+      "calls": 63,
+      "class": 0,
+      "height": 37,
+      "label": "full_integer_calls_with_large_enabled",
+      "memory": {
+        "process_peak_rss_kib": 8376608,
+        "rss_kib": 3782340
+      },
+      "pages": 63,
+      "pow_ms": 1630.140578,
+      "preparation_ms": 23270.856707,
+      "template_ms": 30.645563,
+      "terminal_bytes": 913684,
+      "verify_apply_ms": 979.766363
+    }
+  ],
+  "tip": 37
+}

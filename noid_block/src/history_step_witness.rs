@@ -264,6 +264,7 @@ pub fn prepare_history_step_witness<const TIER: usize>(
         context,
         live_authorization_proofs,
         ghost_authorization,
+        Vec::new(),
     )?;
     let PreparedNativeHistoryStep {
         template,
@@ -317,6 +318,29 @@ pub fn prepare_history_step_input_witness<const TIER: usize>(
             context,
             live_authorization_proofs,
             ghost_authorization,
+            Vec::new(),
+        )?,
+    })
+}
+
+/// Isolated v2 feasibility entry point. It keeps all native block and exact
+/// State checks, then replaces the contract-prefix authorization statements with
+/// controllers authenticated by their object openings.
+#[doc(hidden)]
+pub fn prepare_v2_research_history_step_input_witness<const TIER: usize>(
+    template: Block,
+    context: HistoryStepPreparationContext<'_>,
+    live_authorization_proofs: Vec<ZkAuthorizationProof>,
+    ghost_authorization: &PreparedHistoryStepGhostAuthorization,
+    contract_inputs: Vec<noid_recursive::V2ContractComponentInput>,
+) -> Result<PreparedHistoryStepInputWitness<TIER>, HistoryStepWitnessError> {
+    Ok(PreparedHistoryStepInputWitness {
+        native: prepare_native_history_step::<TIER>(
+            template,
+            context,
+            live_authorization_proofs,
+            ghost_authorization,
+            contract_inputs,
         )?,
     })
 }
@@ -326,6 +350,7 @@ fn prepare_native_history_step<const TIER: usize>(
     context: HistoryStepPreparationContext<'_>,
     live_authorization_proofs: Vec<ZkAuthorizationProof>,
     ghost_authorization: &PreparedHistoryStepGhostAuthorization,
+    v2_contract_inputs: Vec<noid_recursive::V2ContractComponentInput>,
 ) -> Result<PreparedNativeHistoryStep<TIER>, HistoryStepWitnessError> {
     if template.header.nonce != 0 {
         return Err(HistoryStepWitnessError::TemplateNonceNotZero);
@@ -338,7 +363,7 @@ fn prepare_native_history_step<const TIER: usize>(
     validate_parent_state_boundary(context.parent_header, context.parent_state)?;
     validate_nonce_independent_block(&template, &context)?;
 
-    let components = build_history_step_components(&template, context.parent_state)?;
+    let mut components = build_history_step_components(&template, context.parent_state)?;
     let effective_pages = components.effective_page_count();
     let actual_tier =
         noid_chain::consensus::paged_spend::BlockProofClass::for_page_count(effective_pages)
@@ -350,6 +375,27 @@ fn prepare_native_history_step<const TIER: usize>(
             user_pages: effective_pages,
         });
     }
+    if v2_contract_inputs.len() > noid_recursive::V2_CONTRACT_SLOTS || !matches!(TIER, 25 | 255) {
+        return Err(HistoryStepWitnessError::V2ContractShape);
+    }
+    let user_body_base = 1 + usize::from(components.has_development_payout);
+    for (index, contract) in v2_contract_inputs.iter().enumerate() {
+        if !contract.live
+            || contract.body_index != user_body_base + index
+            || index >= components.authorization_inputs.len()
+        {
+            return Err(HistoryStepWitnessError::V2ContractShape);
+        }
+        let authorization = &mut components.authorization_inputs[index];
+        let authority = if template.header.height < contract.deadline {
+            contract.controller
+        } else {
+            contract.refund_authority
+        };
+        authorization.public =
+            noid_gkr::OwnerAuthPublicInputs::new(authorization.tx_body_hash, authority);
+    }
+    components.v2_contract_inputs = v2_contract_inputs;
     let authorizations = prepare_history_step_authorizations::<TIER>(
         effective_pages,
         &components.authorization_inputs,
@@ -369,7 +415,7 @@ fn prepare_native_history_step<const TIER: usize>(
     })
 }
 
-fn validate_parent_state_boundary(
+pub(super) fn validate_parent_state_boundary(
     parent: &BlockHeader,
     state: &ChainState,
 ) -> Result<(), HistoryStepWitnessError> {
@@ -428,7 +474,7 @@ fn validate_nonce_independent_block(
     Ok(())
 }
 
-fn build_history_step_components(
+pub(super) fn build_history_step_components(
     block: &Block,
     parent_state: &ChainState,
 ) -> Result<HistoryStepBlockComponents, HistoryStepWitnessError> {
@@ -479,6 +525,7 @@ fn build_history_step_components(
         tx_body_hashes,
         tx_root_inputs,
         authorization_inputs,
+        v2_contract_inputs: Vec::new(),
         exact_state: build_exact_state_frontier(block, parent_state)?,
     })
 }
@@ -653,6 +700,7 @@ pub enum HistoryStepWitnessError {
     ParentStateBoundary(&'static str),
     Consensus(ConsensusError),
     Authorization(HistoryStepAuthorizationError),
+    V2ContractShape,
     StateSurface(StateDeltaError),
     StateFrontier(ExactFrontierError),
     SparseMerkle(SparseMerkleError),
@@ -737,6 +785,9 @@ impl std::fmt::Display for HistoryStepWitnessError {
             Self::Consensus(source) => write!(formatter, "block consensus failed: {source}"),
             Self::Authorization(source) => {
                 write!(formatter, "HistoryStep authorization failed: {source}")
+            }
+            Self::V2ContractShape => {
+                formatter.write_str("research-v2 contract prefix is not canonical")
             }
             Self::StateSurface(source) => {
                 write!(formatter, "exact state surface failed: {source:?}")

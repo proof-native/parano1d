@@ -384,6 +384,16 @@ pub struct VerifiedOwnerSnapshot {
     pub utxos: Vec<VerifiedOwnerUtxo>,
 }
 
+/// A bounded page of individually checked owner records. This deliberately
+/// cannot be passed to wallet activation as a complete owner snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedOwnerPage {
+    pub height: u64,
+    pub tip_hash: [u8; 32],
+    pub utxos: Vec<VerifiedOwnerUtxo>,
+    pub next_slot: Option<u32>,
+}
+
 /// Owned per-block material accumulated while a replacement branch is fully
 /// validated in RAM.  `commit_reorg` writes the entire vector together with
 /// the final exact state in one MDBX transaction.
@@ -1006,6 +1016,30 @@ fn history_step_class_slot(effective_page_count: usize) -> Option<usize> {
     }
 }
 
+/// Legacy class selection is fixed by body size. In v2 the verified terminal
+/// selects its pinned class even for an empty block. Intermediate suffix
+/// markers carry no individual proof, so their class byte is a placeholder;
+/// they remain bound to the complete verified authority at the suffix tip.
+fn accepted_history_step_class_slot(
+    header: &BlockHeader,
+    effective_page_count: usize,
+    complete_terminal: Option<&[u8]>,
+) -> Option<usize> {
+    let legacy_class = history_step_class_slot(effective_page_count)?;
+    if !crate::consensus::params::v2_active(header.height) {
+        return Some(legacy_class);
+    }
+    match complete_terminal {
+        Some(bytes) => {
+            let (height, semantic_id, class) = history_step_terminal_metadata(bytes)?;
+            (height == header.height
+                && semantic_id == crate::block_header::semantic_header_id(header))
+            .then_some(class)
+        }
+        None => Some(0),
+    }
+}
+
 fn read_history_step_terminal(
     txn: &Transaction<'_, RO, NoWriteMap>,
     height: u64,
@@ -1057,7 +1091,7 @@ fn read_history_step_proof_object(
     semantic_id: [u8; 32],
     proof_class: u8,
 ) -> Result<Option<Vec<u8>>, StoreError> {
-    if proof_class >= crate::history_step::HISTORY_STEP_CLASS_COUNT {
+    if proof_class >= crate::history_step::history_step_class_count(height) {
         return Ok(None);
     }
     let table = txn.open_table(Some(T_HISTORY_STEP_PROOF_OBJECTS))?;
@@ -2163,7 +2197,7 @@ impl MdbxStore {
         &self,
         owner: &[u8; 32],
     ) -> Result<VerifiedOwnerSnapshot, StoreError> {
-        self.get_verified_utxos_by_owner_bounded(owner, None)
+        self.get_verified_utxos_by_owner_bounded(owner, None, None)
     }
 
     /// Check whether an owner has at least one live UTXO without loading its
@@ -2171,14 +2205,36 @@ impl MdbxStore {
     /// while full active-address activation continues to use the complete
     /// snapshot above.
     pub fn has_verified_utxo_by_owner(&self, owner: &[u8; 32]) -> Result<bool, StoreError> {
-        self.get_verified_utxos_by_owner_bounded(owner, Some(1))
+        self.get_verified_utxos_by_owner_bounded(owner, Some(1), None)
             .map(|snapshot| !snapshot.utxos.is_empty())
+    }
+
+    pub fn get_verified_owner_page(
+        &self,
+        owner: &[u8; 32],
+        from_slot: u32,
+        limit: usize,
+    ) -> Result<VerifiedOwnerPage, StoreError> {
+        if !(1..=256).contains(&limit) {
+            return Err(StoreError::Decode("owner page limit must be 1..=256"));
+        }
+        let mut snapshot =
+            self.get_verified_utxos_by_owner_bounded(owner, Some(limit + 1), Some(from_slot))?;
+        let next_slot = snapshot.utxos.get(limit).map(|utxo| utxo.slot_index);
+        snapshot.utxos.truncate(limit);
+        Ok(VerifiedOwnerPage {
+            height: snapshot.height,
+            tip_hash: snapshot.tip_hash,
+            utxos: snapshot.utxos,
+            next_slot,
+        })
     }
 
     fn get_verified_utxos_by_owner_bounded(
         &self,
         owner: &[u8; 32],
         max_utxos: Option<usize>,
+        from_slot: Option<u32>,
     ) -> Result<VerifiedOwnerSnapshot, StoreError> {
         let txn = self.db.begin_ro_txn()?;
 
@@ -2238,7 +2294,12 @@ impl MdbxStore {
         // hence segment-sorted. Verify records as the cursor yields them and
         // merge against one segment's live sparse entries at a time.
         let mut owner_cursor = txn.cursor(&owner_tbl)?;
-        let mut item: Option<(Vec<u8>, Vec<u8>)> = owner_cursor.set_range(owner.as_slice())?;
+        let start = from_slot.map(|slot| owner_index_key(owner, slot));
+        let mut item: Option<(Vec<u8>, Vec<u8>)> = owner_cursor.set_range(
+            start
+                .as_ref()
+                .map_or(owner.as_slice(), |key| key.as_slice()),
+        )?;
         let mut current_segment: Option<(u16, Vec<(u16, SlotValue)>, usize)> = None;
         let mut previous_slot = None;
         let mut verified = Vec::new();
@@ -3167,9 +3228,11 @@ impl MdbxStore {
                     .ok_or(StoreError::Decode(
                         "accepted block is missing its coinbase record",
                     ))?;
-            let expected_class = history_step_class_slot(effective_page_count).ok_or(
-                StoreError::Decode("accepted block page count has no canonical HistoryStep tier"),
-            )?;
+            let expected_class =
+                accepted_history_step_class_slot(header, effective_page_count, complete_terminal)
+                    .ok_or(StoreError::Decode(
+                    "accepted block page count has no canonical HistoryStep tier",
+                ))?;
             let terminal_bytes: Cow<'_, [u8]> = match complete_terminal {
                 Some(terminal) => {
                     if !history_step_terminal_matches_class(
@@ -3975,7 +4038,13 @@ impl MdbxStore {
                     .transactions
                     .len()
                     .checked_sub(1)
-                    .and_then(history_step_class_slot)
+                    .and_then(|pages| {
+                        accepted_history_step_class_slot(
+                            &staged.header,
+                            pages,
+                            accepted.complete_terminal(),
+                        )
+                    })
                     .ok_or(StoreError::Decode(
                         "staged reorg transaction count has no canonical HistoryStep tier",
                     ))?;
@@ -4247,7 +4316,7 @@ mod tests {
     }
 
     fn terminal(height: u64, hash: [u8; 32], current_slot: u8) -> Vec<u8> {
-        let class_id = current_slot * crate::history_step::HISTORY_STEP_TIER_SLOT_COUNT;
+        let class_id = current_slot;
         let mut bytes =
             crate::history_step::HistoryStepTerminalMetadata::new(height, hash, class_id)
                 .unwrap()
@@ -4410,6 +4479,117 @@ mod tests {
                 .utxos
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn owner_pages_use_inclusive_cursors_across_segments_and_keep_exact_tip_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = MdbxStore::open(directory.path()).unwrap();
+        let owner = [0x71; 32];
+        let other = [0x72; 32];
+        let slots = [(7, owner), (11, owner), (65_539, owner), (70_000, other)];
+        let utxos: Vec<_> = slots
+            .iter()
+            .enumerate()
+            .map(|(index, (slot, owner))| {
+                (
+                    *slot,
+                    SlotValue::with_owner_fields(
+                        100 + index as u64,
+                        index as u64 + 1,
+                        Address(*owner).as_fields(),
+                    ),
+                )
+            })
+            .collect();
+        let state = ChainState::from_sparse_utxos(17, &utxos, 4).unwrap();
+        let mut header = crate::consensus::genesis_header();
+        header.state_root = state.cached_state_root();
+        header.log_slots = 17;
+        header.active_slot_count = 4;
+        header.alloc_counter = 4;
+        let hash = crate::hash_block_header(&header);
+        let meta = ConsensusMeta {
+            tip_height: 0,
+            tip_hash: hash,
+            cumulative_chainwork: crate::block_work(&header.difficulty_target),
+            finalized: FinalizedCheckpoint { height: 0, hash },
+        };
+        let segments: Vec<_> = (0..2)
+            .map(|id| {
+                (
+                    id,
+                    16,
+                    Some(state.state.try_get_segment_columns(id).unwrap()),
+                )
+            })
+            .collect();
+        let roots: Vec<_> = (0..2)
+            .map(|id| {
+                (
+                    id,
+                    state.state.segment_live_count(id),
+                    state.cached_exact_segment_root(id).unwrap(),
+                )
+            })
+            .collect();
+        store
+            .commit_block(
+                &header,
+                &hash,
+                &BlockUndoLog::empty(0, 17),
+                &segments,
+                &roots,
+                &[],
+                &[],
+                None,
+                state.circulating_supply_micronoid,
+                &meta,
+                true,
+            )
+            .unwrap();
+        let first = store.get_verified_owner_page(&owner, 0, 2).unwrap();
+        assert_eq!(
+            first
+                .utxos
+                .iter()
+                .map(|utxo| utxo.slot_index)
+                .collect::<Vec<_>>(),
+            [7, 11]
+        );
+        assert_eq!(first.next_slot, Some(65_539));
+        let last = store
+            .get_verified_owner_page(&owner, first.next_slot.unwrap(), 2)
+            .unwrap();
+        assert_eq!(
+            last.utxos
+                .iter()
+                .map(|utxo| utxo.slot_index)
+                .collect::<Vec<_>>(),
+            [65_539]
+        );
+        assert_eq!(last.next_slot, None);
+        assert_eq!((first.height, first.tip_hash), (0, hash));
+        assert_eq!((last.height, last.tip_hash), (0, hash));
+        let middle = store.get_verified_owner_page(&owner, 8, 1).unwrap();
+        assert_eq!(middle.utxos[0].slot_index, 11);
+        assert_eq!(middle.next_slot, Some(65_539));
+        assert!(store
+            .get_verified_owner_page(&owner, u32::MAX, 1)
+            .unwrap()
+            .utxos
+            .is_empty());
+        assert!(store.get_verified_owner_page(&owner, 0, 0).is_err());
+        assert!(store.get_verified_owner_page(&owner, 0, 257).is_err());
+        let complete = store.get_verified_utxos_by_owner(&owner).unwrap();
+        assert_eq!(
+            complete.utxos,
+            first
+                .utxos
+                .into_iter()
+                .chain(last.utxos)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -4702,13 +4882,22 @@ mod tests {
         block: &crate::Block,
         parent_meta: &ConsensusMeta,
     ) -> ConsensusMeta {
+        commit_accepted_test_block_with_class(store, block, parent_meta, 0)
+    }
+
+    fn commit_accepted_test_block_with_class(
+        store: &MdbxStore,
+        block: &crate::Block,
+        parent_meta: &ConsensusMeta,
+        class: u8,
+    ) -> ConsensusMeta {
         let hash = crate::hash_block_header(&block.header);
         let bundle = crate::AcceptedBlockBundle::try_from_parts(
             block.to_bytes(),
             terminal(
                 block.header.height,
                 crate::block_header::semantic_header_id(&block.header),
-                0,
+                class,
             ),
         )
         .unwrap();
@@ -4746,6 +4935,115 @@ mod tests {
         let mut undo = BlockUndoLog::empty(block.header.height, block.header.log_slots);
         undo.tx_hashes = crate::block::try_compute_logical_txids(&block.transactions).unwrap();
         undo
+    }
+
+    #[test]
+    fn v2_storage_class_comes_from_the_terminal_not_body_occupancy() {
+        let Some(fork) = crate::consensus::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        let parent = crate::consensus::genesis_header();
+        for height in [fork - 1, fork, fork + 1] {
+            let candidate = block(&parent, height, 7);
+            let semantic = crate::block_header::semantic_header_id(&candidate.header);
+            for pages in [0, 25, 26, 63, 255] {
+                for class in [0, 1] {
+                    let bytes = terminal(height, semantic, class);
+                    let selected =
+                        accepted_history_step_class_slot(&candidate.header, pages, Some(&bytes));
+                    assert_eq!(
+                        selected,
+                        if height < fork {
+                            history_step_class_slot(pages)
+                        } else {
+                            Some(class as usize)
+                        }
+                    );
+                }
+            }
+            assert_eq!(
+                accepted_history_step_class_slot(&candidate.header, 256, None),
+                None
+            );
+            if height >= fork {
+                for bad in [
+                    terminal(height + 1, semantic, 0),
+                    terminal(height, [9; 32], 1),
+                ] {
+                    assert_eq!(
+                        accepted_history_step_class_slot(&candidate.header, 0, Some(&bad)),
+                        None
+                    );
+                }
+                let mut bad_class = terminal(height, semantic, 0);
+                bad_class[41] = crate::history_step::HISTORY_STEP_V2_CLASS_COUNT;
+                assert_eq!(
+                    accepted_history_step_class_slot(&candidate.header, 0, Some(&bad_class)),
+                    None
+                );
+                let placeholder =
+                    accepted_history_step_class_slot(&candidate.header, 255, None).unwrap();
+                assert_eq!(placeholder, 0);
+                let marker = encode_recursive_suffix_marker(
+                    &candidate.header,
+                    placeholder,
+                    height + 1,
+                    [3; 32],
+                )
+                .unwrap();
+                assert_eq!(
+                    recursive_suffix_marker_authority(&marker, height, semantic, None),
+                    Some((height + 1, [3; 32]))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn v2_empty_large_block_is_retained_and_reopened_with_its_exact_class() {
+        if !crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+            return;
+        }
+        let fork = crate::consensus::params::V2_ACTIVATION_HEIGHT.unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let store = MdbxStore::open(directory.path()).unwrap();
+        let (mut parent, mut meta) = commit_genesis(&store);
+        for height in 1..=fork + 1 {
+            let candidate = block(&parent, height, height as u8);
+            let class = u8::from(height == fork);
+            meta = commit_accepted_test_block_with_class(&store, &candidate, &meta, class);
+            let bytes = store
+                .get_recent_accepted_block_bundle_bounded(height)
+                .unwrap()
+                .unwrap();
+            let bundle = crate::AcceptedBlockBundle::decode(&bytes).unwrap();
+            let metadata = crate::history_step::HistoryStepTerminalMetadata::decode_prefix(
+                bundle.history_step_terminal_bytes(),
+            )
+            .unwrap();
+            assert_eq!(metadata.class_id(), class);
+            assert_eq!(
+                store
+                    .get_history_step_proof_object(height, metadata.terminal_hash(), class)
+                    .unwrap()
+                    .as_deref(),
+                Some(bundle.history_step_terminal_bytes())
+            );
+            parent = candidate.header;
+        }
+        let fork_header = store.get_header(fork).unwrap().unwrap();
+        drop(store);
+        let reopened = MdbxStore::open(directory.path()).unwrap();
+        let terminal = reopened
+            .get_history_step_terminal_at(fork, crate::hash_block_header(&fork_header))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            crate::history_step::HistoryStepTerminalMetadata::decode_prefix(&terminal)
+                .unwrap()
+                .class_id(),
+            1
+        );
     }
 
     #[test]

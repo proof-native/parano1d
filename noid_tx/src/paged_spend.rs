@@ -4,7 +4,9 @@
 //! Canonical multi-page transaction primitive.
 //!
 //! A [`TxPage`] has exactly the existing 323-byte Tx8x2 body encoding. Bits
-//! 10 and 11 delimit one atomic logical transaction. Page-local validation
+//! 10 and 11 delimit one atomic logical transaction. The research v2 carrier
+//! reserves bits 12 and 13 for contract and terminal-object selection without
+//! changing the fixed 323-byte Tx8x2 encoding. Page-local validation
 //! checks representation invariants; group-wide validation checks density,
 //! balance, ownership and the logical transaction id.
 
@@ -25,8 +27,17 @@ pub const PAGED_SPEND_VERSION: u16 = 1;
 pub const MAX_TX_AUTHORIZATION_BYTES: usize = 256 * 1024;
 pub const PAGED_SPEND_START_BIT: u16 = 1 << 10;
 pub const PAGED_SPEND_END_BIT: u16 = 1 << 11;
+/// Research-v2 proof-native object call. This is hash-bound by the existing
+/// validity-bitmap leaf and deliberately remains outside the v1 standalone
+/// `TxBody` canonical mask.
+pub const PAGED_SPEND_CONTRACT_BIT: u16 = 1 << 12;
+/// Selects a terminal object transition. Meaningful only together with
+/// [`PAGED_SPEND_CONTRACT_BIT`].
+pub const PAGED_SPEND_TERMINAL_BIT: u16 = 1 << 13;
 pub const PAGED_SPEND_MARKER_MASK: u16 = PAGED_SPEND_START_BIT | PAGED_SPEND_END_BIT;
-pub const PAGED_SPEND_VALIDITY_MASK: u16 = TX_VALIDITY_MASK | PAGED_SPEND_MARKER_MASK;
+pub const PAGED_SPEND_V2_CONTRACT_MASK: u16 = PAGED_SPEND_CONTRACT_BIT | PAGED_SPEND_TERMINAL_BIT;
+pub const PAGED_SPEND_VALIDITY_MASK: u16 =
+    TX_VALIDITY_MASK | PAGED_SPEND_MARKER_MASK | PAGED_SPEND_V2_CONTRACT_MASK;
 
 pub const MAX_PAGED_SPEND_PAGES: usize = 128;
 pub const MAX_PAGED_SPEND_INPUTS: usize = 1_020;

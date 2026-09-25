@@ -1,6 +1,6 @@
 # 交易协议
 
-用户交易是一个规范[逻辑交易](../reference/glossary.md#logical-transaction) [`PagedSpend`](../reference/glossary.md#pagedspend)，由 1 至 128 个固定 [`Tx8x2` 物理页](../reference/glossary.md#tx8x2)以及恰好一份独立的[授权证明封装](../reference/glossary.md#authorization-envelope)组成。
+普通用户交易是一个规范[逻辑交易](../reference/glossary.md#logical-transaction) [`PagedSpend`](../reference/glossary.md#pagedspend)，由 1 至 128 个固定 [`Tx8x2` 物理页](../reference/glossary.md#tx8x2)以及恰好一份独立的[授权证明封装](../reference/glossary.md#authorization-envelope)组成。
 
 ## 物理页
 
@@ -16,7 +16,8 @@
 | `validity_bitmap` | 有效记录及逻辑开始/结束位图 |
 | `is_coinbase` | 所有用户页均为 `false` |
 
-位 0–7 选择输入，位 8–9 选择输出，位 10 和 11 标记逻辑组的开始与结束。其他位图位均不得置位。
+位 0–7 选择输入，8–9 选择输出，10–11 标记逻辑开始和结束。
+v2 合约调用还使用位 12（合约）和 13（关闭）。普通付款这两位为零，14–15 始终为零。
 
 有效位为零的记录必须是全零规范占位记录，从而消除同一命题的替代编码。
 
@@ -35,11 +36,14 @@
 - 输入不得重复；
 - 输出槽位不得重复；
 - 同一笔支出中，输出槽位不得同时作为输入槽位；
-- 最多 1,020 个输入和 256 个输出；
+- 在类别页数预算内最多 504 个输入和 256 个输出；
 - 输入总额等于输出总额加手续费；
 - 分离授权不超过 256 KiB。
 
 规范意图的最大编码长度为 303,495 字节。
+
+Small 每块允许 63 页，Large 允许 206 页，共同输入预算为 504。普通逻辑花费仍
+最多 128 页且必须完整放入一块。钱包规划和两次内存池检查都执行候选高度的限制。
 
 ## 逻辑交易 ID
 
@@ -89,6 +93,17 @@ floor((C - 1) / 144) × 144
 钱包授权只证明所有权，不证明当前槽位成员关系，也不包含 Live State 的 Merkle 路径。
 
 区块 `HistoryStep` 证明当前成员关系、空槽、余额、分配以及转换后 State 根。两项命题绑定同一公开逻辑交易。
+
+## v2 合约调用
+
+调用携带 699 字节公开 opening 和一个规范合约页，花费精确的
+`(slot_index, creation_id)` 并检查承诺程序、所选授权及金额策略。
+继续调用在输出 0 创建更新承诺，输出 1 可选付款；关闭通过输出 0 向分支收款人
+付款，不创建后继。
+
+两类支持相同 ABI 和最多 63 次调用，调用与普通花费共享页数和输入预算，并形成
+用户页前缀。授权证明所选授权方的秘密，State 所有者则是 opening 的对象承诺。
+完整分支规则见[内核](../contracts/core.md)和[生命周期](../contracts/lifecycle.md)。
 
 ## 系统记录
 

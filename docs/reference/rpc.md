@@ -6,7 +6,7 @@ Core exposes JSON-RPC 2.0 over HTTP. WebSocket upgrades are rejected. The defaul
 http://127.0.0.1:9601
 ```
 
-Every method has the `paranoid_` namespace prefix. Parameters are positional JSON arrays. Request bodies are limited to 1 MiB, and JSON-RPC batches remain supported within that body limit.
+Every method has the `paranoid_` namespace prefix. Parameters are positional JSON arrays. Request bodies are limited to 2,237,632 bytes, and JSON-RPC batches remain supported within that body limit.
 
 ```sh
 curl --silent --show-error \
@@ -125,6 +125,10 @@ owner string.
 Detailed fee counts must be 1–1,020 inputs and 1–256 outputs. The returned fee
 includes the current relay floor.
 
+The fee estimator accepts format-level counts; it does not approve block
+capacity. V2 wallet planning and admission enforce the 504-input and class
+page budgets.
+
 ## Utility and submission methods
 
 | Method suffix | Positional params | Result |
@@ -139,7 +143,7 @@ Slot hints are not reservations. Both methods exclude currently reserved
 mempool outputs, return at most 256 entries and may return fewer if the node
 cannot find enough empty slots. Salt is bounded to 256 decoded bytes.
 
-`submitTxIntent` accepts one canonical encoded `PagedSpendIntent`, including
+`submitTxIntent` accepts a canonical ordinary or v2 contract intent, including
 the detached authorization capsule. Decoded input is bounded to 303,495 bytes
 before parsing and proof verification.
 
@@ -177,7 +181,9 @@ node payout. A non-empty address is accepted only when the node enabled custom
 coinbase.
 
 `nonce_hex` is exactly 32 lowercase hex characters encoding 16 little-endian
-bytes. Templates are single-use and expire after 30 seconds.
+bytes. Templates are single-use and expire 30 seconds after proof preparation
+finishes. The RPC request itself can take longer while the node prepares the
+proof; the external worker's default request timeout is 180 seconds.
 
 ## Node control
 
@@ -231,6 +237,197 @@ owner.
 `walletConsolidate` is quote-bound. Its slot list, fee and output value must
 exactly match the latest plan; otherwise it fails and the caller must request a
 new quote.
+
+## Contract methods
+
+All methods below use the `paranoid_` prefix and **local owner scope**.
+The installed v2 binary exposes terms, metadata and local observation before
+H210537. `walletFundObject`, `previewObjectCall` and `walletCallObject` require
+v2 at the next candidate height and `runtime_available = true`.
+
+| Method suffix | Positional parameters | Result |
+| --- | --- | --- |
+| `getContractProtocol` | `[]` | `ObjectProtocolInfo` |
+| `createObject` | `[definition]` | `ObjectInfo` |
+| `getObjectStatus` | `[opening_hex, slot_index]` | `ObjectStatus` |
+| `getObjectInstances` | `[opening_hex, from_slot, limit]` | `ObjectInstances` |
+| `previewObjectCall` | `[request]` | `ObjectCallPreview` |
+| `walletFundObject` | `[opening_hex, amount_micronoid, fee_micronoid, expected_sender?]` | `WalletSendResult` |
+| `walletCallObject` | `[request]` | `ObjectCallResult` |
+| `walletGetObjectOpening` | `[address]` | `ObjectInfo` |
+| `walletWatchObject` | `[opening_hex]` | `ObjectInfo` |
+| `walletListObjectStates` | `[opening_hex, after_root, limit]` | `ObjectKnownStates` |
+| `walletListObjectReceipts` | `[opening_hex, after_cursor, limit]` | `ObjectActivityPage` |
+| `exportObjectReceipt` | `[opening_hex, txid]` | `hex` |
+| `verifyObjectReceipt` | `[receipt_hex]` | `ObjectReceiptResult` |
+| `walletImportObjectReceipt` | `[receipt_hex, expected_opening_hex?]` | `ObjectReceiptResult` |
+
+`getObjectInstances` uses an inclusive slot cursor and limit 1–256. State and
+activity lists use exclusive nullable cursors and limit 1–64; responses carry
+the observed height and tip hash. Activity includes retained calls of both
+parties and their `canonical` status. Imports merge verified evidence by txid
+without deleting existing local records. All balances are queried from State.
+
+The [contract API guide](../contracts/api.md) defines constructor variants,
+custom program fields, review guards, error recovery and CLI workflows.
+Contract receipts use `verifyObjectReceipt` / `walletImportObjectReceipt`,
+with a 1,110,624-byte decoded cap. Ordinary `verifyReceipt` retains its separate
+128 KiB payment format. `createObject` creates public terms without a fee;
+`max_fee_micronoid` caps a later call. Counter and instruction immediate values
+are canonical decimal u64 strings.
+
+### Contract schemas
+
+`ObjectDefinition` and `ObjectProgramStep` follow the tagged definitions and
+instruction format in [API integration](../contracts/api.md) and [core](../contracts/core.md).
+Flattened `ObjectCallDetails` fields appear directly in receipt and activity
+objects. A receipt authenticates a past call; query current State separately.
+
+```text
+ObjectInfo {
+  abi_version: u16
+  state: [decimal u64 string, decimal u64 string]
+  address: string
+  opening_hex: string
+  code_id: string
+  state_hex: string
+  program: ObjectProgramStep[16]
+  claim_authority: string
+  recovery_authority: string
+  claim_recipient: string
+  recovery_recipient: string
+  deadline_height: u64
+  max_fee_micronoid: u64
+  max_payout_micronoid: u64
+  min_retained_micronoid: u64
+  claim_can_continue: bool
+  claim_can_close: bool
+  recovery_can_continue: bool
+  recovery_can_close: bool
+  unrestricted_payout_recipient: bool
+}
+
+ObjectStatus {
+  object: ObjectInfo
+  slot: SlotInfo
+  matches_opening: bool
+  tip_height: u64
+  next_call_height: u64
+  active_authority: string
+}
+
+ObjectInstances {
+  address: string
+  height: u64
+  tip_hash: string
+  slots: SlotInfo[]
+  next_slot: u32 | null
+}
+
+ObjectKnownState {
+  object: ObjectInfo
+  has_balance: bool
+}
+
+ObjectKnownStates {
+  states: ObjectKnownState[]
+  height: u64
+  tip_hash: string
+  next_root: string | null
+}
+
+ObjectPayout {
+  address: string
+  amount_micronoid: u64
+}
+
+ObjectCallRequest {
+  opening_hex: string
+  slot_index: u32
+  creation_id: u64
+  terminal: bool
+  payout: ObjectPayout | null
+  fee_micronoid: u64
+  expected_recovery: bool | null
+  expected_authority: string | null
+  expected_call_height: u64 | null
+  expected_txid: string | null
+}
+
+ObjectCallPreview {
+  txid: string
+  call_height: u64
+  authority: string
+  recovery: bool
+  terminal: bool
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+  successor: ObjectInfo | null
+}
+
+ObjectCallResult {
+  transaction: WalletSendResult
+  call_height: u64
+  successor: ObjectInfo | null
+  output_slot: u32
+}
+
+ObjectReceiptResult {
+  valid: bool
+  ...ObjectCallDetails
+}
+
+ObjectCallDetails {
+  height: u64
+  txid: string
+  terminal: bool
+  authority: string
+  original: ObjectInfo
+  successor: ObjectInfo | null
+  input_micronoid: u64
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+}
+
+ObjectActivityEntry {
+  ...ObjectCallDetails
+  block_hash: string
+  canonical: bool
+}
+
+ObjectActivityPage {
+  height: u64
+  tip_hash: string
+  entries: ObjectActivityEntry[]
+  next_cursor: string | null
+}
+
+ObjectClassLimits {
+  class: string
+  pages: usize
+  live_inputs: usize
+  contract_calls: usize
+}
+
+ObjectProtocolInfo {
+  tip_height: u64
+  activation_height: u64 | null
+  active_at_next_block: bool
+  runtime_available: bool
+  next_block_time_seconds: u64
+  abi_version: u16
+  instructions: usize
+  persistent_registers: usize
+  classes: ObjectClassLimits[]
+}
+```
+
+Optional request guards may be omitted or null. `creation_id` is mandatory.
+Closing uses `terminal: true`, `payout: null`; the semantic result reports the
+closing payment and no successor. A zero call fee requests the current minimum,
+subject to the policy ceiling. Submission responses still require inclusion.
 
 ## Response schemas
 
@@ -495,6 +692,11 @@ Fee rate uses weighted units:
 inputs + outputs + 4 × net_new_slots
 ```
 
+`minimum_proof_class` reflects the installed bank's actual page
+capacity. The existing `requires_b255_miner` field is retained for API
+compatibility and indicates that the spend needs the larger class; its name
+does not imply a 255-page v2 limit.
+
 ### Address validation
 
 ```text
@@ -751,7 +953,7 @@ One wallet planning error has a stable machine-readable contract:
   "code": -32011,
   "message": "InputLimitExceeded",
   "data": {
-    "max_inputs": 1020
+    "max_inputs": 504
   }
 }
 ```
@@ -766,3 +968,7 @@ Clients should:
 3. branch on documented stable codes;
 4. present other application messages to the operator without parsing their
    prose.
+
+Contract-held outputs are queried through the object methods. Ordinary
+wallet balance methods enumerate wallet owners and do not include arbitrary
+contract commitments. `getTx` retains an index pointer after body pruning.

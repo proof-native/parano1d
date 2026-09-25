@@ -125,8 +125,9 @@ fn fold_pair(a: &mut Vec<F256>, b: &mut Vec<F256>, challenge: F256) {
     assert_eq!(b.len(), length);
     assert!(length.is_power_of_two() && length >= 2);
     let half = length / 2;
-    let folded = a
-        .par_chunks_exact(2)
+    let mut next_a = Vec::with_capacity(half);
+    let mut next_b = Vec::with_capacity(half);
+    a.par_chunks_exact(2)
         .zip(b.par_chunks_exact(2))
         .map(|(a_pair, b_pair)| {
             (
@@ -134,13 +135,11 @@ fn fold_pair(a: &mut Vec<F256>, b: &mut Vec<F256>, challenge: F256) {
                 b_pair[0] + challenge * (b_pair[1] + b_pair[0]),
             )
         })
-        .collect::<Vec<_>>();
-    a.truncate(half);
-    b.truncate(half);
-    for (index, (a_value, b_value)) in folded.into_iter().enumerate() {
-        a[index] = a_value;
-        b[index] = b_value;
-    }
+        .unzip_into_vecs(&mut next_a, &mut next_b);
+    // Write the two half-sized outputs directly in parallel. A temporary
+    // tuple vector requires a serial copy and retains the original buffers.
+    *a = next_a;
+    *b = next_b;
 }
 
 fn round_pair(a: &[F256], b: &[F256], eq_challenges: &[F256]) -> (F256, F256) {
@@ -174,6 +173,19 @@ pub fn prove<C: Challenger>(
     c: &[F128],
     m: usize,
     challenger: &mut C,
+) -> (C1ZerocheckProof, C1ZerocheckClaim) {
+    prove_with_fold(a, b, c, m, challenger, fold_pair)
+}
+
+// The injected folding operation lets tests compare the complete transcript
+// against the previous implementation. Production uses only `fold_pair`.
+fn prove_with_fold<C: Challenger>(
+    a: &[F128],
+    b: &[F128],
+    c: &[F128],
+    m: usize,
+    challenger: &mut C,
+    mut fold: impl FnMut(&mut Vec<F256>, &mut Vec<F256>, F256),
 ) -> (C1ZerocheckProof, C1ZerocheckClaim) {
     let k_skip = K_SKIP;
     let skip_size = 1usize << k_skip;
@@ -259,7 +271,7 @@ pub fn prove<C: Challenger>(
         mlv_challenges.push(challenger.sample_f256());
     }
     for round in 0..mlv_rounds - 1 {
-        fold_pair(&mut a_mlv, &mut b_mlv, mlv_challenges[round]);
+        fold(&mut a_mlv, &mut b_mlv, mlv_challenges[round]);
         let log_length = a_mlv.len().trailing_zeros() as usize;
         let mut next_eq = vec![F256::ONE; log_length];
         next_eq[1..].copy_from_slice(&r_rest[round + 2..]);
@@ -270,7 +282,7 @@ pub fn prove<C: Challenger>(
         mlv_challenges.push(challenger.sample_f256());
     }
 
-    fold_pair(
+    fold(
         &mut a_mlv,
         &mut b_mlv,
         *mlv_challenges.last().expect("at least one challenge"),
@@ -411,6 +423,162 @@ mod tests {
         let b = rng.f128_vec(1usize << m);
         let c = a.iter().zip(&b).map(|(&x, &y)| x * y).collect();
         (a, b, c)
+    }
+
+    // Reference from before the direct-output optimization. Keeping it in
+    // tests permits full proof/transcript parity and interleaved A/B timings.
+    fn fold_pair_reference(a: &mut Vec<F256>, b: &mut Vec<F256>, challenge: F256) {
+        let length = a.len();
+        assert_eq!(b.len(), length);
+        assert!(length.is_power_of_two() && length >= 2);
+        let half = length / 2;
+        let folded = a
+            .par_chunks_exact(2)
+            .zip(b.par_chunks_exact(2))
+            .map(|(a_pair, b_pair)| {
+                (
+                    a_pair[0] + challenge * (a_pair[1] + a_pair[0]),
+                    b_pair[0] + challenge * (b_pair[1] + b_pair[0]),
+                )
+            })
+            .collect::<Vec<_>>();
+        a.truncate(half);
+        b.truncate(half);
+        for (index, (a_value, b_value)) in folded.into_iter().enumerate() {
+            a[index] = a_value;
+            b[index] = b_value;
+        }
+    }
+
+    #[test]
+    fn c1_direct_folding_preserves_reference_proof_and_transcript() {
+        for m in [7, 8, 16] {
+            let (a, b, c) = valid_instance(m, 0xC1F01D + m as u64);
+            let run = |threads, reference| {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(threads)
+                    .build()
+                    .unwrap()
+                    .install(|| {
+                        let mut channel = FsLaneChallenger::new_c1(b"field-c1-direct-fold");
+                        let (proof, claim) = if reference {
+                            prove_with_fold(&a, &b, &c, m, &mut channel, fold_pair_reference)
+                        } else {
+                            prove(&a, &b, &c, m, &mut channel)
+                        };
+                        (proof, claim, channel.sample_f256())
+                    })
+            };
+            let reference = run(1, true);
+            for threads in [1, 4] {
+                let actual = run(threads, false);
+                assert_eq!(actual, reference, "m={m}, threads={threads}");
+                assert_eq!(
+                    bincode::serialize(&actual.0).unwrap(),
+                    bincode::serialize(&reference.0).unwrap()
+                );
+                let mut verifier = FsLaneChallenger::new_c1(b"field-c1-direct-fold");
+                assert_eq!(verify(m, &actual.0, &mut verifier).unwrap(), actual.1);
+                assert_eq!(verifier.sample_f256(), actual.2);
+            }
+        }
+    }
+
+    #[test]
+    fn c1_direct_folding_releases_previous_capacity() {
+        let mut rng = Rng(0xC1CA9);
+        let mut a: Vec<_> = (0..4096)
+            .map(|_| F256::new(rng.f128(), rng.f128()))
+            .collect();
+        let mut b = a.iter().rev().copied().collect::<Vec<_>>();
+        let (mut expected_a, mut expected_b) = (a.clone(), b.clone());
+        let challenges = [F256::ZERO, F256::ONE, F256::new(rng.f128(), rng.f128())];
+        let mut round = 0;
+        while a.len() > 1 {
+            let challenge = challenges[round % challenges.len()];
+            fold_pair_reference(&mut expected_a, &mut expected_b, challenge);
+            fold_pair(&mut a, &mut b, challenge);
+            assert_eq!(a, expected_a);
+            assert_eq!(b, expected_b);
+            assert_eq!(a.capacity(), a.len());
+            assert_eq!(b.capacity(), b.len());
+            round += 1;
+        }
+    }
+
+    #[test]
+    #[ignore = "isolated production-width C1 zerocheck A/B measurement"]
+    fn bench_c1_direct_folding() {
+        use std::time::{Duration, Instant};
+        let number = |name: &str, default: usize| {
+            std::env::var(name)
+                .map(|v| v.parse::<usize>().expect("numeric benchmark option"))
+                .unwrap_or(default)
+        };
+        let m = number("NOID_C1_FOLD_BENCH_M", 23);
+        let samples = number("NOID_C1_FOLD_BENCH_SAMPLES", 7);
+        assert!((7..=24).contains(&m));
+        assert!((1..=30).contains(&samples));
+        let (a, b, c) = valid_instance(m, 0xC1F01D + m as u64);
+        println!(
+            "{}",
+            serde_json::json!({
+                "phase": "setup", "m": m, "samples": samples,
+                "threads": rayon::current_num_threads(),
+                "cpu_backend": noid_core::cpu::selected_backend().to_string(),
+                "input_bytes": (a.len() + b.len() + c.len()) * std::mem::size_of::<F128>()
+            })
+        );
+        let mut expected = None;
+        // Sample zero warms both implementations; subsequent pairs alternate
+        // order. This isolates folding, not full HistoryStep construction.
+        for sample in 0..=samples {
+            for reference in if sample % 2 == 0 {
+                [true, false]
+            } else {
+                [false, true]
+            } {
+                let mut channel = FsLaneChallenger::new_c1(b"field-c1-direct-fold-bench");
+                let mut fold_time = Duration::ZERO;
+                let mut first_retained_bytes = None;
+                let start = Instant::now();
+                let (proof, claim) = prove_with_fold(&a, &b, &c, m, &mut channel, |a, b, r| {
+                    let start = Instant::now();
+                    if reference {
+                        fold_pair_reference(a, b, r);
+                    } else {
+                        fold_pair(a, b, r);
+                    }
+                    fold_time += start.elapsed();
+                    first_retained_bytes
+                        .get_or_insert((a.capacity() + b.capacity()) * std::mem::size_of::<F256>());
+                });
+                let prove_ms = start.elapsed().as_secs_f64() * 1000.0;
+                let following = channel.sample_f256();
+                let encoded = bincode::serialize(&(&proof, following)).unwrap();
+                if let Some(expected) = &expected {
+                    assert_eq!(&encoded, expected, "proof/transcript changed");
+                } else {
+                    expected = Some(encoded.clone());
+                }
+                let mut verifier = FsLaneChallenger::new_c1(b"field-c1-direct-fold-bench");
+                let start = Instant::now();
+                let verified = verify(m, &proof, &mut verifier).unwrap();
+                let verify_ms = start.elapsed().as_secs_f64() * 1000.0;
+                assert_eq!(claim, verified);
+                assert_eq!(following, verifier.sample_f256());
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "sample": sample, "warmup": sample == 0, "m": m,
+                        "implementation": if reference { "reference" } else { "direct" },
+                        "prove_ms": prove_ms, "fold_ms": fold_time.as_secs_f64() * 1000.0,
+                        "verify_ms": verify_ms, "first_retained_bytes": first_retained_bytes,
+                        "proof_and_following_bytes": encoded.len(), "parity": true
+                    })
+                );
+            }
+        }
     }
 
     #[test]

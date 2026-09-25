@@ -35,7 +35,9 @@ FROST-GKR 把批量 Poseidon2b 执行与 Merkle 路径表示为共享布尔超�
 - 二进制域上的 [FRI-Binius/BaseFold](../reference/glossary.md#fri-family)；
 - 一个 `GF(2^256)` 联合交互记录，用于三个 Link 递归区域和六个 Block 递归区域。
 
-最终证明系统是透明的，不需要[可信设置](../reference/glossary.md#trusted-setup)。发布的可执行文件内嵌经过认证的 [B25 与 B255](../reference/glossary.md#b25-b255) 矩阵包以及预期摘要。使用不同矩阵包的构建无法悄悄冒充规范关系。
+透明证明系统使用认证的联合 Small/Large 矩阵库，固定摘要绑定解释器、预算和激活计划。
+合约程序在共享关系内执行。过渡版本还验证旧祖先链；后续 retired-history 版本
+可用认证来源证书省去旧矩阵字节。
 
 ## 钱包授权
 
@@ -43,6 +45,8 @@ FROST-GKR 把批量 Poseidon2b 执行与 Merkle 路径表示为共享布尔超�
 
 序列化授权的最坏情况上界为 92,696 字节。网络格式允许最高 256 KiB，使解码
 保持明确有界，同时为规范证明对象保留空间。
+
+合约输入对承诺策略选定的授权方使用同一秘密知识证明，State 所有者是对象承诺。
 
 ## HistoryStep
 
@@ -60,20 +64,6 @@ FROST-GKR 把批量 Poseidon2b 执行与 Merkle 路径表示为共享布尔超�
 
 ## 安全性分析
 
-实际部署的扩展挑战值配置使用 65 次钱包查询和 133 次 History 查询，得到以下结果：
-
-| 安全性结论 | 实际部署结果 |
-|---|---:|
-| FRI 目标安全性 | **128 位** |
-| 可证明 Block–Tiwari FS-FRI 安全性 | **127 位** |
-| 基于猜想的 Block–Tiwari FS-FRI 安全性 | **127 位** |
-| 顺序理想 QROM 中成功概率为二分之一的边界 | **64.707407428576 位** |
-| NIST 后量子密码学类别 | **Category 1** |
-| Category 1 门数与深度乘积的主导下界 | **173.391078499301 位** |
-
-Block–Tiwari 数值衡量经典随机预言机模型中的 FS-FRI 期望工作量。Category 1
-结果属于另一项从创世开始的端到端无效 State 可靠性游戏，并以定理明确声明的
-固定 Poseidon2b 偏差上界、批量门数-深度计价与标量响应门数为前提。实际部署常量、归约和精确计算见
-[`noid_soundness`](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)。
-
-声明边界与证明系统之外的假设见[安全模型](../protocol/security-model.md)，实现 crate 见[工作区结构](../developers/workspace.md)。
+C1 使用 65 个钱包查询和 133 个 History 查询。v2 计算包含旧祖先链及两个
+矩阵退役归约。准确清单、组合假设及 Category 1 资源界限见
+[安全模型](../protocol/security-model.md)。合约在共享关系内增加确定性约束。

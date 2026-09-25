@@ -1,0 +1,250 @@
+{
+  "status": "passed",
+  "implementation_commit": "8f7e1a06b1e546a9f336698ed16df9fceb416c90",
+  "isolated_bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "tests": {
+    "gui-tests": {
+      "exit_code": 0,
+      "seconds": 3.249256556009641,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "noid_gui",
+        "--bin",
+        "parano1d-gui"
+      ],
+      "passed": 81,
+      "ignored": 1,
+      "log_sha256": "4e0e5f73d2ba13d5b8adf4fcce8fec1132fc6fae890ab7cc97224fdbd5fb9a87"
+    },
+    "node-wallet-tests": {
+      "job": "node-wallet-tests",
+      "exit_code": 0,
+      "seconds": 153.02747974501108,
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "-p",
+        "noid_node",
+        "--example",
+        "isolated_v2_node",
+        "--features",
+        "isolated-v2-fork-testnet",
+        "wallet::",
+        "--",
+        "--test-threads=4"
+      ],
+      "passed": 102,
+      "ignored": 0,
+      "log_sha256": "fd391803ab64ab0e3ed44f994f5740c7bf94ab340e59b1e71e5cb3435486a1c3"
+    },
+    "rpc-object-tests": {
+      "job": "rpc-object-tests",
+      "exit_code": 0,
+      "seconds": 85.97005561899277,
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "-p",
+        "noid_rpc",
+        "--lib",
+        "server::objects::",
+        "--",
+        "--test-threads=4"
+      ],
+      "passed": 2,
+      "ignored": 0,
+      "log_sha256": "64b8409c6100c07b61438e2b6ac8e5dbdf20e41b05642151f951c356848ccf10"
+    }
+  },
+  "live": {
+    "binary_sha256": {
+      "isolated_v2_node": "ee6ebd4c26d91a27dac4d59198b72e6cdbd3a3b38a55037a187594b2e0ac4714",
+      "parano1d-miner": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68",
+      "parano1d_gui-bcc9f0286ceda5ce": "5ecad8d0a8e97f0c49cd769fbb508f9d3aa17bf5f188d041810f83543f70fc5d"
+    },
+    "script_sha256": {
+      "live_v2_contract_wallet_scenario.py": "cbad3d51956dbc69c15a07ce89bdc2bc2581f77a84610c9ebe9c16927c9b015b",
+      "live_v2_contract_scenario.py": "2cd0171011deb6fe5af48455418a27009c98e3afcb6d23af049725d656916e5d",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "blocks": [
+      {
+        "first": 86,
+        "last": 86,
+        "seconds": 18.714382931008004
+      },
+      {
+        "first": 87,
+        "last": 87,
+        "seconds": 17.961587617988698
+      },
+      {
+        "first": 88,
+        "last": 88,
+        "seconds": 18.31187772800331
+      },
+      {
+        "first": 89,
+        "last": 131,
+        "seconds": 965.1695021430205
+      },
+      {
+        "first": 132,
+        "last": 132,
+        "seconds": 16.61936632200377
+      }
+    ],
+    "negative_cases": {
+      "wrong_opening": "RPC walletImportObjectReceipt@26301 failed: {'code': -32000, 'message': 'receipt does not establish the requested contract state'}",
+      "damaged_proof": "RPC walletImportObjectReceipt@26301 failed: {'code': -32000, 'message': 'v2 HistoryStep: Proof(Auxiliary)'}"
+    },
+    "pruned_body_lookup": {
+      "height": 88,
+      "retained": null,
+      "raw_block": null,
+      "tx_index": {
+        "tx_hash": "6a2d280a57fae0b89a848d4f5b625f847408ac631be29a9a30a65b0da213ee6c",
+        "height": 88,
+        "block_hash": "d08e227935751eb3f5d669b745165c931e99989b0b83584d5fad949c6ee2411e",
+        "tx_position": 1
+      }
+    },
+    "resumed_checkpoint": {
+      "report_sha256": "379c83d59b0657bb3f3db0028af5939c8e203fdff72b66dd5b2408592d151a07",
+      "status": "failed",
+      "error": "old transaction is still served",
+      "binary_sha256": {
+        "isolated_v2_node": "ee6ebd4c26d91a27dac4d59198b72e6cdbd3a3b38a55037a187594b2e0ac4714",
+        "parano1d-miner": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68",
+        "parano1d_gui-bcc9f0286ceda5ce": "5ecad8d0a8e97f0c49cd769fbb508f9d3aa17bf5f188d041810f83543f70fc5d"
+      },
+      "script_sha256": {
+        "live_v2_contract_wallet_scenario.py": "cbac4aaccc2c1f66f60eae696b389b0cb90ac9c60539d9236a570836080e1c02",
+        "live_v2_contract_scenario.py": "2cd0171011deb6fe5af48455418a27009c98e3afcb6d23af049725d656916e5d",
+        "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+      }
+    },
+    "final_tip": {
+      "height": 132,
+      "best_hash": "cb01151e8a8a1b8e068048c8927d1492de782727c301856a55abd717a8afe023",
+      "difficulty_target": "00000000000000000000000000000000f1275584805563c9a8497729c92f0000",
+      "active_slot_count": 198,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "2173927500"
+    },
+    "ordinary_body_lookup_pruned": true,
+    "independent_wallets": true,
+    "gui_rendering_tested": false,
+    "gui_checks": [
+      {
+        "label": "01-alice-create_and_fund",
+        "seconds": 1.018678477004869
+      },
+      {
+        "label": "02-alice-share",
+        "seconds": 0.3150781750155147
+      },
+      {
+        "label": "03-bob-import",
+        "seconds": 0.3650268589844927
+      },
+      {
+        "label": "04-bob-activity",
+        "seconds": 0.01575255100033246,
+        "journal_records": 1
+      },
+      {
+        "label": "05-bob-call",
+        "seconds": 0.8659229699987918
+      },
+      {
+        "label": "06-alice-activity",
+        "seconds": 0.03211036999709904,
+        "journal_records": 2
+      },
+      {
+        "label": "07-bob-call",
+        "seconds": 0.866460752004059
+      },
+      {
+        "label": "08-bob-share",
+        "seconds": 3.171447236003587
+      },
+      {
+        "label": "09-alice-activity",
+        "seconds": 0.032085932994959876,
+        "journal_records": 2
+      },
+      {
+        "label": "10-alice-import",
+        "seconds": 1.9208937279763632
+      },
+      {
+        "label": "11-alice-activity",
+        "seconds": 0.03211920798639767,
+        "journal_records": 3
+      },
+      {
+        "label": "12-alice-import",
+        "seconds": 2.2783387980016414
+      },
+      {
+        "label": "13-alice-activity",
+        "seconds": 0.03211061499314383,
+        "journal_records": 3
+      },
+      {
+        "label": "14-alice-import",
+        "seconds": 0.11422370400396176
+      },
+      {
+        "label": "15-alice-activity",
+        "seconds": 0.032161865005036816,
+        "journal_records": 3
+      },
+      {
+        "label": "16-alice-call",
+        "seconds": 1.068751891987631
+      },
+      {
+        "label": "17-alice-export_receipt",
+        "seconds": 1.0177162080071867
+      },
+      {
+        "label": "18-bob-import",
+        "seconds": 2.1255653979897033
+      },
+      {
+        "label": "19-bob-activity",
+        "seconds": 0.0650990869908128,
+        "journal_records": 4
+      },
+      {
+        "label": "20-bob-import",
+        "seconds": 1.8187214719946496
+      },
+      {
+        "label": "21-bob-activity",
+        "seconds": 0.032572321011684835,
+        "journal_records": 4
+      },
+      {
+        "label": "22-bob-activity",
+        "seconds": 0.03226868901401758,
+        "journal_records": 4
+      },
+      {
+        "label": "23-alice-export_receipt",
+        "seconds": 1.2203231680032331
+      }
+    ]
+  },
+  "live_report_sha256": "3abaf11773993e89d90e7da5aa7b87d2d901c5cfa8b7c8804347097bb783114b"
+}

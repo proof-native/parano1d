@@ -10,6 +10,7 @@
 
 pub mod body_hash;
 pub mod claims;
+pub mod experimental_object;
 pub mod owner_auth;
 pub mod paged_spend;
 pub mod public_logic;
@@ -24,8 +25,10 @@ pub use paged_spend::{
     validate_paged_spend, CanonicalPagedSpendAuth, PagedSpendError, PagedSpendFacts,
     PagedSpendIntent, TxPage, MAX_PAGED_SPEND_INPUTS, MAX_PAGED_SPEND_INTENT_BYTES,
     MAX_PAGED_SPEND_OUTPUTS, MAX_PAGED_SPEND_PAGES, MAX_TX_AUTHORIZATION_BYTES,
-    PAGED_SPEND_END_BIT, PAGED_SPEND_INTENT_FIXED_OVERHEAD, PAGED_SPEND_INTENT_MARKER,
-    PAGED_SPEND_MARKER_MASK, PAGED_SPEND_START_BIT, PAGED_SPEND_VALIDITY_MASK, PAGED_SPEND_VERSION,
+    PAGED_SPEND_CONTRACT_BIT, PAGED_SPEND_END_BIT, PAGED_SPEND_INTENT_FIXED_OVERHEAD,
+    PAGED_SPEND_INTENT_MARKER, PAGED_SPEND_MARKER_MASK, PAGED_SPEND_START_BIT,
+    PAGED_SPEND_TERMINAL_BIT, PAGED_SPEND_V2_CONTRACT_MASK, PAGED_SPEND_VALIDITY_MASK,
+    PAGED_SPEND_VERSION,
 };
 pub use public_logic::{
     validate_body_semantics_no_hash, validate_public_tx_logic, PublicLogicError, PublicLogicFacts,

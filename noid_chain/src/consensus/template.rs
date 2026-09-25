@@ -574,7 +574,7 @@ fn build_block_template_with_post_state(
     pending_outputs: &HashSet<u32>,
 ) -> Result<(BlockTemplate, ChainState), TemplateBuildError> {
     use crate::consensus::development_allocation::{
-        development_allocation, O1_NETWORK_FUND_ADDRESS, PARANO1D_LAB_ADDRESS,
+        development_allocation_at_height, O1_NETWORK_FUND_ADDRESS, PARANO1D_LAB_ADDRESS,
     };
     use crate::consensus::expected_child_log_slots;
     use crate::consensus::fees::fee_breakdown;
@@ -604,11 +604,20 @@ fn build_block_template_with_post_state(
     }
     debug_assert!(source.next().is_none());
     candidates.sort_by(|left, right| {
-        right
-            .spend
-            .fee
-            .cmp(&left.spend.fee)
-            .then_with(|| left.spend.logical_txid.0.cmp(&right.spend.logical_txid.0))
+        let contract = |group: &CandidatePagedSpend| {
+            super::params::v2_active(child_height)
+                && group.pages[0].body.validity_bitmap & noid_tx::PAGED_SPEND_CONTRACT_BIT != 0
+        };
+        // The v2 relation uses a prefix of contract calls. Order complete
+        // groups before State application so proofs, roots and creation IDs
+        // all refer to the same physical stream. Legacy ordering is unchanged.
+        contract(right).cmp(&contract(left)).then_with(|| {
+            right
+                .spend
+                .fee
+                .cmp(&left.spend.fee)
+                .then_with(|| left.spend.logical_txid.0.cmp(&right.spend.logical_txid.0))
+        })
     });
 
     // 2. Determine expansion from the strict-majority hard-finalized window.
@@ -617,9 +626,10 @@ fn build_block_template_with_post_state(
     let new_log_slots =
         expected_child_log_slots(parent.height, parent.log_slots, finalized_active_counts);
     let should_expand = new_log_slots != parent.log_slots;
-    let allocation = development_allocation(child_height, new_log_slots).map_err(|error| {
-        TemplateBuildError::StateApplyError(format!("development allocation: {error}"))
-    })?;
+    let allocation =
+        development_allocation_at_height(child_height, new_log_slots).map_err(|error| {
+            TemplateBuildError::StateApplyError(format!("development allocation: {error}"))
+        })?;
     let system_record_count = usize::from(allocation.payout_due);
     let system_output_count = 1 + 2 * system_record_count;
 
@@ -863,6 +873,17 @@ mod tests {
         TX_INPUTS, TX_OUTPUTS,
     };
 
+    const DAY_BLOCKS: u64 = if crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+        2880
+    } else {
+        4320
+    };
+    const FIRST_PAYOUT_HEIGHT: u64 = if crate::consensus::params::ISOLATED_V2_FORK_TESTNET {
+        10 + DAY_BLOCKS - 1
+    } else {
+        DAY_BLOCKS
+    };
+
     fn parent(state: &mut ChainState) -> BlockHeader {
         BlockHeader {
             prev_block_hash: [0u8; 32],
@@ -913,6 +934,94 @@ mod tests {
     }
 
     #[test]
+    fn contract_prefix_is_height_selected_before_state_and_creation_ids() {
+        use crate::fri_state::SlotValue;
+        let Some(fork) = super::super::params::V2_ACTIVATION_HEIGHT else {
+            return;
+        };
+        // Include the backwards crossing and a system-record block. This is
+        // an ordering/state test; authorization is checked by the producer.
+        for height in [fork - 1, fork, fork + 1, fork - 1, fork + 2879] {
+            let owner = Address([4; 32]);
+            let mut state = ChainState::with_log_slots(8);
+            for slot in 1..=3 {
+                state
+                    .state
+                    .set_slot(
+                        slot,
+                        SlotValue::with_owner_fields(1_000_000, 1, owner.as_fields()),
+                    )
+                    .unwrap();
+            }
+            state.active_slot_count = 3;
+            state.alloc_counter = 3;
+            state.circulating_supply_micronoid = 3_000_000;
+            let mut parent = parent(&mut state);
+            parent.height = height - 1;
+            let mut pages = Vec::new();
+            for (input, output, extra_fee, contract) in [
+                (1, 11, 3_000, false),
+                (2, 12, 1_000, true),
+                (3, 13, 2_000, true),
+            ] {
+                let mut tx = user(input, output, 1_000_000, owner, &parent);
+                tx.body.fee += extra_fee;
+                tx.body.outputs[0].amount -= extra_fee;
+                if contract {
+                    tx.body.validity_bitmap |= noid_tx::PAGED_SPEND_CONTRACT_BIT;
+                }
+                pages.push(tx);
+            }
+            let (template, prepared) = build_node_owned_block_template(
+                &parent,
+                &state,
+                &[3; 18],
+                pages,
+                Address([9; 32]),
+                1,
+                [0xff; 32],
+            )
+            .unwrap();
+            let outputs: Vec<_> = template
+                .txs
+                .iter()
+                .map(|tx| tx.body.outputs[0].slot_index)
+                .collect();
+            assert_eq!(
+                outputs,
+                if height < fork {
+                    vec![11, 13, 12]
+                } else {
+                    vec![13, 12, 11]
+                }
+            );
+            let system_outputs = if template.development_payout.is_some() {
+                3
+            } else {
+                1
+            };
+            for (index, slot) in outputs.into_iter().enumerate() {
+                assert_eq!(
+                    prepared.post_state.state.slot(slot).creation_id(),
+                    state.alloc_counter + system_outputs + index as u64 + 1
+                );
+            }
+            let block = template.into_block(0);
+            let root = crate::materialize_accepted_block_state(&mut state, &block).unwrap();
+            assert_eq!(root, block.header.state_root);
+            assert_eq!(state.alloc_counter, prepared.post_state.alloc_counter);
+            assert_eq!(
+                state.active_slot_count,
+                prepared.post_state.active_slot_count
+            );
+            assert_eq!(
+                crate::block::compute_tx_root(&block.transactions),
+                block.header.tx_root
+            );
+        }
+    }
+
+    #[test]
     fn template_coinbase_is_exact_and_root_uses_shared_helper() {
         let mut state = ChainState::with_log_slots(8);
         let parent = parent(&mut state);
@@ -939,15 +1048,19 @@ mod tests {
     #[test]
     fn due_template_builds_the_mandatory_two_recipient_payout() {
         use crate::consensus::development_allocation::{
-            development_share_each, miner_subsidy, O1_NETWORK_FUND_ADDRESS, PARANO1D_LAB_ADDRESS,
-            TARGET_BLOCKS_PER_DAY,
+            development_share_each, miner_subsidy_at_height, O1_NETWORK_FUND_ADDRESS,
+            PARANO1D_LAB_ADDRESS,
         };
-        use crate::consensus::emission::block_reward;
+        use crate::consensus::emission::block_reward_at_height;
 
         let mut state = ChainState::with_log_slots(8);
         let mut parent = parent(&mut state);
-        parent.height = TARGET_BLOCKS_PER_DAY - 1;
-        let share = development_share_each(block_reward(parent.log_slots)).unwrap();
+        parent.height = FIRST_PAYOUT_HEIGHT - 1;
+        let share = development_share_each(block_reward_at_height(
+            FIRST_PAYOUT_HEIGHT,
+            parent.log_slots,
+        ))
+        .unwrap();
 
         let template = build_block_template(
             &parent,
@@ -965,11 +1078,11 @@ mod tests {
             .expect("daily payout is mandatory");
         assert_eq!(payout.body.outputs[0].owner, O1_NETWORK_FUND_ADDRESS);
         assert_eq!(payout.body.outputs[1].owner, PARANO1D_LAB_ADDRESS);
-        assert_eq!(payout.body.outputs[0].amount, share * TARGET_BLOCKS_PER_DAY);
-        assert_eq!(payout.body.outputs[1].amount, share * TARGET_BLOCKS_PER_DAY);
+        assert_eq!(payout.body.outputs[0].amount, share * DAY_BLOCKS);
+        assert_eq!(payout.body.outputs[1].amount, share * DAY_BLOCKS);
         assert_eq!(
             template.coinbase.body.outputs[0].amount,
-            miner_subsidy(TARGET_BLOCKS_PER_DAY, template.log_slots)
+            miner_subsidy_at_height(FIRST_PAYOUT_HEIGHT, template.log_slots)
         );
         assert_eq!(template.active_slot_count, 3);
         assert_eq!(template.alloc_counter, 3);
@@ -988,18 +1101,17 @@ mod tests {
     #[test]
     fn scheduled_payout_and_state_expansion_use_the_child_reward_tier() {
         use crate::consensus::development_allocation::{
-            development_share_each, miner_subsidy, TARGET_BLOCKS_PER_DAY,
+            development_share_each, miner_subsidy_at_height,
         };
-        use crate::consensus::emission::block_reward;
+        use crate::consensus::emission::block_reward_at_height;
 
-        // 4,320 is simultaneously the first payout height and an exact
-        // 144-block transaction-epoch boundary. The system mint still anchors
-        // directly to the selected parent, while its current share uses the
-        // newly expanded child depth.
+        // The system mint anchors directly to the selected parent; its share
+        // uses the newly expanded child depth in both activation profiles.
         let mut state = ChainState::with_log_slots(24);
         let mut parent = parent(&mut state);
-        parent.height = TARGET_BLOCKS_PER_DAY - 1;
-        let new_share = development_share_each(block_reward(25)).unwrap();
+        parent.height = FIRST_PAYOUT_HEIGHT - 1;
+        let new_share =
+            development_share_each(block_reward_at_height(FIRST_PAYOUT_HEIGHT, 25)).unwrap();
         let expansion_threshold = (1u64 << 24) * 3 / 4;
 
         let template = build_block_template(
@@ -1016,13 +1128,13 @@ mod tests {
         assert_eq!(template.log_slots, 25);
         assert_eq!(
             template.coinbase.body.outputs[0].amount,
-            miner_subsidy(TARGET_BLOCKS_PER_DAY, 25)
+            miner_subsidy_at_height(FIRST_PAYOUT_HEIGHT, 25)
         );
         let payout = template
             .development_payout
             .as_ref()
             .expect("payout remains mandatory on an expansion block");
-        let expected_each = new_share * TARGET_BLOCKS_PER_DAY;
+        let expected_each = new_share * DAY_BLOCKS;
         assert_eq!(payout.body.outputs[0].amount, expected_each);
         assert_eq!(payout.body.outputs[1].amount, expected_each);
         assert_eq!(payout.body.epoch_anchor, block_id(&parent));
@@ -1035,12 +1147,10 @@ mod tests {
     }
 
     #[test]
-    fn payout_and_user_keep_distinct_anchors_at_epoch_boundary() {
-        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
+    fn payout_and_user_keep_distinct_anchors() {
         use crate::consensus::validate_block_epoch_anchors;
         use crate::fri_state::SlotValue;
 
-        assert!(TARGET_BLOCKS_PER_DAY.is_multiple_of(crate::consensus::params::TX_EPOCH_BLOCKS));
         let owner = Address([4u8; 32]);
         let mut state = ChainState::with_log_slots(8);
         state
@@ -1054,10 +1164,11 @@ mod tests {
         state.alloc_counter = 1;
         state.circulating_supply_micronoid = 1_000_000;
         let mut parent = parent(&mut state);
-        parent.height = TARGET_BLOCKS_PER_DAY - 1;
+        parent.height = FIRST_PAYOUT_HEIGHT - 1;
 
-        // Boundary block 5,760 still consumes the previous 144-block user
-        // anchor, while both system mints bind the immediate parent.
+        // The mainnet fixture also coincides with a transaction-epoch boundary.
+        // Both system mints always bind the immediate parent, independently
+        // of the profile's alignment with the user transaction epoch.
         let user_epoch_anchor = [0x44u8; 32];
         let mut candidate = user(7, 8, 1_000_000, owner, &parent);
         candidate.body.epoch_anchor = user_epoch_anchor;
@@ -1216,12 +1327,11 @@ mod tests {
 
     #[test]
     fn mint_preference_covers_daily_payouts_and_all_reserved_fallback() {
-        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
         for payout in [false, true] {
             let mut state = ChainState::with_log_slots(8);
             let mut parent = parent(&mut state);
             if payout {
-                parent.height = TARGET_BLOCKS_PER_DAY - 1;
+                parent.height = FIRST_PAYOUT_HEIGHT - 1;
             }
             let legacy = node_owned_coinbase_template(&parent, &state)
                 .0
@@ -1276,7 +1386,6 @@ mod tests {
 
     #[test]
     fn mint_preference_cannot_block_a_payout_with_only_three_free_slots() {
-        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
         use crate::fri_state::SlotValue;
 
         let owner = Address([4; 32]);
@@ -1296,7 +1405,7 @@ mod tests {
         state.alloc_counter = 256;
         state.circulating_supply_micronoid = 25_300_000;
         let mut parent = parent(&mut state);
-        parent.height = TARGET_BLOCKS_PER_DAY - 1;
+        parent.height = FIRST_PAYOUT_HEIGHT - 1;
         let old = build_node_owned_block_template(
             &parent,
             &state,
@@ -1330,7 +1439,6 @@ mod tests {
 
     #[test]
     fn mint_preference_keeps_b25_b255_users_and_their_slots_unchanged() {
-        use crate::consensus::development_allocation::TARGET_BLOCKS_PER_DAY;
         use crate::fri_state::SlotValue;
 
         for (count, payout) in [(25u32, false), (255, false), (24, true), (255, true)] {
@@ -1350,7 +1458,7 @@ mod tests {
             state.circulating_supply_micronoid = u128::from(count) * 1_000_000;
             let mut parent = parent(&mut state);
             if payout {
-                parent.height = TARGET_BLOCKS_PER_DAY - 1;
+                parent.height = FIRST_PAYOUT_HEIGHT - 1;
             }
             let candidates: Vec<_> = (0..count)
                 .map(|slot| user(slot, 1024 + slot, 1_000_000, owner, &parent))

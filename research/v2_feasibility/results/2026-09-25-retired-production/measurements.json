@@ -1,0 +1,901 @@
+{
+  "scenario": {
+    "status": "passed",
+    "source_height": 45,
+    "blocks": [
+      {
+        "producer": "producer",
+        "first": 46,
+        "last": 63,
+        "production_and_delivery_seconds": 463.1935337190225
+      },
+      {
+        "producer": "retired",
+        "first": 64,
+        "last": 64,
+        "production_and_delivery_seconds": 84.61053996699047
+      },
+      {
+        "producer": "retired",
+        "first": 65,
+        "last": 65,
+        "production_and_delivery_seconds": 82.9090864789905
+      }
+    ],
+    "checks": [
+      {
+        "node": "producer",
+        "height": 45,
+        "txid": "bd35f971e74982e0aef0007c9b115f95024ce18dc9b8c518202b4668eec91806",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 63,
+        "txid": "bd35f971e74982e0aef0007c9b115f95024ce18dc9b8c518202b4668eec91806",
+        "receipt_verified": true
+      },
+      {
+        "node": "producer",
+        "height": 65,
+        "txid": "48311a270026bfcc371913a70135cb642cf2c5e59a63fd1454bf622ccff40708",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "48311a270026bfcc371913a70135cb642cf2c5e59a63fd1454bf622ccff40708",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "bd35f971e74982e0aef0007c9b115f95024ce18dc9b8c518202b4668eec91806",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "48311a270026bfcc371913a70135cb642cf2c5e59a63fd1454bf622ccff40708",
+        "receipt_verified": true
+      }
+    ],
+    "source_head": "050771211dc613028da96a21a2dbf14f0a1460f6",
+    "script_sha256": {
+      "live_v2_retired_mining_scenario.py": "6118430d5d6dc1f5c059321bbff3587eac23fe3d59dc917ad00dd508e44f1574",
+      "live_v2_retired_sync_scenario.py": "0177cc8578787f1ddb69332d98b355224191e0647dae7778f8c146d625bbbeb0",
+      "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "binary_sha256": {
+      "isolated-v2-transition-node": "ea180c090ab51665c9a29c3a1a00689af46e30a9ecb78e8620630ff4b70eac56",
+      "isolated-v2-retired-node": "d566412872987a3c4fc227a8251b89db13dcddc809f8de364cd550464c011c5f",
+      "parano1d-miner": "e32ebb3a618cc7066ef4e569db9d644ca6e5a4ebe96276895c2ae2ca3603b1c7"
+    },
+    "certificate_bytes": 15093850,
+    "certificate_origin": "9eb210fa9c17e820e1aef15eb7b1975d7f5ec0fb5bc1aebeefa7217731344268",
+    "certificate_sha256": "7417fddea917668aa2c83dfacc213f2808b0d7b16f4f079405da7ac972279a68",
+    "retired_node_cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "retired_backend": "pclmul",
+    "retired_memory_max": 8589934592,
+    "retired_swap_max": 0,
+    "external_nonce_worker_threads": 2,
+    "resumed_checkpoint": {
+      "report_sha256": "5493cd4f3220d3baf508b13428a8f56f448d6f097eae3a20fafc29f582fb34d5",
+      "status": "failed",
+      "error": "timeout waiting for old call body pruned; last=False",
+      "source_head": "057f0392839131e84e9e6dcf2b6593338c3cacd0",
+      "script_sha256": {
+        "live_v2_retired_mining_scenario.py": "7de8abc4467b7f2e6eabe10a782c9849b9735b99cd23081b4955ef83bca84d60",
+        "live_v2_retired_sync_scenario.py": "0177cc8578787f1ddb69332d98b355224191e0647dae7778f8c146d625bbbeb0",
+        "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+        "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+      },
+      "binary_sha256": {
+        "isolated-v2-transition-node": "ea180c090ab51665c9a29c3a1a00689af46e30a9ecb78e8620630ff4b70eac56",
+        "isolated-v2-retired-node": "d566412872987a3c4fc227a8251b89db13dcddc809f8de364cd550464c011c5f",
+        "parano1d-miner": "e32ebb3a618cc7066ef4e569db9d644ca6e5a4ebe96276895c2ae2ca3603b1c7"
+      },
+      "blocks": [
+        {
+          "producer": "producer",
+          "first": 18,
+          "last": 18,
+          "production_and_delivery_seconds": 26.394501899019815
+        },
+        {
+          "producer": "producer",
+          "first": 19,
+          "last": 19,
+          "production_and_delivery_seconds": 23.127201012976002
+        },
+        {
+          "producer": "producer",
+          "first": 20,
+          "last": 20,
+          "production_and_delivery_seconds": 24.38694606500212
+        },
+        {
+          "producer": "producer",
+          "first": 21,
+          "last": 45,
+          "production_and_delivery_seconds": 636.9054574829934
+        }
+      ]
+    },
+    "opening": {
+      "abi_version": 3,
+      "state": [
+        "0",
+        "0"
+      ],
+      "address": "o1y9dp0a8kdm4xl9znj8tjs3ecng3ejnj9n69agqqlgz3s4wvn405qfk8auy",
+      "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000000000000000000040420f00000000000b",
+      "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+      "state_hex": "00000000000000000000000000000000",
+      "program": [
+        {
+          "opcode": "add",
+          "destination": "state0",
+          "left": "state0",
+          "right": "one",
+          "predicate": {
+            "source": "terminal",
+            "inverted": true
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        }
+      ],
+      "claim_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+      "recovery_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+      "claim_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+      "recovery_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+      "deadline_height": 1000000,
+      "max_fee_micronoid": 1000000,
+      "max_payout_micronoid": 1000000,
+      "min_retained_micronoid": 0,
+      "claim_can_continue": true,
+      "claim_can_close": true,
+      "recovery_can_continue": false,
+      "recovery_can_close": true,
+      "unrestricted_payout_recipient": false
+    },
+    "first_call": {
+      "transaction": {
+        "txid": "bd35f971e74982e0aef0007c9b115f95024ce18dc9b8c518202b4668eec91806",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 20,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "1",
+          "0"
+        ],
+        "address": "o1j23y55nzgvfctpaclyv64lpqt77kzj04ryf28wda99xa06z3jr5q7m0qrn",
+        "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000001",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "recovery_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "claim_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "recovery_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "deadline_height": 1000000,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 519271
+    },
+    "first_call_height": 20,
+    "stage": "complete",
+    "retired_cold_sync_seconds": 28.48715376399923,
+    "retired_resources": [
+      {
+        "label": "cold receiver and pruned receipt verification",
+        "height": 63,
+        "memory.current": "493645824",
+        "memory.peak": "625864704",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 66429689\nuser_usec 66039521\nsystem_usec 390168\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      {
+        "label": "retired empty block production",
+        "height": 64,
+        "memory.current": "1067388928",
+        "memory.peak": "2825490432",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 233953434\nuser_usec 230559110\nsystem_usec 3394324\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      {
+        "label": "retired contract block production",
+        "height": 65,
+        "memory.current": "1022091264",
+        "memory.peak": "3369639936",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 452069235\nuser_usec 445962600\nsystem_usec 6106635\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      {
+        "label": "offline producer restart",
+        "height": 65,
+        "memory.current": "459042816",
+        "memory.peak": "620707840",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 47949151\nuser_usec 47687173\nsystem_usec 261978\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      }
+    ],
+    "final_tip": {
+      "height": 65,
+      "best_hash": "52cb96a86ac60553139041cfcaf67406d9e66ea08c05eb77a08b91f1b9f114f3",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 133,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1211230000"
+    },
+    "second_call": {
+      "transaction": {
+        "txid": "48311a270026bfcc371913a70135cb642cf2c5e59a63fd1454bf622ccff40708",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 65,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "2",
+          "0"
+        ],
+        "address": "o13lnmds0fqqgpz0s9fndzumf3lra0quckv4vyndp6p6xwk2d0xmdswp26nx",
+        "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd32b0564bee5248391f5e587eb16cc9f9a891c096b7df64d97f9d51ddb1e82bcd3240420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000002",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "recovery_authority": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "claim_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "recovery_recipient": "o1kptyhmjjfqu37hjc06ckej0e4zgup94hmajdjlua28wmr6pte5eqj7etry",
+        "deadline_height": 1000000,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 470224
+    },
+    "pruned_call_verified": true,
+    "retired_produced_heights": [
+      64,
+      65
+    ]
+  },
+  "retired_preparation_samples": [
+    {
+      "user_pages": 0,
+      "class": "Small",
+      "history_step_ms": 76052
+    },
+    {
+      "user_pages": 1,
+      "class": "Small",
+      "history_step_ms": 78885
+    }
+  ],
+  "snapshot_height": 42,
+  "cold_suffix_blocks": 21,
+  "cold_suffix_terminal_verify_ms": 2662,
+  "snapshot_terminal_verify_including_setup_ms": 3222,
+  "maximum_retired_memory_peak_bytes": 3369639936,
+  "transition_producer": {
+    "cpu_affinity": [
+      1,
+      3,
+      5,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "cpu_backend": "avx2+vpclmul",
+    "preparation_samples_ms": [
+      24408,
+      19921,
+      22764,
+      19972,
+      22550,
+      23973,
+      20971,
+      26280,
+      18415,
+      21077,
+      27080,
+      28833,
+      20877,
+      20747,
+      24256,
+      24522,
+      19521,
+      19660,
+      23205,
+      21828,
+      23563,
+      20242,
+      20085,
+      27275,
+      22760,
+      19350,
+      19062,
+      19555,
+      24636,
+      19680,
+      20992,
+      19909,
+      21155,
+      20115,
+      26561,
+      19770,
+      20974,
+      25180,
+      25505,
+      20028,
+      20265,
+      20415,
+      26621,
+      21817,
+      21107,
+      23845
+    ],
+    "preparation_median_ms": 21092.0
+  },
+  "prior_harness_failure": {
+    "error": "timeout waiting for old call body pruned; last=False",
+    "original_script_sha256": {
+      "live_v2_retired_mining_scenario.py": "7de8abc4467b7f2e6eabe10a782c9849b9735b99cd23081b4955ef83bca84d60",
+      "live_v2_retired_sync_scenario.py": "0177cc8578787f1ddb69332d98b355224191e0647dae7778f8c146d625bbbeb0",
+      "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "accepted_tip_height": 45,
+    "shutdown_errors": []
+  },
+  "qualification_seconds": 709.8929327820078
+}

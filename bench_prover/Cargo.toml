@@ -14,14 +14,19 @@ noid_tx = { path = "../noid_tx" }
 noid_chain = { path = "../noid_chain" }
 noid_block = { path = "../noid_block" }
 noid_recursive = { path = "../noid_recursive" }
+noid_soundness = { path = "../noid_soundness" }
 noid_miner = { path = "../noid_miner" }
+noid_mempool = { path = "../noid_mempool" }
 noid-ivc-core = { path = "../noid_ivc_core" }
 noid-ivc-prover = { path = "../noid_ivc_prover" }
 rayon = "1.10"
 bincode = "1"
 hex = "0.4"
+serde_json = "1"
 zstd = { version = "0.13", features = ["zstdmt"] }
 tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+tempfile = "3"
 
 [[bench]]
 name = "alice_sends_bob"

@@ -2,7 +2,7 @@
      aria-labelledby="title description">
   <title id="title">ParanO(1)d proof-native block flow</title>
   <desc id="description">
-    A wallet proves private ownership, the mempool verifies the transaction
+    A wallet proves private spending authority, the mempool verifies the transaction
     intent, a miner proves the public state transition and searches the nonce,
     and full nodes verify the block and apply the proven writes. The resulting
     terminal is used by the next block.
@@ -107,11 +107,11 @@
       <rect x="78" y="255" width="5" height="5" rx="1" fill="#ce58d6"/>
       <text x="96" y="261">Hold the 256-bit secret</text>
       <rect x="78" y="296" width="5" height="5" rx="1" fill="#ce58d6"/>
-      <text x="96" y="302">Select owned UTXOs</text>
+      <text x="96" y="302">Select live inputs</text>
       <rect x="78" y="337" width="5" height="5" rx="1" fill="#ce58d6"/>
       <text x="96" y="343">Build one logical PagedSpend</text>
       <rect x="78" y="378" width="5" height="5" rx="1" fill="#ce58d6"/>
-      <text x="96" y="384">Prove ownership locally</text>
+      <text x="96" y="384">Prove authority locally</text>
     </g>
     <rect x="78" y="414" width="236" height="25" rx="6"
           fill="#29182f" stroke="#ce58d6" stroke-opacity=".22"/>

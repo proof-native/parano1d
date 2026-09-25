@@ -319,6 +319,9 @@ async fn rpc_retained_marker_body_matches_raw_block_and_recent_transactions() {
     assert_eq!(retained["block_bytes"], marker_block.to_bytes().len());
     assert_eq!(retained["history_step_bytes"], 0);
     assert_eq!(retained["bundle_bytes"], 0);
+    if noid_chain::consensus::params::v2_active(43) {
+        assert_eq!(retained["proof_class"], "v2 / class unavailable");
+    }
     assert_eq!(retained["transactions"].as_array().unwrap().len(), 3);
     assert_eq!(retained["transactions"][1]["development_payout"], true);
     let txids = noid_chain::try_compute_logical_txids(&marker_block.transactions).unwrap();
@@ -335,6 +338,12 @@ async fn rpc_retained_marker_body_matches_raw_block_and_recent_transactions() {
         tip_block.to_bytes().len()
     );
     assert!(details["retained"]["history_step_bytes"].as_u64().unwrap() > 0);
+    if noid_chain::consensus::params::v2_active(44) {
+        assert_eq!(
+            details["retained"]["proof_class"],
+            "v2 / Small / parameters unavailable"
+        );
+    }
     assert!(
         details["retained"]["bundle_bytes"].as_u64().unwrap() > tip_block.to_bytes().len() as u64
     );

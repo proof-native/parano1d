@@ -22,6 +22,7 @@ use crate::view;
 
 pub const BLOCK_DETAILS_SCROLL_ID: &str = "block-details-scroll";
 pub const TRANSACTION_DETAILS_SCROLL_ID: &str = "transaction-details-scroll";
+pub const CONTRACTS_SCROLL_ID: &str = "contracts-scroll";
 pub const NODE_LOG_LINE_LIMIT: usize = 80;
 
 const PHOTO_SCAN_FRAME: Duration = Duration::from_millis(33);
@@ -49,6 +50,7 @@ fn node_log_content(contents: &str) -> text_editor::Content {
 #[derive(Debug)]
 pub struct App {
     pub snapshot: AppSnapshot,
+    pub contracts: crate::contracts::State,
     pub section: Section,
     pub backend_state: BackendState,
     pub backend_error: Option<String>,
@@ -196,6 +198,8 @@ pub enum AddressOperation {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    Contract(crate::contracts::Action),
+    ContractFinished(Result<crate::contracts::Outcome, String>),
     Navigate(Section),
     ToggleAddressPicker,
     SelectAddress(u32),
@@ -341,6 +345,7 @@ impl App {
 
         let app = Self {
             snapshot,
+            contracts: Default::default(),
             section: Section::Present,
             backend_state: if mock {
                 BackendState::Mock
@@ -475,6 +480,63 @@ impl App {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Contract(action) => {
+                if self.send_in_flight
+                    || self.consolidation_in_flight
+                    || self.address_operation.is_some()
+                    || self.secret_action_in_flight
+                    || self.shutting_down
+                {
+                    return Task::none();
+                }
+                let reveal = matches!(
+                    action,
+                    crate::contracts::Action::SetTab(_)
+                        | crate::contracts::Action::EditLoaded
+                        | crate::contracts::Action::ReviewFund
+                        | crate::contracts::Action::SetDetail(_)
+                );
+                match self.contracts.action(
+                    action,
+                    &self.snapshot.active_address().address,
+                    self.snapshot.network.height,
+                ) {
+                    Ok(Some(request)) => {
+                        self.contracts.busy = true;
+                        let backend = self.backend.clone();
+                        return Task::perform(
+                            async move { backend.contract_operation(request).await },
+                            Message::ContractFinished,
+                        );
+                    }
+                    Ok(None) => {}
+                    Err(error) => self.contracts.error = Some(error),
+                }
+                if reveal {
+                    return iced::widget::operation::snap_to(
+                        CONTRACTS_SCROLL_ID,
+                        iced::widget::operation::RelativeOffset::START,
+                    );
+                }
+            }
+            Message::ContractFinished(result) => {
+                let reveal = result
+                    .as_ref()
+                    .is_ok_and(crate::contracts::Outcome::reveals_content);
+                self.contracts.finish(result);
+                let refresh = self.refresh_snapshot();
+                return if reveal {
+                    Task::batch([
+                        refresh,
+                        iced::widget::operation::snap_to(
+                            CONTRACTS_SCROLL_ID,
+                            iced::widget::operation::RelativeOffset::START,
+                        ),
+                    ])
+                } else {
+                    refresh
+                };
+            }
             Message::Navigate(section) => {
                 if self.secret_action_in_flight
                     || self.photo_scan_active
@@ -501,6 +563,9 @@ impl App {
                 }
                 if section == Section::Proofs {
                     return self.refresh_receipts_view();
+                }
+                if section == Section::Contracts {
+                    return self.update(Message::Contract(crate::contracts::Action::Home));
                 }
                 if section == Section::Settings && self.settings_tab == SettingsTab::Node {
                     self.resume_node_log();
@@ -1029,6 +1094,20 @@ impl App {
                                 || previous_state_root != self.snapshot.network.state_root)
                         {
                             return self.refresh_explorer_view();
+                        }
+                        let contract_key = (
+                            self.snapshot.network.height,
+                            self.snapshot.network.state_root.clone(),
+                        );
+                        if self.section == Section::Contracts
+                            && self.contracts.tab == crate::contracts::Tab::Mine
+                            && !self.contracts.busy
+                            && self.contracts.review.is_none()
+                            && self.contracts.info.is_some()
+                            && self.contracts.last_poll.as_ref() != Some(&contract_key)
+                        {
+                            self.contracts.last_poll = Some(contract_key);
+                            return self.update(Message::Contract(crate::contracts::Action::Poll));
                         }
                         if self.section == Section::Proofs
                             && !self.receipts_loading
@@ -2193,8 +2272,18 @@ impl App {
                         Named::F4 => Some(Message::Navigate(Section::Proofs)),
                         Named::F5 => Some(Message::Navigate(Section::Mine)),
                         Named::F6 => Some(Message::Navigate(Section::Explorer)),
-                        Named::F7 => Some(Message::Navigate(Section::Settings)),
+                        Named::F7 => Some(Message::Navigate(Section::Contracts)),
+                        Named::F8 => Some(Message::Navigate(Section::Settings)),
                         Named::F10 => Some(Message::Exit),
+                        Named::Escape if self.contracts.help.is_some() => {
+                            Some(Message::Contract(crate::contracts::Action::CloseHelp))
+                        }
+                        Named::Escape
+                            if self.section == Section::Contracts
+                                && self.contracts.review.is_some() =>
+                        {
+                            Some(Message::Contract(crate::contracts::Action::CancelReview))
+                        }
                         Named::Escape if self.block_transaction_position.is_some() => {
                             Some(Message::CloseBlockTransaction)
                         }
@@ -2346,7 +2435,10 @@ impl App {
     }
 
     pub fn wallet_action_in_flight(&self) -> bool {
-        self.send_in_flight || self.consolidation_plan_in_flight || self.consolidation_in_flight
+        self.send_in_flight
+            || self.consolidation_plan_in_flight
+            || self.consolidation_in_flight
+            || self.contracts.busy
     }
 
     pub fn settings_dirty(&self) -> bool {
@@ -2618,7 +2710,7 @@ impl App {
     }
 }
 
-fn parse_noid_amount(input: &str) -> Result<u64, String> {
+pub(crate) fn parse_noid_amount(input: &str) -> Result<u64, String> {
     let normalized = input.trim().replace(',', ".");
     if normalized.is_empty() {
         return Err("Enter an amount.".into());
@@ -2662,7 +2754,7 @@ fn parse_noid_amount(input: &str) -> Result<u64, String> {
     Ok(amount)
 }
 
-fn parse_optional_noid_fee(input: &str) -> Result<u64, String> {
+pub(crate) fn parse_optional_noid_fee(input: &str) -> Result<u64, String> {
     if input.trim().is_empty() {
         return Ok(0);
     }

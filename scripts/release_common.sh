@@ -157,6 +157,71 @@ release_write_pin_file() {
   mv -- "$temporary" "$pin_file"
 }
 
+release_read_v2_pin_file() {
+  local pin_file=$1
+  local line value
+  local line_count=0
+  local bank= key0= key1=
+
+  [[ -f $pin_file && -s $pin_file && ! -L $pin_file ]] || \
+    release_die "invalid v2 pin file: $pin_file"
+  # Parse data, never source a supplied file as shell code.
+  while IFS= read -r line || [[ -n $line ]]; do
+    (( line_count += 1 ))
+    line=${line%$'\r'}
+    value=${line#*=}
+    [[ $value =~ ^[0-9a-f]{64}$ ]] || release_die "invalid v2 digest in $pin_file"
+    case "$line" in
+      NOID_V2_RELEASE_BANK=*)
+        [[ -z $bank ]] || release_die "duplicate v2 bank pin in $pin_file"
+        bank=$value
+        ;;
+      NOID_RETIREMENT_KEY_0_PIN=*)
+        [[ -z $key0 ]] || release_die "duplicate retirement key 0 pin in $pin_file"
+        key0=$value
+        ;;
+      NOID_RETIREMENT_KEY_1_PIN=*)
+        [[ -z $key1 ]] || release_die "duplicate retirement key 1 pin in $pin_file"
+        key1=$value
+        ;;
+      *) release_die "unexpected v2 assignment in $pin_file" ;;
+    esac
+  done < "$pin_file"
+  [[ $line_count == 3 && -n $bank && -n $key0 && -n $key1 ]] || \
+    release_die "$pin_file must contain the bank and both retirement key pins"
+  RELEASE_V2_BANK=$bank
+  RELEASE_RETIREMENT_KEY_0_PIN=$key0
+  RELEASE_RETIREMENT_KEY_1_PIN=$key1
+}
+
+release_validate_v2_layout() {
+  local pack_root=$1
+  local keys_root=$2
+  local artifact
+  for artifact in \
+    "$pack_root/v2-runtime-metadata.bin" \
+    "$pack_root/v2-small.field-r1cs.zst" \
+    "$pack_root/v2-large.field-r1cs.zst" \
+    "$keys_root/class-0.key" \
+    "$keys_root/class-1.key"; do
+    [[ -f $artifact && -s $artifact && ! -L $artifact ]] || \
+      release_die "v2 artifact is missing, empty, or a symlink: $artifact"
+  done
+  # noid_node/build.rs checks the supplied pins, key/matrix association and
+  # source activation schedule before any executable can embed these bytes.
+}
+
+release_validate_retired_legacy_layout() {
+  local pack_root=$1
+  local artifact="$pack_root/v1/history-step.runtime"
+  [[ -d $pack_root/v1 && ! -L $pack_root/v1 ]] || \
+    release_die "retired build requires the legacy metadata directory"
+  [[ -f $artifact && -s $artifact && ! -L $artifact ]] || \
+    release_die "retired build requires regular pinned legacy metadata"
+  # Old matrix files are deliberately optional for this later build profile.
+  release_read_pin_file "$pack_root/pins.env"
+}
+
 release_verify_sha256_manifest() {
   local pack_root=$1
   local manifest="$pack_root/SHA256SUMS"

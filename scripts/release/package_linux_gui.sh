@@ -84,6 +84,10 @@ install -m 0644 "$RELEASE_ROOT_DIR/LICENSE" \
   "$PACKAGE_ROOT/usr/share/doc/parano1d-gui/LICENSE"
 install -m 0644 "$RELEASE_ROOT_DIR/NOTICE" \
   "$PACKAGE_ROOT/usr/share/doc/parano1d-gui/NOTICE"
+install -m 0644 "$SCRIPT_DIR/README.txt" \
+  "$PACKAGE_ROOT/usr/share/doc/parano1d-gui/README.txt"
+install -m 0644 "$RELEASE_ROOT_DIR/docs/reference/contracts.md" \
+  "$PACKAGE_ROOT/usr/share/doc/parano1d-gui/CONTRACTS.md"
 
 install -m 0644 \
   "$SCRIPT_DIR/gui/linux/org.parano1d.wallet.desktop" \
@@ -119,6 +123,8 @@ dpkg-deb --extract "$ARTIFACT" "$EXTRACTED"
 [[ -L $EXTRACTED/usr/bin/parano1d-gui ]]
 [[ -s $EXTRACTED/usr/share/doc/parano1d-gui/LICENSE ]]
 [[ -s $EXTRACTED/usr/share/doc/parano1d-gui/NOTICE ]]
+[[ -s $EXTRACTED/usr/share/doc/parano1d-gui/README.txt ]]
+[[ -s $EXTRACTED/usr/share/doc/parano1d-gui/CONTRACTS.md ]]
 [[ -s $EXTRACTED/usr/share/metainfo/org.parano1d.wallet.metainfo.xml ]]
 [[ ! -e $EXTRACTED/usr/lib/parano1d/parano1d-cli ]]
 [[ ! -e $EXTRACTED/usr/lib/parano1d/parano1d-miner ]]

@@ -44,10 +44,11 @@ The downstream pipeline combines:
 - one joint `GF(2^256)` transcript for the three Link and six Block recursive
   regions.
 
-The resulting proof system is transparent: it requires no trusted setup.
-The released binaries embed authenticated B25 and B255 matrix packs, including
-their expected digests. A build using a different pack cannot silently present
-it as the canonical relation.
+The transparent proof system uses an authenticated joint Small/Large bank.
+Its pins bind the interpreter, resource budgets and activation schedule.
+Contract programs execute in this shared relation. The transition release
+also verifies historical ancestry; a later retired-history release can use
+authenticated origin certificates without embedding old matrix bytes.
 
 ## Wallet authorization
 
@@ -58,6 +59,9 @@ witness-hiding. It contains no State path.
 The serialized authorization has a 92,696-byte worst-case bound. The wire
 format permits up to 256 KiB so decoding remains explicitly bounded while
 leaving room for the canonical proof object.
+
+Contract inputs use the same secret-knowledge proof for the authority selected
+by their committed policy; the State owner is the object commitment.
 
 ## HistoryStep
 
@@ -78,25 +82,8 @@ choice.
 
 ## Security accounting
 
-The production wide-challenge profile uses 65 wallet queries and 133 History
-queries. Its current security results are:
-
-| Security statement | Production result |
-|---|---:|
-| Target FRI security | **128 bits** |
-| Provable Block–Tiwari FS-FRI security | **127 bits** |
-| Conjectured Block–Tiwari FS-FRI security | **127 bits** |
-| Sequential ideal-QROM half-success boundary | **64.707407428576 bits** |
-| NIST Post-Quantum Cryptography Category | **Category 1** |
-| Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
-
-The Block–Tiwari values measure classical random-oracle FS-FRI expected work.
-The Category 1 result concerns the separate end-to-end from-genesis
-invalid-State game and is conditional on the fixed Poseidon2b delta, batch
-gate-depth price and scalar gate-charge premises stated in the theorem.
-Production constants, reductions and exact calculations are in
-[`noid_soundness`](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness).
-
-For claim boundaries and non-proof assumptions, see
-[Security model](../protocol/security-model.md). Implementation crates are
-mapped in [Workspace](../developers/workspace.md).
+C1 uses 65 wallet queries and 133 History queries. The v2 calculation includes
+old ancestry and both matrix-retirement reductions. Its exact inventory,
+composition premises and Category 1 resource bounds are in the
+[security model](../protocol/security-model.md). Contract programs add
+deterministic constraints inside the shared relation.

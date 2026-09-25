@@ -12,6 +12,9 @@ mod history_step_witness;
 
 pub use history_step_witness::{
     prepare_history_step_input_witness, prepare_history_step_witness,
-    HistoryStepPreparationContext, HistoryStepWitnessError, PreparedHistoryStepInputWitness,
-    PreparedHistoryStepWitness,
+    prepare_v2_research_history_step_input_witness, HistoryStepPreparationContext,
+    HistoryStepWitnessError, PreparedHistoryStepInputWitness, PreparedHistoryStepWitness,
 };
+
+pub mod candidate_history;
+pub mod contract_receipt;

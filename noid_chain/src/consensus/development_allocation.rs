@@ -12,7 +12,8 @@
 
 use noid_poseidon2b::primitives::Address;
 
-use super::emission::block_reward;
+use super::emission::{block_reward, block_reward_with_schedule};
+use super::forks::{ForkSchedule, ACTIVE_SCHEDULE};
 use super::params::BLOCK_TIME;
 
 /// Target blocks in one wall-clock day at the consensus block interval.
@@ -25,6 +26,9 @@ const _: () = assert!(
 
 /// Three 365-day target-time years, excluding built-in genesis height zero.
 pub const DEVELOPMENT_ALLOCATION_END_HEIGHT: u64 = TARGET_BLOCKS_PER_DAY * 365 * 3;
+
+/// The duration is shared by both intervals; the v2 fork does not restart it.
+pub const DEVELOPMENT_ALLOCATION_DURATION_SECONDS: u64 = 86_400 * 365 * 3;
 
 /// Number of mandatory daily payouts over the allocation period.
 pub const DEVELOPMENT_ALLOCATION_PAYOUTS: u64 =
@@ -63,6 +67,7 @@ pub struct DevelopmentAllocation {
 pub enum DevelopmentAllocationError {
     InexactRewardShare,
     PayoutOverflow,
+    InexactInterval,
 }
 
 impl core::fmt::Display for DevelopmentAllocationError {
@@ -72,6 +77,95 @@ impl core::fmt::Display for DevelopmentAllocationError {
 }
 
 impl std::error::Error for DevelopmentAllocationError {}
+
+/// Last eligible height after accounting for every target interval from
+/// genesis. The fork block contributes a new-rule interval. A fork after the
+/// legacy period has expired cannot restart it. An incomplete final interval
+/// is not counted, so the horizon never exceeds the original target duration.
+pub const fn development_allocation_end_height_with_schedule(schedule: ForkSchedule) -> u64 {
+    let Some(at) = schedule.v2() else {
+        return DEVELOPMENT_ALLOCATION_END_HEIGHT;
+    };
+    if at.height() > DEVELOPMENT_ALLOCATION_END_HEIGHT {
+        return DEVELOPMENT_ALLOCATION_END_HEIGHT;
+    }
+    let legacy_blocks = at.height() - 1;
+    let remaining = DEVELOPMENT_ALLOCATION_DURATION_SECONDS - legacy_blocks * BLOCK_TIME;
+    legacy_blocks + remaining / at.block_time()
+}
+
+/// Complete allocation with explicit consensus timing and emission rules.
+/// The old incomplete day is discarded at the fork. H is the first block of
+/// the new accrual period; no payout occurs in H itself, and the first complete
+/// 30-second day ends at H+2879. The final eligible block pays any partial day.
+pub fn development_allocation_with_schedule(
+    height: u64,
+    log_slots: u32,
+    schedule: ForkSchedule,
+) -> Result<DevelopmentAllocation, DevelopmentAllocationError> {
+    let Some(at) = schedule.v2().filter(|at| height >= at.height()) else {
+        return development_allocation(height, log_slots);
+    };
+    if 86_400 % at.block_time() != 0 {
+        return Err(DevelopmentAllocationError::InexactInterval);
+    }
+    let subsidy = block_reward_with_schedule(height, log_slots, schedule);
+    let end_height = development_allocation_end_height_with_schedule(schedule);
+    if height > end_height {
+        return Ok(DevelopmentAllocation {
+            active: false,
+            payout_due: false,
+            share_each: 0,
+            payout_each: None,
+            miner_subsidy: subsidy,
+        });
+    }
+    let share_each = development_share_each(subsidy)?;
+    let interval = 86_400 / at.block_time();
+    let elapsed = height - (at.height() - 1);
+    let count = if height == at.height() {
+        None
+    } else if elapsed.is_multiple_of(interval) {
+        Some(interval)
+    } else if height == end_height {
+        Some(elapsed % interval)
+    } else {
+        None
+    };
+    let payout_each = count
+        .map(|count| {
+            share_each
+                .checked_mul(count)
+                .ok_or(DevelopmentAllocationError::PayoutOverflow)
+        })
+        .transpose()?;
+    Ok(DevelopmentAllocation {
+        active: true,
+        payout_due: count.is_some(),
+        share_each,
+        payout_each,
+        miner_subsidy: subsidy - 2 * share_each,
+    })
+}
+
+pub fn development_allocation_at_height(
+    height: u64,
+    log_slots: u32,
+) -> Result<DevelopmentAllocation, DevelopmentAllocationError> {
+    development_allocation_with_schedule(height, log_slots, ACTIVE_SCHEDULE)
+}
+
+pub fn miner_subsidy_at_height(height: u64, log_slots: u32) -> u64 {
+    development_allocation_at_height(height, log_slots)
+        .expect("release emission and daily intervals are exact")
+        .miner_subsidy
+}
+
+pub fn development_payout_due_at_height(height: u64) -> bool {
+    development_allocation_at_height(height, super::params::LOG_SLOTS_GENESIS)
+        .expect("release emission and daily intervals are exact")
+        .payout_due
+}
 
 #[inline]
 pub const fn development_allocation_active(height: u64) -> bool {
@@ -91,7 +185,7 @@ pub fn development_share_each(subsidy: u64) -> Result<u64, DevelopmentAllocation
     Ok(subsidy / DEVELOPMENT_SHARE_DENOMINATOR)
 }
 
-/// Subsidy component available to the primary coinbase at `height`.
+/// Legacy subsidy component; frozen legacy relations keep this exact rule.
 #[inline]
 pub fn miner_subsidy(height: u64, log_slots: u32) -> u64 {
     let subsidy = block_reward(log_slots);
@@ -104,7 +198,8 @@ pub fn miner_subsidy(height: u64, log_slots: u32) -> u64 {
     }
 }
 
-/// Compute the complete stateless allocation for one child block.
+/// Compute the legacy stateless allocation for one child block.
+/// Network callers use [`development_allocation_at_height`].
 ///
 /// Every daily payout uses the reward tier active in that payout block for the
 /// whole target-time day. Because state depth and reward are monotone, this can
@@ -149,6 +244,7 @@ pub fn development_allocation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consensus::forks::V2Activation;
     use crate::consensus::params::{LOG_SLOTS_GENESIS, LOG_SLOTS_MAX};
 
     #[test]
@@ -226,5 +322,127 @@ mod tests {
         assert!(!post.payout_due);
         assert_eq!(post.payout_each, None);
         assert_eq!(post.miner_subsidy, block_reward(LOG_SLOTS_GENESIS));
+    }
+
+    #[test]
+    fn scheduled_mainnet_horizon_and_daily_boundaries_are_exact() {
+        let h = super::super::params::MAINNET_V2_ACTIVATION_HEIGHT;
+        let schedule = ForkSchedule::new(Some(95_125), V2Activation::new(h, 30)).unwrap();
+        let end = development_allocation_end_height_with_schedule(schedule);
+        assert_eq!(end, 3_223_778);
+        assert_eq!(schedule.ideal_elapsed(0, end), 94_607_980);
+        assert_eq!(schedule.ideal_elapsed(0, end + 1), 94_608_010);
+        for height in [0, 1, 95_124, 95_125, 207_360, h - 1] {
+            for depth in 24..=32 {
+                assert_eq!(
+                    development_allocation_with_schedule(height, depth, schedule),
+                    development_allocation(height, depth)
+                );
+            }
+        }
+        let at = |height| development_allocation_with_schedule(height, 24, schedule).unwrap();
+        assert_eq!(at(h).miner_subsidy, 14_400_000);
+        assert_eq!(at(h).share_each, 800_000);
+        for height in [h, h + 1, h + 2878, h + 2880, end - 1, end + 1] {
+            assert_eq!(at(height).payout_each, None, "height={height}");
+        }
+        assert_eq!(at(h + 2879).payout_each, Some(2_304_000_000));
+        assert_eq!(at(h + 2 * 2880 - 1).payout_each, Some(2_304_000_000));
+        assert_eq!(at(end).payout_each, Some(762 * 400_000));
+        assert_eq!(at(end + 1).miner_subsidy, 8_000_000);
+        assert!(!at(end + 1).active);
+        // Every new-rule interval is counted exactly once. The old partial
+        // day is not folded into the first new daily record.
+        let issued: u128 = (h..=end)
+            .map(|height| u128::from(at(height).payout_each.unwrap_or(0)))
+            .sum();
+        let year = super::super::emission::V2_REWARD_INTERVAL_BLOCKS;
+        assert_eq!(
+            issued,
+            u128::from(year) * (800_000 + 565_000) + u128::from(end - h + 1 - 2 * year) * 400_000
+        );
+    }
+
+    #[test]
+    fn fork_on_legacy_payout_height_discards_the_partial_period() {
+        let h = 4320;
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(h, 30)).unwrap();
+        assert!(development_allocation(h, 24).unwrap().payout_due);
+        for depth in 24..=32 {
+            let at =
+                |height| development_allocation_with_schedule(height, depth, schedule).unwrap();
+            assert!(!at(h).payout_due);
+            assert_eq!(at(h).payout_each, None);
+            let reward = block_reward_with_schedule(h, depth, schedule);
+            assert_eq!(at(h).miner_subsidy + 2 * at(h).share_each, reward);
+            assert_eq!(at(h + 2879).payout_each, Some((reward / 20) * 2880));
+        }
+    }
+
+    #[test]
+    fn annual_reductions_start_a_new_daily_period_without_losing_accrual() {
+        use super::super::emission::{V2_REWARDS_MICRONOID, V2_REWARD_INTERVAL_BLOCKS};
+        let h = super::super::params::MAINNET_V2_ACTIVATION_HEIGHT;
+        let schedule = ForkSchedule::new(Some(95_125), V2Activation::new(h, 30)).unwrap();
+        for epoch in 1..=2 {
+            let threshold = h + epoch as u64 * V2_REWARD_INTERVAL_BLOCKS;
+            for depth in 24..=32 {
+                let at =
+                    |height| development_allocation_with_schedule(height, depth, schedule).unwrap();
+                let old_share = V2_REWARDS_MICRONOID[epoch - 1] / 20;
+                let new_reward = V2_REWARDS_MICRONOID[epoch];
+                let new_share = new_reward / 20;
+                assert_eq!(at(threshold - 1).payout_each, Some(2880 * old_share));
+                assert_eq!(at(threshold).payout_each, None);
+                assert_eq!(at(threshold).share_each, new_share);
+                assert_eq!(at(threshold).miner_subsidy + 2 * new_share, new_reward);
+                assert_eq!(at(threshold + 2879).payout_each, Some(2880 * new_share));
+            }
+        }
+    }
+
+    #[test]
+    fn interval_changes_never_restart_or_extend_the_target_duration() {
+        for interval in [1, 20, 30, 40, 86_400] {
+            for h in [
+                1,
+                10,
+                4320,
+                219_177,
+                DEVELOPMENT_ALLOCATION_END_HEIGHT - 1,
+                DEVELOPMENT_ALLOCATION_END_HEIGHT,
+                DEVELOPMENT_ALLOCATION_END_HEIGHT + 1,
+                u64::MAX,
+            ] {
+                let schedule = ForkSchedule::new(Some(0), V2Activation::new(h, interval)).unwrap();
+                let end = development_allocation_end_height_with_schedule(schedule);
+                assert!(
+                    schedule.ideal_elapsed(0, end)
+                        <= u128::from(DEVELOPMENT_ALLOCATION_DURATION_SECONDS)
+                );
+                assert!(
+                    schedule.ideal_elapsed(0, end + 1)
+                        > u128::from(DEVELOPMENT_ALLOCATION_DURATION_SECONDS)
+                );
+                for height in [h, h.saturating_add(1), end, end + 1, u64::MAX] {
+                    let allocation =
+                        development_allocation_with_schedule(height, 24, schedule).unwrap();
+                    assert_eq!(allocation.active, height > 0 && height <= end);
+                    if height == h {
+                        assert!(!allocation.payout_due);
+                    }
+                    if !allocation.active {
+                        assert!(!allocation.payout_due);
+                        assert_eq!(allocation.payout_each, None);
+                        assert_eq!(allocation.share_each, 0);
+                    }
+                }
+            }
+        }
+        let inexact = ForkSchedule::new(Some(5), V2Activation::new(10, 37)).unwrap();
+        assert_eq!(
+            development_allocation_with_schedule(10, 24, inexact),
+            Err(DevelopmentAllocationError::InexactInterval)
+        );
     }
 }

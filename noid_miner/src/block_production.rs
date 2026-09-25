@@ -13,7 +13,7 @@ use noid_chain::storage::{MdbxChainContext, MdbxContextError};
 
 use crate::template::BlockTemplate;
 
-type HistoryStepRuntime = noid_recursive::acceptance::history_step::HistoryStepRuntime;
+type HistoryStepRuntime = crate::HistoryProtocolRuntime;
 type PreparedGhost =
     noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization;
 type PreparedStateCommit = noid_chain::consensus::template::PreparedBlockStateCommit;
@@ -22,6 +22,14 @@ type LocallyProvedStateCommit = noid_chain::consensus::template::LocallyProvedBl
 enum PreparedWitness {
     B25(noid_block::PreparedHistoryStepWitness<25>),
     B255(noid_block::PreparedHistoryStepWitness<255>),
+}
+
+/// Mining class is height-selected. A small v2 block must never fall back to
+/// the legacy B25/B255 rule just because it contains few physical pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MiningProofClass {
+    Legacy(noid_chain::consensus::paged_spend::BlockProofClass),
+    V2(noid_recursive::acceptance::history_step::v2::banked::Class),
 }
 
 /// A single-use, nonce-independent block witness prepared entirely by the
@@ -37,6 +45,7 @@ pub struct PreparedBlockAttempt {
     payload_weight: usize,
     retained_bytes: usize,
     state_commit: PreparedStateCommit,
+    proof_class: MiningProofClass,
 }
 
 /// A private-capability carrier created only after the HistoryStep prover has
@@ -126,6 +135,8 @@ impl PreparedBlockAttempt {
             inner,
             parent,
             authorization_bytes,
+            object_openings,
+            v2_class,
             parent_state,
             finalized_active_counts,
             previous_timestamps,
@@ -149,6 +160,125 @@ impl PreparedBlockAttempt {
         }
         let start_accumulator =
             accumulator_from_header_boundary(&parent, &parent_tx_epoch_anchor_header);
+        let block = inner.into_block(0);
+        let payload_weight = block
+            .to_bytes()
+            .len()
+            .checked_add(authorization_weight)
+            .and_then(|weight| {
+                object_openings
+                    .len()
+                    .checked_mul(noid_tx::experimental_object::OPENING_BYTES)
+                    .and_then(|bytes| weight.checked_add(bytes))
+            })
+            .ok_or("prepared block byte weight overflow")?;
+        let context = noid_block::HistoryStepPreparationContext {
+            parent_header: &parent,
+            tx_epoch_anchor_header: &parent_tx_epoch_anchor_header,
+            parent_state: &parent_state,
+            start_accumulator: &start_accumulator,
+            previous_timestamps: &previous_timestamps,
+            finalized_active_counts: &finalized_active_counts,
+            asert_anchor: &asert_anchor,
+            local_time,
+        };
+        if noid_chain::consensus::params::v2_active(block.header.height) {
+            use noid_recursive::acceptance::history_step::v2::banked as v2;
+            let class = v2_class.ok_or("v2 template has no explicit proof class")?;
+            if class == v2::Class::Large && !runtime.large_v2_mining_allowed() {
+                return Err("large v2 mining requires the server opt-in".into());
+            }
+            let parent_bytes = parent_history_step_terminal_bytes
+                .as_deref()
+                .ok_or("v2 parent terminal is missing")?;
+            let origin =
+                runtime.origin_for_parent(&parent, &parent_tx_epoch_anchor_header, parent_bytes)?;
+            let runtime = runtime.v2()?;
+            let config = runtime.bank().config().class(class);
+            let parent_terminal = if noid_chain::consensus::params::v2_active(parent.height) {
+                Some(v2::decode_terminal(runtime, parent_bytes).map_err(|e| e.to_string())?)
+            } else {
+                None
+            };
+            if cancelled() {
+                return Ok(None);
+            }
+            let end_accumulator = start_accumulator
+                .advance(&parent, &block.header)
+                .map_err(|e| format!("v2 accumulator transition: {e:?}"))?;
+            macro_rules! prepare {
+                ($pages:literal) => {{
+                    let input = noid_block::candidate_history::prepare_candidate_input::<$pages>(
+                        &block,
+                        context,
+                        authorization_proofs,
+                        ghost,
+                        &object_openings,
+                        config,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    if cancelled() {
+                        return Ok(None);
+                    }
+                    v2::prepare_for_pow(runtime, origin.origin(), parent_terminal.as_ref(), input)
+                        .map_err(|e| e.to_string())?
+                }};
+            }
+            // These are supported producer specializations, not release
+            // parameters. The embedded bank supplies all actual class limits.
+            let prepared = match config.pages() {
+                63 => prepare!(63),
+                206 => prepare!(206),
+                207 => prepare!(207),
+                209 => prepare!(209),
+                210 => prepare!(210),
+                211 => prepare!(211),
+                223 => prepare!(223),
+                255 => prepare!(255),
+                _ => return Err("v2 bank uses an unsupported producer page specialization".into()),
+            };
+            if cancelled() {
+                return Ok(None);
+            }
+            let built = prepared.seal_nonce(runtime, 0).map_err(|e| e.to_string())?;
+            let uncancelled = std::sync::atomic::AtomicBool::new(false);
+            let terminal =
+                match v2::prove_built(runtime, &built, cancellation.unwrap_or(&uncancelled)) {
+                    Ok(terminal) => terminal,
+                    Err(noid_recursive::acceptance::history_step::v2::V2Error::Cancelled) => {
+                        return Ok(None)
+                    }
+                    Err(error) => return Err(error.to_string()),
+                };
+            if cancelled() {
+                return Ok(None);
+            }
+            if terminal.class() != class {
+                return Err("v2 proof class drifted from the selected template".into());
+            }
+            let terminal_bytes =
+                v2::encode_terminal(runtime, &terminal).map_err(|e| e.to_string())?;
+            let retained_bytes = payload_weight
+                .checked_add(terminal_bytes.len())
+                .ok_or("prepared v2 retained-byte weight overflow")?;
+            return Ok(Some(Self {
+                block,
+                terminal_bytes,
+                end_accumulator,
+                start_accumulator,
+                parent_header: parent,
+                expected_parent_id,
+                expected_parent_height,
+                payload_weight,
+                retained_bytes,
+                state_commit: prepared_state_commit,
+                proof_class: MiningProofClass::V2(class),
+            }));
+        }
+        if v2_class.is_some() || !object_openings.is_empty() {
+            return Err("v2 template data before activation".into());
+        }
+        let runtime = runtime.legacy()?;
         let parent_terminal = match (parent.height, parent_history_step_terminal_bytes) {
             (0, None) => None,
             (0, Some(_)) => {
@@ -166,25 +296,9 @@ impl PreparedBlockAttempt {
             return Ok(None);
         }
 
-        let block = inner.into_block(0);
-        let payload_weight = block
-            .to_bytes()
-            .len()
-            .checked_add(authorization_weight)
-            .ok_or_else(|| "prepared block byte weight overflow".to_string())?;
         let stream = noid_chain::validate_block_page_stream(&block.transactions)
             .map_err(|error| format!("prepared block body is non-canonical: {error}"))?;
         let proof_class = stream.proof_class;
-        let context = noid_block::HistoryStepPreparationContext {
-            parent_header: &parent,
-            tx_epoch_anchor_header: &parent_tx_epoch_anchor_header,
-            parent_state: &parent_state,
-            start_accumulator: &start_accumulator,
-            previous_timestamps: &previous_timestamps,
-            finalized_active_counts: &finalized_active_counts,
-            asert_anchor: &asert_anchor,
-            local_time,
-        };
         let witness = match proof_class {
             noid_chain::consensus::paged_spend::BlockProofClass::B25 => {
                 noid_block::prepare_history_step_witness::<25>(
@@ -280,6 +394,7 @@ impl PreparedBlockAttempt {
             payload_weight,
             retained_bytes,
             state_commit: prepared_state_commit,
+            proof_class: MiningProofClass::Legacy(proof_class),
         }))
     }
 
@@ -297,10 +412,8 @@ impl PreparedBlockAttempt {
         )
     }
 
-    pub fn proof_class(&self) -> noid_chain::consensus::paged_spend::BlockProofClass {
-        noid_chain::validate_block_page_stream(&self.block.transactions)
-            .expect("prepared block has a canonical body")
-            .proof_class
+    pub fn proof_class(&self) -> MiningProofClass {
+        self.proof_class
     }
 
     pub const fn expected_parent_id(&self) -> [u8; 32] {
@@ -342,8 +455,9 @@ impl PreparedBlockAttempt {
         }
         let mut block = self.block;
         block.header.nonce = nonce;
-        // SAFETY: `finish_template` performed the complete native consensus
-        // checks for this exact template, `validate_pow` above checked the
+        // SAFETY: legacy `finish_template` or v2 `prepare_candidate_input`
+        // performed the complete native consensus checks for this exact
+        // template, `validate_pow` above checked the
         // only nonce-dependent rule, and `terminal_bytes` is the canonical
         // encoding of the terminal returned directly by the pinned prover at
         // preparation. The local commit intentionally does not verify its own

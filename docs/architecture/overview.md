@@ -11,7 +11,8 @@ materialize the proven writes.
 
 The wallet and miner prove different statements.
 
-The wallet proves knowledge of the 256-bit secret behind every input owner and
+For an ordinary payment, the wallet proves knowledge of the 256-bit secret
+behind its input owner and
 binds that authorization to the complete logical transaction. It does not
 prove that an input is currently unspent because it does not need a current
 Merkle path.
@@ -116,3 +117,17 @@ transactions and State root cannot be changed by the external worker.
 
 For deployment rather than implementation details, continue with
 [Run a node on Linux](../operate/node.md).
+
+## Contract execution
+
+A contract input carries a commitment to its program, policy and current
+counters. The wallet authorizes a call with the secret of the active claim or
+recovery authority. The block relation checks that authority against the
+opening, executes the bounded program and proves the exact successor or
+closing output. Ordinary payments and calls share the same State and recursive
+proof. See [Proof-native contracts](../concepts/proof-native-contracts.md).
+
+At H210537, the first v2 proof binds the exact final legacy block through the
+fork-origin mechanism. Later proofs preserve that binding; nodes select rules
+and matrices by height. [The archive](../archive/legacy-profiles.md) documents
+the earlier profiles and transition.

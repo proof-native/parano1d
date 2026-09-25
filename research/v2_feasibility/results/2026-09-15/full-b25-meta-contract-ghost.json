@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "kind": "exact_full_b25_matrix_with_contract_meta_schedule_and_zero_contract_calls",
+  "prototype": {
+    "location": "temporary detached worktree, never applied to the main v2 worktree",
+    "production_source_files_modified": 4,
+    "insertions": 291,
+    "deletions": 14,
+    "patch_sha256": "b3f334a28914da99494e154ebd640a644bb2d1fb1c1219b95462f9a6ed3df945",
+    "changes": [
+      "extended the existing production Meta-A Tx8x2 wrap family over contract code and old/successor object commitments",
+      "filled the contract Poseidon2b schedule in the production region source binding",
+      "temporarily exposed the frozen HistoryStep witness and instrumented noid_pack_pins to construct and satisfy-check a new B25 matrix"
+    ]
+  },
+  "fixture": {
+    "history_step_class": "B25",
+    "user_pages": 0,
+    "contract_calls": 0,
+    "authorization_tiles": 32,
+    "contract_schedule": "active with canonical zero/ghost values in every authorization/body block"
+  },
+  "matrix": {
+    "previous_production_useful_rows": 4185273,
+    "new_useful_rows": 4185327,
+    "useful_row_delta": 54,
+    "padded_rows": 4194304,
+    "remaining_rows": 8977,
+    "log_rows": 22,
+    "structural_digest_hex": "b4167d4bec77ec5d4bd1b4a92b72803eed819fc8c8dd77ba45d56208b15f196b",
+    "r1cs_satisfied": true
+  },
+  "timing": {
+    "full_matrix_build_and_satisfaction_scan_ms": 21349,
+    "production_preparation_ms": 4151.3,
+    "production_selected_authorization_plus_meta_all_tiles_rows": 1926058,
+    "terminal_proof_generated": false,
+    "warning": "the 21.349 second measurement is matrix construction plus a complete R1CS satisfaction scan, not a production proving-time measurement"
+  },
+  "checks": [
+    {
+      "command": "cargo check -p noid_recursive",
+      "passed": true
+    },
+    {
+      "test": "region_sidecar::walk_a::tests::wallet_meta_variants_roundtrip_and_match_reference_tuple_order",
+      "profile": "release",
+      "passed": true
+    },
+    {
+      "test": "acceptance::trace::region_source_binding::split_walk_a_layout_tests::meta_region_draft_spine_only_matches_direct_raw_columns",
+      "profile": "release",
+      "passed": true
+    },
+    {
+      "test": "selected all-tiles authorization row ledger",
+      "profile": "release",
+      "passed": true
+    }
+  ],
+  "established": [
+    "the actual production B25 relation can be constructed with the augmented Meta-A schedule without crossing the existing 2^22 shape",
+    "the complete generated witness satisfies the complete generated matrix",
+    "zero contract calls add 54 useful rows and leave 8977 rows of raw B25 slack",
+    "the production Meta-A native walk and trace/reference-column equivalence tests pass"
+  ],
+  "not_established": [
+    "a terminal proof under a newly frozen canonical two-class matrix bank",
+    "one or more real contract calls linked through a complete production HistoryStep",
+    "production proving and recursive verification timing after a canonical refreeze",
+    "soundness composition or a new certificate"
+  ]
+}

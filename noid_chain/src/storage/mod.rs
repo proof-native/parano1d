@@ -32,7 +32,7 @@ pub use mdbx_context::{
 };
 pub use mdbx_store::{
     MdbxStore, SnapshotHeaderInstallSource, StoreError, VerifiedHeaderBatchRecord,
-    VerifiedOwnerSnapshot, VerifiedOwnerUtxo,
+    VerifiedOwnerPage, VerifiedOwnerSnapshot, VerifiedOwnerUtxo,
 };
 pub use memory::RamBackend;
 pub use meta::{ConsensusMeta, FinalizedCheckpoint};

@@ -1,0 +1,34 @@
+{
+  "base": "7e04b5281f895052476f63a4100b85218736a881",
+  "dirty": true,
+  "binary_sha256": "a8b1ddb3c4ece9d0b4a3e40b7d38b18a307c8f33fd8137b508676b76a8f93701",
+  "files": {
+    "bench_prover/src/bin/noid_v2_capacity.rs": "94ac607e8a0a882adbc2ec085e4c5fb1958fc21e0300c3b3157831a00b5cae80",
+    "bench_prover/src/bin/v2_capacity_support/banked.rs": "5298686c696895bdc101e45f9a6dd12888075ed4a8126929ac9ecadb06785a41",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "1caf6369a496d8b4627a69bc048ece56c0440ce6b8177f4857d48e11495550aa",
+    "bench_prover/src/bin/v2_capacity_support/proof.rs": "512353b8f5c04d7b474727e5fe8a839aef051a63dd11bcbf94fbf285f89e1779",
+    "bench_prover/src/bin/v2_capacity_support/state.rs": "3d2166b6e0e75cec1bb766304a03e124621227f4c6fda686535d339fd2d0f436",
+    "noid_recursive/src/acceptance/history_step/runtime_parts_codec.rs": "df47689613f90a83a1bc39f6c80030bcbcfcc46d331a0e0972b54e7b44b55626",
+    "noid_recursive/src/acceptance/history_step/v2.rs": "709a4a955e75b8343b85d940a5557daab9f961b6c5221deb95d9fd9a54f154b5",
+    "noid_recursive/src/acceptance/history_step/v2/banked.rs": "5d0820e07920a597b729d3c21085cca929bcdf57f97cb87c4643c7aa3aa82611",
+    "noid_recursive/src/acceptance/history_step/v2/banked/assembly.rs": "f75871ebceab088b6cf803eec8e7aa25ca4f4523e17dbf6ee5f9df96027eba49",
+    "noid_recursive/src/acceptance/history_step/v2/banked/bank.rs": "fe5c055f6f15758531cdd8d98c820b3c7c1c3f2a66dfb1a8c4148dcf940a4440",
+    "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "18c0e43ac50f6b9510828498085aed4373e9fda2e2a7eb7862ffff9f5a05fd81",
+    "noid_recursive/src/acceptance/history_step/v2/banked/decision.rs": "10b62a9fe4058e090af9e870a21e2e096a7a848ae9645c5bdda1a811b98ec8da",
+    "noid_recursive/src/acceptance/history_step/v2/banked/parent.rs": "44138455cd92cfaafcfeaf8f9cd94ffed844e844165d2172d12ac707bf87728a",
+    "noid_recursive/src/acceptance/history_step/v2/banked/wire.rs": "d56daa6fe3a8cc9dbed2c0f9f1c66d486b602b0bd5427c66c29624119f7ae0d7"
+  },
+  "env": {
+    "RAYON_NUM_THREADS": "4",
+    "NOID_CPU_BACKEND": "pclmul",
+    "affinity": "0,2,4,6",
+    "MemoryMax": "8G",
+    "MemorySwapMax": "0"
+  },
+  "equivalent_code_commit": "1ac4912379cfc5cf54a3a01eebe8d0c73ccc380d",
+  "qualification": "standalone terminal receiver; not a full daemon or a server speed prediction",
+  "host": "Intel Core i7-1365U; 12 logical CPUs; affinity to 2 P cores and 2 E cores",
+  "matrix_and_origin_setup_ms": 790657.315635,
+  "peak_process_rss_kib": 1508964,
+  "exit_code": 0
+}

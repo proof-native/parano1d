@@ -26,13 +26,15 @@
 
 pub mod block_production;
 mod cpu_budget;
+pub mod history_protocol;
 pub mod history_step_artifacts;
 pub mod miner;
 pub mod pow;
 pub mod proof_capacity;
 pub mod template;
+pub mod v2_artifacts;
 
-pub use block_production::{CommittedBlock, PreparedBlockAttempt, ProvedBlock};
+pub use block_production::{CommittedBlock, MiningProofClass, PreparedBlockAttempt, ProvedBlock};
 pub use cpu_budget::{
     configure_process_cpu_budget, configure_process_cpu_budget_with_threads,
     configured_process_cpu_budget, install_history_step_phase_cpu, install_inbound_verifier_cpu,
@@ -40,6 +42,7 @@ pub use cpu_budget::{
     plan_process_cpu_budget, plan_process_cpu_budget_with_threads, ProcessCpuBudgetError,
     ProcessCpuBudgetMode, ProcessCpuBudgetPlan,
 };
+pub use history_protocol::HistoryProtocolRuntime;
 pub use history_step_artifacts::{
     decode_history_step_runtime_metadata_pinned, encode_history_step_runtime_metadata,
     history_step_matrix_file_name, history_step_runtime_image_file_name,

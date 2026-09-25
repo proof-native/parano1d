@@ -20,6 +20,9 @@ const PAYOUT_REMAINDER_BITS: usize = 13;
 const _: () = assert!(TARGET_BLOCKS_PER_DAY == (1 << 12) + (1 << 7) + (1 << 6) + (1 << 5));
 
 pub struct DevelopmentAllocationTrace {
+    /// Canonical range-check bits of the accepted child height. Consumers
+    /// such as the v2 timed object policy reuse these exact wires.
+    pub height_bits: [Wire; HEIGHT_BITS],
     pub active: LinExpr,
     pub payout_due: LinExpr,
     pub share_each: LinExpr,
@@ -181,6 +184,9 @@ pub fn bind_development_allocation(
     );
 
     DevelopmentAllocationTrace {
+        height_bits: height_wires
+            .try_into()
+            .expect("child height range check has 64 bits"),
         active,
         payout_due,
         share_each: current_share,

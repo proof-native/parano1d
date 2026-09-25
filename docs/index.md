@@ -1,213 +1,99 @@
 # Parano1d ①
 
-**Proof-native Layer 1 ordered by proof of work.**
+> **V2 activation: mainnet block 210537.** These docs describe v2. Before that
+> height, v1.1 applies. The planning estimate is October 10, 2026, 11:59 PM PDT
+> (October 11, 06:59 UTC); height determines activation, not the date.
+> Previous rules and measurements are in the [archive](archive/index.md).
 
-Blockchains have a fundamental architectural flaw: the present does not prove
-itself. Its validity is inherited from accumulated history. Bitcoin reconstructs
-that validity by validating the chain from genesis. Other networks may shorten
-bootstrap with snapshots or checkpoints, but those only move the dependency
-forward: the current state still does not carry a proof of its own valid path
-from genesis.
+**Proof-native Layer 1 ordered by proof of work. From live value to live rights.**
 
-A new verifier must therefore reconstruct that path or rely on state produced
-by prior historical validation.
+Parano1d makes current State verifiable without replaying historical
+transactions. The wallet proves authorization, the miner proves public
+execution and the exact State transition, and peers verify the recursive
+`HistoryStep` before applying its proven writes. Each terminal authenticates
+the present and its valid ancestry.
 
-This is not a temporary limitation. It is baked into the model.
+## From live value to live rights
 
-Parano1d is designed to remove this requirement.
+A payment proves the right to spend value. A v2 contract additionally commits
+to **how that right may be exercised**: who may act, at which height, for how
+much, and how counters change. A call proves the permitted transition into a
+successor or closes the right. That proof becomes part of block validity.
 
-Validity is established once, where the complete information already exists.
-The wallet proves authorization with its private witness. The miner proves the
-public transaction logic and the exact State transition. The network verifies
-those proofs instead of repeating the same execution.
+Nodes keep live commitments instead of requiring a permanent contract execution
+log. Participants keep public terms and portable receipts. This lets budgets,
+prepaid services, delegated spending, delayed access and staged payments share
+the same recursive validation model as ordinary transfers.
 
-Every accepted block carries a recursive `HistoryStep` that proves the block's
-exact State transition, including its new UTXO root, and verifies the preceding
-`HistoryStep` terminal. A new node can authenticate the current State and verify
-the recent reorg suffix without
-executing the chain from genesis.
+The bounded integer core offers 16 instructions, two persistent counters,
+checked arithmetic, conditions and height access. All users can create programs
+within this ABI without a separate circuit or matrix. Six templates and a
+custom editor are available through GUI, CLI and RPC. Calls require authorized
+transactions; consensus does not run background timers.
 
-Once the present State carries its own proof, spent records can be deleted and
-their slots reused. Ownership no longer needs a public key or digital signature. State
-growth can be priced directly. Proof of work can order transitions whose
-validity is already established. The age of the network does not become a
-hardware requirement.
+[Understand proof-native contracts](concepts/proof-native-contracts.md) ·
+[Build and use contracts](contracts/index.md) · [API](contracts/api.md) ·
+[GUI walkthrough](contracts/gui.md)
 
-## The fundamental shift
+## What the node retains
 
-| | Conventional blockchain | Parano1d |
-|---|---|---|
-| Validation | Every full node re-executes | The witness holder proves; the network verifies |
-| Bootstrap | Rebuild state from genesis | Authenticate current State and verify the recent suffix |
-| Ownership | Public-key signature | Fresh ZK proof of a Poseidon2b preimage |
-| State | Derived from accumulated history | Exact Live State is a consensus object |
-| Spent outputs | Remain part of required history | Slots are cleared and safely reused |
-| Proof of work | Orders an execution log | Orders proof-valid State transitions |
-| Post-quantum migration | Replace the ownership scheme | No elliptic-curve transaction scheme to replace |
+State is an exact sparse vector of live outputs. Spent slots are cleared and
+reused with fresh creation identifiers. Empty segments are virtual. Nodes
+retain permanent compact headers, a recursive terminal, 42 recent bodies and
+bounded undo data. A joining node authenticates State and the recent suffix
+without replaying old execution.
 
-## One transition, proved once
+Header validation still grows with chain height, and State transfer with the
+live set. Public transactions can be archived by third parties. Zero knowledge
+protects the spending secret; pruning is not concealment.
 
-When sending NOID, the wallet selects its UTXOs and creates one atomic
-`PagedSpend`. It produces a freshly randomized, witness-hiding authorization
-for `{logical_txid, input_owner}`. The 256-bit spending secret never leaves the
-wallet.
+[Architecture](architecture/overview.md) · [Synchronization](architecture/synchronization.md)
 
-The authorization is stateless: it contains no UTXO Merkle path and is not
-tied to one State root. The miner holds the public State witness and proves
-separately that every input exists, every output slot is empty, values balance,
-fees are correct and the resulting State root is exact.
-
-The mempool verifies a complete transaction intent before relaying it. The
-miner combines accepted intents, the exact State transition and the preceding
-terminal into the next `HistoryStep`. It proves the nonce-independent block
-before searching for a PoW nonce.
-
-Peers receive one atomic `{block, HistoryStep terminal}` bundle. They verify
-the proof and nonce, then apply the proven slot writes to their local UTXO set.
-They materialize the result without re-executing the transaction logic.
-
-[See the complete proof and block flow →](architecture/overview.md)
-
-## Mining requires State
-
-**Hashpower alone cannot produce blocks. Mining requires State; nonce search
-begins only after the proof is complete.**
-
-An independent miner follows the canonical chain, holds the current State,
-selects transactions and proves the exact next `HistoryStep`. Only after that
-proof is complete can an internal or external worker search the immutable
-Poseidon2b header nonce. A standalone hash engine cannot originate a block or
-change the transition it is working on.
-
-Mining infrastructure therefore doubles as network infrastructure: an
-independent block producer is a proving full node backed by hashpower, not only
-a nonce-search device.
-
-[Understand mining and start a miner →](mining/index.md)
-
-## A present that proves itself
-
-Each `HistoryStep` proves the current block relation and verifies the previous
-terminal inside the same relation. Proof size and verification work do not
-increase with block height.
-
-An active node keeps the exact Live State, compact headers for cumulative work
-and the latest 42 canonical block bodies for competing miners and reorgs. A
-joining node authenticates a finalized State with its matching terminal, then
-verifies one recursive terminal at the recent suffix tip before applying the
-linked bodies.
-
-Parano1d is history-stateless, not state-free. `State` transfer scales with the
-live UTXO set. What no longer scales with chain age is the execution required
-to prove why that State is valid.
-
-## Signatureless ownership
-
-An address is the Poseidon2b image of a 256-bit spending secret. Ownership is a
-zero-knowledge proof of knowledge of that preimage, bound to the complete
-logical transaction. There is no public key or transaction signature on the
-wire.
-
-The authorization capsule is independently randomized on every spend,
-including repeated use of the same address. Transaction consensus contains no
-elliptic curves. The Ed25519 key used by libp2p identifies a peer only and has
-no spending or consensus authority.
-
-Parano1d is transparent, not a privacy chain. Values, owners and relayed
-transactions are public. Zero knowledge protects the spending witness.
-Protocol storage reduces routine transaction-body retention, but it cannot
-prevent third parties from archiving public transactions.
-
-## Live State
-
-State is an exact sparse vector of indexed UTXOs. Spending clears a slot, and
-the allocator reuses empty positions before opening new State capacity. Every output
-has a fresh `creation_id`, so reusing an index can never revive an old
-reference.
-
-The vector is divided into `2^16`-slot segments. Empty segments are virtual and
-a segment disappears when its last UTXO is spent. The slot domain begins at
-`2^24` and can expand without copying State, migrating outputs or pausing the
-network.
-
-Fees distinguish ordinary I/O from net-new State. The State-growth component
-rises with occupancy and is burned; consolidation pays no growth burn. The
-block reward halves when the State domain expands, with a permanent 1 NOID
-floor.
-
-## One binary proof stack
-
-Committed trace arithmetic uses the binary tower field `GF(2^128)`. The
-production wide-challenge layer lifts Fiat–Shamir challenges, terminal claims
-and recursive region authentication into `GF(2^256)`. Poseidon2b is the common
-permutation for addresses, transactions, Merkle trees, State roots,
-transcripts, block identifiers and proof of work.
-
-[FROST-GKR](research/frost-gkr.md) packs Poseidon2b batches and Merkle paths into direct degree-seven
-relations over shared Boolean hypercubes. Batched sumchecks, zerocheck,
-lincheck and FRI-Binius close the binary R1CS relation without a trusted setup.
-Wallet authorization, exact State transition and recursive chain verification
-therefore compose inside one arithmetic system instead of separate proof
-systems joined afterward.
-
-## Soundness
-
-| Security statement | Current production result |
-|---|---:|
-| Target FRI security | **128 bits** |
-| Provable Block–Tiwari FS-FRI security | **127 bits** |
-| Conjectured Block–Tiwari FS-FRI security | **127 bits** |
-| Sequential ideal-QROM half-success boundary | **64.707407428576 bits** |
-| NIST Post-Quantum Cryptography Category | **Category 1** |
-| Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
-| Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
-
-[Block and Tiwari](https://eprint.iacr.org/2024/1161) define concrete FS-FRI
-security as the minimum expected classical random-oracle query work over every
-positive integer query budget. Their definitions and whole-bit presentation
-give 127 provable bits and 127 conjectured bits for the production B25 and B255
-profiles. The complete calculation and published-system comparison are in the
-[Block–Tiwari derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/block-tiwari.md).
-
-The separate end-to-end game asks whether one stateful quantum adversary can
-make the production verifier accept an invalid terminal State whose recursive
-ancestry starts at genesis. Under the fixed Poseidon2b delta, batch gate-depth
-price and scalar gate-charge premises stated in the theorem, the result is
-provable end-to-end post-quantum soundness for state validation from genesis at
-NIST PQC Category 1. The response audit separately supplies complete
-constructions and a scoped scalar lower bound. See the complete
-[QROM and Category 1 derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md),
-[response accounting](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
-and the [security model](protocol/security-model.md).
-
-## Protocol profile
+## V2 profile
 
 | Parameter | Value |
-|---|---:|
-| Mean block target | 20 seconds |
-| Default miner class | B25, `m=22`, up to 25 effective page positions |
-| Large miner class | B255, `m=24`, up to 255 effective page positions |
-| Maximum logical transactions per block | 255 |
-| Maximum one-page throughput | 12.75 TPS |
-| Maximum inputs in one transaction | 1,020 |
-| Maximum outputs in one transaction | 256 |
-| Recent block and reorg suffix | 18 blocks |
-| State domain | `2^24` to `2^32` slots |
+| --- | --- |
+| Target interval / ASERT half-life | 30 s / 180 s |
+| Small, m23 | 63 pages / 504 inputs / 63 calls |
+| Large, m24 | 206 pages / 504 inputs / 63 calls |
+| Large production | Server opt-in `--v2-large-blocks` |
+| Hard finality / maximum reorg | 18 / 17 blocks |
+| Terminal cap | 1,100,000 bytes |
+
+The budgets apply together. Calls share pages with ordinary payments.
+Large can hold 63 calls plus 143 one-page payments within the common input
+budget. The primary coinbase is separate; an extra mandatory system page
+consumes one effective page. Every node verifies both classes.
+
+Hashpower alone cannot create a block: the producer proves the transition
+before nonce search. See [mining](mining/index.md), [parameters](protocol/parameters.md)
+and [actual measurements](reference/performance.md).
+
+## Issuance and State efficiency
+
+The exact subsidy schedule is **16 → 11.30 → 8 → 5.65 → 4 → 2.83 → 2 → 1.41 → 1
+NOID**, one step per 1,051,200 blocks from v2. The 1 NOID tail continues
+indefinitely. Occupancy independently prices new live slots; the growth fee is
+burned and consolidation avoids it. [Network economics](protocol/economics.md)
+explains the constants and why State usage no longer acts as the monetary clock.
+
+## Proof stack and security
+
+Poseidon2b and binary-field arithmetic connect wallet authorization, exact
+State and recursive ancestry. [FROST-GKR](research/frost-gkr.md) batches public
+hash work; the transparent stack requires no trusted setup.
+The final v2 bank and retirement proof have source-linked Category 1 resource
+accounting under explicit composition, cryptographic and preprocessing
+premises. Read the [security model](protocol/security-model.md) for the exact
+statement, assumptions and resource bounds.
 
 ## Start
 
-- Install the native GUI wallet from the
-  [latest release](https://github.com/ignotusnemo/parano1d/releases). It
-  includes and supervises its own full node.
-- Read the [architecture overview](architecture/overview.md) to follow a
-  transaction from the wallet to accepted State.
-- [Run an ordinary node on Linux](operate/node.md).
-- [Run an internal or external miner](mining/index.md).
-- Inspect or build the
-  [source](https://github.com/ignotusnemo/parano1d) with the pinned Rust
-  toolchain.
+- [Install the native wallet](getting-started/wallet.md).
+- [Create a contract or open a shared file](contracts/gui.md).
+- [Run Core](getting-started/core.md) or [mine](mining/index.md).
+- [Integrate with JSON-RPC](reference/rpc.md).
+- [Build from source](developers/build.md) and inspect the pinned proof material.
 
-The source code is the canonical definition of consensus behavior. The
-protocol specification documents those rules in a stable, implementation-
-independent form.
+The source defines consensus behavior. The documentation explains those rules
+and the application workflows built on them.

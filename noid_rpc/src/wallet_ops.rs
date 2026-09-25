@@ -92,7 +92,72 @@ pub struct WalletReceiptSlice {
     pub receipts: Vec<WalletReceiptRecord>,
 }
 
+pub struct WalletObjectOpeningPage {
+    pub openings: Vec<noid_tx::experimental_object::ObjectOpening>,
+    pub next_root: Option<[u8; 32]>,
+}
+
+/// Compact retained call with its Merkle inclusion checked locally. No
+/// recursive terminal is loaded to enumerate these records.
+pub struct WalletObjectReceiptRecord {
+    pub opening: noid_tx::experimental_object::ObjectOpening,
+    pub page: noid_tx::TxPage,
+    pub header: noid_chain::BlockHeader,
+}
+
+pub struct WalletObjectReceiptPage {
+    pub receipts: Vec<WalletObjectReceiptRecord>,
+    pub next_cursor: Option<String>,
+}
+
 pub trait WalletOps: Send + Sync {
+    /// Prove with the locally selected policy authority. No key material is
+    /// accepted from RPC or returned by this boundary.
+    fn build_object_call(
+        &self,
+        _opening: noid_tx::experimental_object::ObjectOpening,
+        _page: noid_tx::TxPage,
+        _height: u64,
+    ) -> Result<Vec<u8>, String> {
+        Err("object wallet unavailable".into())
+    }
+    fn remember_object_opening(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+    ) -> Result<(), String> {
+        Err("object wallet unavailable".into())
+    }
+    fn load_object_opening(
+        &self,
+        _root: [u8; 32],
+    ) -> Result<noid_tx::experimental_object::ObjectOpening, String> {
+        Err("object opening unavailable".into())
+    }
+    /// Local public terms with identical program and rules but different
+    /// counters. Presence in this catalog never implies a confirmed balance.
+    fn related_object_openings(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+        _after: Option<[u8; 32]>,
+        _limit: usize,
+    ) -> Result<WalletObjectOpeningPage, String> {
+        Err("object catalog unavailable".into())
+    }
+    fn remember_object_receipt(&self, _txid: [u8; 32], _bytes: &[u8]) -> Result<(), String> {
+        Err("object wallet unavailable".into())
+    }
+    fn load_object_receipt(&self, _txid: [u8; 32]) -> Result<Vec<u8>, String> {
+        Err("object receipt unavailable".into())
+    }
+    fn object_receipts(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+        _after: Option<&str>,
+        _limit: usize,
+    ) -> Result<WalletObjectReceiptPage, String> {
+        Err("object receipt catalog unavailable".into())
+    }
+
     /// Overall wallet status (exists, address, balance).
     fn status(&self) -> WalletStatus;
 
@@ -163,6 +228,14 @@ pub trait WalletOps: Send + Sync {
     /// artifacts. The caller invokes this while it still holds the chain write
     /// guard, establishing the global `chain -> wallet` lock order.
     fn on_accepted_block(&self, block: &Block) -> Result<(), String>;
+
+    fn retain_object_receipts(
+        &self,
+        _store: &noid_chain::storage::MdbxStore,
+        _block: &Block,
+    ) -> Result<(), String> {
+        Ok(())
+    }
 
     /// Deterministically plan one ordinary canonical payment transaction using
     /// at most eight active-owner UTXOs.

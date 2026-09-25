@@ -38,6 +38,7 @@ parano1d
 | `--operator-key TOKEN` | 用于固定矿池记账和付款 RPC 范围的独立 Bearer 令牌 |
 | `--operator-key-file FILE` | 从仅所有者可读的文件读取运营者令牌 |
 | `--allow-custom-coinbase` | 允许经过认证的外部挖矿进程请求自己的奖励地址 |
+| `--v2-large-blocks` | 为内部挖矿及外部模板允许 Large，默认 Small |
 | `--purge-state` | 清除完整链数据库，并从对等节点重新同步 |
 | `--check-hardware` | 报告发布版 CPU 支持情况后退出，不触碰节点数据 |
 
@@ -259,3 +260,11 @@ height="$(
 ```
 
 人类可读输出和颜色属于展示接口，脚本应读取 JSON。
+
+### 合约
+
+`parano1d-cli contract` 提供 `protocol`、`payment`、`vault`、`allowance`、
+`budget`、`recurring`、`vesting`、`create`、`fund`、`watch`、`status`、`instances`、
+`call`、`receipt`、`verify`、`restore`。金额为 NOID。`call --preview` 审阅精确实例，
+`--expected-txid` 绑定已审阅交易体。见[完整流程](../contracts/api.md)及各命令
+`--help`。合约 API 使用本地所有者权限。

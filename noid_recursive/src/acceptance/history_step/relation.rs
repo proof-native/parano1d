@@ -66,6 +66,7 @@ pub enum HistoryStepError {
     },
     Verify(VerifyError),
     InvalidClass,
+    ProtocolProfile,
     InvalidIo,
     ParentBoundary,
     ParentRecording,
@@ -120,6 +121,7 @@ impl core::fmt::Display for HistoryStepError {
             }
             Self::Verify(error) => write!(f, "HistoryStep proof: {error:?}"),
             Self::InvalidClass => f.write_str("HistoryStep class id is not canonical"),
+            Self::ProtocolProfile => f.write_str("legacy HistoryStep cannot carry contract openings"),
             Self::InvalidIo => f.write_str("HistoryStep public IO is not canonical"),
             Self::ParentBoundary => {
                 f.write_str("HistoryStep current start is not the parent terminal")
@@ -296,6 +298,7 @@ impl HistoryStepRuntimeParts {
             )
             .is_none()
                 || vk.version() != crate::region_sidecar::BLOCK_REGION_SELECTED_ZK_SIDECAR_VERSION
+                || vk.supports_objects()
             {
                 return Err(HistoryStepError::RuntimeBlockVk(slot));
             }
@@ -395,6 +398,7 @@ impl HistoryStepMatrixSource for RejectingHistoryStepMatrixSource {
 pub fn derive_history_step_direct_block_vk<const TIER: usize>(
     current: HistoryStepBlockInput<TIER>,
 ) -> Result<BlockRegionSidecarVk, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     if crate::region_sidecar::selected_zk_block_geometry(TIER).is_none() {
         return Err(HistoryStepError::InvalidClass);
     }
@@ -419,15 +423,16 @@ pub fn derive_history_step_direct_block_vk<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_seal.block_id,
+        BlockRelationProfile::LegacyV1,
     );
     Ok(assembly.region_vk().clone())
 }
 
-fn placeholder_history_step_recording_layout(slot_count: usize) -> DuplexLayout {
+pub(super) fn placeholder_history_step_recording_layout(slot_count: usize) -> DuplexLayout {
     compile_duplex(&[TranscriptOp::Absorb(vec![Some(0); 2 * slot_count])])
 }
 
-fn history_step_query_lane_count(params: &PcsParams) -> usize {
+pub(super) fn history_step_query_lane_count(params: &PcsParams) -> usize {
     let log_dim = params.m - noid_ivc_core::pcs::LOG_PACKING - params.log_batch_size;
     let k_code = log_dim + params.log_inv_rate;
     let per_lane = 128 / k_code;
@@ -545,6 +550,7 @@ pub struct HistoryStepRuntime {
     parent_recursion_vk: LinkRegionSidecarVk,
     direct_block_vks: [BlockRegionSidecarVk; HISTORY_STEP_TIER_SLOT_COUNT],
     parent_geometry: HistoryStepParentGeometry,
+    matrix_claim_cache: super::super::history_step_bank::HistoryStepMatrixClaimCache,
 }
 
 impl HistoryStepRuntime {
@@ -569,7 +575,9 @@ impl HistoryStepRuntime {
         for (slot, vk) in direct_block_vks.iter().enumerate() {
             let class =
                 CanonicalHistoryStepClassId::new(slot).expect("runtime block VK slot is canonical");
-            if vk.transcript_digest() != bank.entry(class).direct_block_vk_digest() {
+            if vk.supports_objects()
+                || vk.transcript_digest() != bank.entry(class).direct_block_vk_digest()
+            {
                 return Err(HistoryStepError::RuntimeBlockVk(slot));
             }
         }
@@ -579,6 +587,7 @@ impl HistoryStepRuntime {
             parent_recursion_vk,
             direct_block_vks,
             parent_geometry,
+            matrix_claim_cache: Default::default(),
         })
     }
 
@@ -633,7 +642,10 @@ impl HistoryStepRuntime {
         pending: PendingHistoryStepBankDecision,
     ) -> Result<AcceptedHistoryStepBankTip, HistoryStepError> {
         pending
-            .finish_with_matrix_loader(|class| self.load_matrix(class))
+            .finish_with_matrix_loader_cached(
+                |class| self.load_matrix(class),
+                &self.matrix_claim_cache,
+            )
             .map_err(Into::into)
     }
 }
@@ -684,14 +696,103 @@ impl BuiltHistoryStep {
 /// block production uses [`BuiltHistoryStep`] and never materializes CSR rows.
 pub struct FrozenHistoryStep {
     r1cs: FieldR1cs,
+    /// Research/freezer witness retained so a newly composed matrix can be
+    /// satisfaction-checked before any expensive terminal freeze.
+    witness: Vec<F128>,
     useful_rows: usize,
     class_id: CanonicalHistoryStepClassId,
     preparations: HistoryStepPreparations,
 }
 
+/// Research-only exact direct-block relation. It excludes the parent-proof
+/// replay and outer HistoryStep public-I/O glue, but includes the complete
+/// selected authorization, Meta, transaction, fee and exact-State machinery.
+/// This lets heterogeneous contract witnesses be compared before freezing a
+/// new recursive matrix bank.
+#[doc(hidden)]
+pub struct FrozenDirectBlockResearch {
+    r1cs: FieldR1cs,
+    witness: Vec<F128>,
+    useful_rows: usize,
+    class_id: CanonicalHistoryStepClassId,
+}
+
+#[doc(hidden)]
+impl FrozenDirectBlockResearch {
+    pub fn matrix(&self) -> &FieldR1cs {
+        &self.r1cs
+    }
+
+    pub fn witness(&self) -> &[F128] {
+        &self.witness
+    }
+
+    pub const fn useful_rows(&self) -> usize {
+        self.useful_rows
+    }
+
+    pub const fn class_id(&self) -> CanonicalHistoryStepClassId {
+        self.class_id
+    }
+}
+
+/// Assemble the complete direct-block portion against an already natively
+/// prepared boundary, without requiring a newly frozen recursive parent.
+#[doc(hidden)]
+pub fn assemble_frozen_direct_block_research<const TIER: usize>(
+    current: HistoryStepBlockInput<TIER>,
+) -> Result<FrozenDirectBlockResearch, HistoryStepError> {
+    let HistoryStepBlockInput {
+        start_accumulator,
+        end_accumulator,
+        components,
+        authorization,
+        sealed_header,
+        parent_header,
+        ..
+    } = current;
+    let class_id = canonical_history_step_class_id(TIER).ok_or(HistoryStepError::InvalidClass)?;
+    let mut builder = FieldR1csBuilder::new();
+    let parent_id = digest_lanes(&noid_chain::hash_block_header(&parent_header))
+        .map(|value| LinExpr::from_wire(builder.alloc_f128(flat_of(value))));
+    let assembly = build_block_slots_selected_zk(
+        &mut builder,
+        &start_accumulator,
+        &end_accumulator,
+        &components,
+        &sealed_header,
+        TIER,
+        authorization,
+        &parent_header,
+        &parent_id,
+        BlockRelationProfile::V2,
+    );
+    let useful_rows = builder.num_wires();
+    finalize_selected_zk_block_region(assembly, canonical_history_step_shape(class_id).m).map_err(
+        |source| {
+            HistoryStepError::sidecar(
+                HistoryStepSidecarOperation::FinalizeCurrentDirectBlock,
+                source,
+            )
+        },
+    )?;
+    let (r1cs, witness) = builder.build();
+    Ok(FrozenDirectBlockResearch {
+        r1cs,
+        witness,
+        useful_rows,
+        class_id,
+    })
+}
+
 impl FrozenHistoryStep {
     pub fn matrix(&self) -> &FieldR1cs {
         &self.r1cs
+    }
+
+    #[doc(hidden)]
+    pub fn witness(&self) -> &[F128] {
+        &self.witness
     }
 
     pub const fn useful_rows(&self) -> usize {
@@ -764,7 +865,10 @@ impl HistoryStepTerminal {
     }
 
     pub const fn wire_version(&self) -> u8 {
-        noid_chain::history_step::history_step_terminal_wire_version(self.height)
+        noid_chain::history_step::history_step_terminal_wire_version_with_activation(
+            self.height,
+            noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT,
+        )
     }
 
     pub const fn height(&self) -> u64 {
@@ -954,7 +1058,7 @@ struct PreparedParentReplay {
     r_prev_recordings: Vec<LayoutRecordedChannel>,
 }
 
-fn capture_scratch_recording(
+pub(super) fn capture_scratch_recording(
     recording: &RecordedChannel,
     builder: &FieldR1csBuilder,
 ) -> LayoutRecordedChannel {
@@ -1298,7 +1402,7 @@ fn zero_fresh_claim(shape: FieldShape) -> C1FreshLincheckClaim {
     }
 }
 
-fn zero_fold_proof(k_log: usize) -> C1MatrixFoldProof {
+pub(super) fn zero_fold_proof(k_log: usize) -> C1MatrixFoldProof {
     C1MatrixFoldProof {
         phase1_rounds: vec![[F256::ZERO; 2]; k_log + 1],
         g_v: F256::ZERO,
@@ -1312,6 +1416,7 @@ fn prepare_history_step_base<'a, const TIER: usize>(
     runtime: &HistoryStepRuntime,
     current: &HistoryStepBlockInput<TIER>,
 ) -> Result<PreparedHistoryStepParent<'a>, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     let genesis = genesis_accumulator();
     if current.start_accumulator != genesis || current.end_accumulator.height != 1 {
         return Err(HistoryStepError::ParentBoundary);
@@ -1358,6 +1463,7 @@ fn prepare_history_step_recursive<'a, const TIER: usize>(
     parent: HistoryStepParent<'a>,
     current: &HistoryStepBlockInput<TIER>,
 ) -> Result<PreparedHistoryStepParent<'a>, HistoryStepError> {
+    validate_legacy_block_profile(&current)?;
     let bank = runtime.bank();
     let envelope = parent.envelope();
     let selected_class = history_step_bank_tip_class(bank, &envelope.io)?;
@@ -1605,6 +1711,39 @@ pub fn verify_history_step_terminal(
     })
 }
 
+/// Replay the pre-fork terminal without discharging any matrix claims from
+/// a local cache. A certificate must close every resulting obligation.
+pub fn prepare_history_step_retirement(
+    runtime: &HistoryStepRuntime,
+    terminal: &HistoryStepTerminal,
+    expected_header: &BlockHeader,
+    epoch_anchor_header: &BlockHeader,
+    target: crate::acceptance::history_step_bank::retirement::HistoryStepRetirementTarget,
+) -> Result<
+    crate::acceptance::history_step_bank::retirement::HistoryStepRetirementRequest,
+    crate::acceptance::history_step_bank::retirement::HistoryStepRetirementError,
+> {
+    use crate::acceptance::history_step_bank::retirement::{
+        HistoryStepRetirementError, HistoryStepRetirementRequest,
+    };
+    target.check_parent_height(expected_header.height)?;
+    target.check_legacy_bank(runtime.bank().digest())?;
+    validate_terminal_metadata(
+        runtime,
+        terminal,
+        Some((expected_header, epoch_anchor_header)),
+    )
+    .map_err(HistoryStepRetirementError::Replay)?;
+    let pending = verify_history_step_pending(runtime, terminal.class_id, &terminal.proof)
+        .map_err(HistoryStepRetirementError::Replay)?;
+    HistoryStepRetirementRequest::from_pending(
+        pending,
+        target,
+        expected_header,
+        epoch_anchor_header,
+    )
+}
+
 #[derive(Clone, Copy)]
 enum HistoryStepAssemblyMode {
     Frozen,
@@ -1616,12 +1755,12 @@ enum HistoryStepAssemblyOutput {
     WitnessOnly(BuiltHistoryStep),
 }
 
-struct DeferredHistoryStepIo {
+pub(super) struct DeferredHistoryStepIo {
     tip_block_id: [DeferredWitnessSlot; 2],
     epoch_anchor_id: [DeferredWitnessSlot; 2],
 }
 
-fn allocate_deferred_history_step_io(
+pub(super) fn allocate_deferred_history_step_io(
     builder: &mut FieldR1csBuilder,
     spec: &PublicIoSpec,
     values: &[F128],
@@ -1671,7 +1810,7 @@ fn allocate_deferred_history_step_io(
 }
 
 impl DeferredHistoryStepIo {
-    fn seal(
+    pub(super) fn seal(
         self,
         builder: &mut FieldR1csBuilder,
         io: &mut [F128],
@@ -1837,6 +1976,7 @@ fn prepare_history_step_assembly<const TIER: usize>(
         authorization,
         &parent_header,
         &parent_seal.block_id,
+        BlockRelationProfile::LegacyV1,
     );
     let block_slots = block_assembly.slots();
     // The parent header witness sits at the accumulator start height in both
@@ -2215,6 +2355,7 @@ fn finish_history_step_assembly<const TIER: usize>(
     Ok(match r1cs {
         Some(r1cs) => HistoryStepAssemblyOutput::Frozen(FrozenHistoryStep {
             r1cs,
+            witness,
             useful_rows: used,
             class_id: current_class,
             preparations,
@@ -2717,4 +2858,13 @@ mod tests {
         renonced_genesis.nonce ^= 1;
         assert!(!base_pins_satisfy(&renonced_genesis));
     }
+}
+
+fn validate_legacy_block_profile<const TIER: usize>(
+    current: &HistoryStepBlockInput<TIER>,
+) -> Result<(), HistoryStepError> {
+    if !current.components.v2_contract_inputs.is_empty() {
+        return Err(HistoryStepError::ProtocolProfile);
+    }
+    Ok(())
 }

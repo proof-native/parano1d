@@ -1,0 +1,266 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "gui_call": {
+    "txid": "10090ab085e0a084f8444b2b937edeec71ba385b0f4774e2d0aa15e78afb9acd",
+    "height": 89,
+    "successor_state": [
+      "1",
+      "0"
+    ],
+    "successor_instances": {
+      "address": "o1utxhx8zjwfr9p4y8qejc92064knzu2ed9zv5uhltcnvlvg0y0wxsh3lqy8",
+      "height": 89,
+      "tip_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "slots": [
+        {
+          "slot_index": 9740402,
+          "value": 9994200,
+          "creation_id": 2106,
+          "owner": "o1utxhx8zjwfr9p4y8qejc92064knzu2ed9zv5uhltcnvlvg0y0wxsh3lqy8",
+          "empty": false
+        }
+      ],
+      "next_slot": null
+    },
+    "receipt_verified": true,
+    "receipt_bytes": 914634,
+    "receipt_sha256": "84969607906a8eaca117e4fd854a83e0f702ee48973e147de5b1cee86bc8a786",
+    "interaction": "Real GUI buttons: open saved orphaned terms, select the discovered funded predecessor, review a call without payment, confirm, mine normally, and inspect the funded successor. RPC only checks the resulting transaction and receipt.",
+    "screenshots": {
+      "gui-01-initial.png": "9557ff1b015b3b0077b523ef17695903a219bb2e0811907f72c939f943dad927",
+      "gui-02-loaded.png": "01232bcb7f109ab864b125881d9cf4da54da1e3778a8e0c2d39f1ab53d45073d",
+      "gui-03-terms.png": "bed5f7c131ac1b955a313d522a11bd784f1357824b73e0024bc55b25c1c6540b",
+      "gui-04-predecessor.png": "3ec46450349e0ec7b74043dec8102b8d790748febf9a52c22f4310a8b3abbd8e",
+      "gui-05-review.png": "34679b61b77097e381d451bd58be5b399c1ef3eeee2ff20d520e6f8f530e0087",
+      "gui-06-review-details.png": "bae04b0c1bb01fc14cf4944fb0e4c992ec19ec5f75cc7db247bd44666f073c49",
+      "gui-07-submitted.png": "f8149ef1f566244dad5dd31433734cef4f2e50a26a63eee014428ef261712bcd",
+      "gui-08-confirmed.png": "31a6f895eadf7192ae876e35c7e690172bfe05af168364ef16aba00fdf15ea0d",
+      "gui-09-confirmed.png": "1ffded060f0620e8a487776ef5b2e00316385d30887136f83743014af135a8b9"
+    }
+  },
+  "scenario": {
+    "status": "passed",
+    "source_tip": {
+      "height": 88,
+      "best_hash": "ddf84f85a88471cece74210d140171984a54edfe3d7d84e5fca12540f3623b22",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 152,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1540332500"
+    },
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "source_head": "7932fc94ea9be2f770470e7ded6fbe3194670132",
+    "script_sha256": "603ca8f533cc183be1fd0b694f8ec5d00e27790d9028de5b1ccf8544605384bc",
+    "gui_build": {
+      "gui_last_source_commit": "86d07d660910a010463a6d73b30d43309e940950",
+      "gui_sha256": "df5435c5ba8e15aa5c9ebc0d4ee5e7abd3dabe35a405fa91bfeb2178ab779038",
+      "final_build_log_sha256": "883a1bd703023d790f375b1ab38cb134e9467dbfc20f9d91b861adbcddcd5554",
+      "final_test_log_sha256": "929577e40944f70ded2e3778cd64227f73a1195ccd86789e921dbc1fde5af062",
+      "build_status": [
+        {
+          "job": "related-states-gui-final-tests",
+          "exit_code": 0,
+          "seconds": 2.738224156986689
+        },
+        {
+          "job": "related-states-gui-final-build",
+          "exit_code": 0,
+          "seconds": 66.12763550100499
+        }
+      ],
+      "source_note": "GUI source unchanged since 86d07d66. Current binary mtime matches successful final build. Older GUI live report used bb1f7005 before that final build; a fresh current-bank GUI interaction is still required."
+    },
+    "binary_sha256": {
+      "isolated_v2_node": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+      "parano1d-gui": "df5435c5ba8e15aa5c9ebc0d4ee5e7abd3dabe35a405fa91bfeb2178ab779038"
+    },
+    "mined": [
+      {
+        "header": {
+          "height": 89,
+          "hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "prev_hash": "ddf84f85a88471cece74210d140171984a54edfe3d7d84e5fca12540f3623b22",
+          "state_root": "5acd8b802ab96e03437dbcc5a852834848816a2a03b904b14686c4edae1ccc95",
+          "tx_root": "2015e9dd649a3587f077fe1851744b8f97c632e1ad3b073da8a75a4c4644c882",
+          "timestamp": 1790336485,
+          "miner": "o1auzq5z5q3wq654wvlgdz7v9kvcc04kv6332qpexzw7vxfy5l6x6skpmkqp",
+          "nonce_hex": "24cb3631000000000000000000000000",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "log_slots": 24,
+          "active_slot_count": 153,
+          "alloc_counter": 2106
+        },
+        "retained": {
+          "proof_class": "B63 / m23",
+          "logical_transactions": 2,
+          "user_pages": 1,
+          "live_inputs": 1,
+          "live_outputs": 2,
+          "reward_micronoid": 14405800,
+          "reward_noid": 14.4058,
+          "total_fees_micronoid": "5800",
+          "block_bytes": 863,
+          "history_step_bytes": 912916,
+          "bundle_bytes": 913791,
+          "transactions": [
+            {
+              "position": 0,
+              "txid": "9bbceb79b2f41c10d470921bf998226957ba5f3f87c00d97a2263e01c3fc5588",
+              "page_count": 1,
+              "live_inputs": 0,
+              "live_outputs": 1,
+              "fee_micronoid": 0,
+              "coinbase": true,
+              "development_payout": false,
+              "epoch_anchor": "ddf84f85a88471cece74210d140171984a54edfe3d7d84e5fca12540f3623b22",
+              "input_owner": null,
+              "input_sum_micronoid": "0",
+              "output_sum_micronoid": "14405800",
+              "page_hashes": [
+                "9bbceb79b2f41c10d470921bf998226957ba5f3f87c00d97a2263e01c3fc5588"
+              ],
+              "inputs": [],
+              "outputs": [
+                {
+                  "page": 0,
+                  "lane": 0,
+                  "slot_index": 9751622,
+                  "amount_micronoid": 14405800,
+                  "owner": "o1auzq5z5q3wq654wvlgdz7v9kvcc04kv6332qpexzw7vxfy5l6x6skpmkqp",
+                  "creation_id": 9223372036854775897
+                }
+              ]
+            },
+            {
+              "position": 1,
+              "txid": "10090ab085e0a084f8444b2b937edeec71ba385b0f4774e2d0aa15e78afb9acd",
+              "page_count": 1,
+              "live_inputs": 1,
+              "live_outputs": 1,
+              "fee_micronoid": 5800,
+              "coinbase": false,
+              "development_payout": false,
+              "epoch_anchor": "860e70453390bf815718e933aa4927167a13d098b0151391eefd722ee1add610",
+              "input_owner": "o15vjx8wu2zx03cruhwzwaha50x8hns924a40s6ufamcegw9p70nxqehe5yl",
+              "input_sum_micronoid": "10000000",
+              "output_sum_micronoid": "9994200",
+              "page_hashes": [
+                "b638ab73d937863708d4eb352c6bb2cec72af63fcd8644485a249e8652583e67"
+              ],
+              "inputs": [
+                {
+                  "page": 0,
+                  "lane": 0,
+                  "slot_index": 9720655,
+                  "amount_micronoid": 10000000,
+                  "creation_id": 2101
+                }
+              ],
+              "outputs": [
+                {
+                  "page": 0,
+                  "lane": 0,
+                  "slot_index": 9740402,
+                  "amount_micronoid": 9994200,
+                  "owner": "o1utxhx8zjwfr9p4y8qejc92064knzu2ed9zv5uhltcnvlvg0y0wxsh3lqy8",
+                  "creation_id": 2106
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "final_tip": {
+      "height": 89,
+      "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 153,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1554732500"
+    }
+  },
+  "caption_fix": {
+    "status": "passed",
+    "build": {
+      "source_head": "7932fc94ea9be2f770470e7ded6fbe3194670132",
+      "previous_binary_sha256": "df5435c5ba8e15aa5c9ebc0d4ee5e7abd3dabe35a405fa91bfeb2178ab779038",
+      "previous_binary": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-gui-before-caption-df5435c5",
+      "gui_source_patch_sha256": "d7c72c9a3b7099a85ba3aad1db7b65671b7daa94237af0041b3782534fee8e6e",
+      "binary_sha256": "12ecdd0c54a4d989bc3a75757a854df1a9fe51f578e18600809c1510d922c6d2",
+      "archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-gui-caption-12ecdd0c",
+      "complete": true
+    },
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "source_tip": {
+      "height": 89,
+      "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 153,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1554732500"
+    },
+    "script_sha256": "aeaafe5dea193f04c542fa7695b292b3b060e94d2ece0b4f9df70baf4dcbc346",
+    "final_tip": {
+      "height": 89,
+      "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 153,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1554732500"
+    },
+    "screenshots": {
+      "idle.png": "7f7033462eb56efa909279a58042fe7a618f23187ef2f234f559f8a393931050",
+      "loading.png": "f98480dbaef3fee7fe9c269730aac4574f593c85e73505efefc84341e8c03e08",
+      "loaded.png": "3e7af3fb3161298757544b86b9f8c025f46a150d0a93ffc02705da7473bd53dd"
+    },
+    "visual_review": {
+      "loading_notice_visible": true,
+      "activation_notice_visible_while_loading": false,
+      "contract_terms_loaded": true
+    }
+  },
+  "caption_fix_build_status": [
+    {
+      "job": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "noid_gui",
+        "--",
+        "--test-threads=4"
+      ],
+      "exit_code": 0,
+      "seconds": 3.780636757001048
+    },
+    {
+      "job": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--locked",
+        "-p",
+        "noid_gui"
+      ],
+      "exit_code": 0,
+      "seconds": 65.86797095500515
+    }
+  ],
+  "qualification_scope": "Real GUI submission and receipt check used df5435c5. Only the busy/activation caption condition then changed; all 66 GUI tests and a real-node idle/loading/loaded visual check passed with 12ecdd0c. Node and matrix code did not change.",
+  "report_sha256": "128c2d0a41edca72e91f0abc0ea9d7c3e3031ed7aba5d5b991bd937ae8e9db20",
+  "call_verification_sha256": "80921a67bcb087b0ee590237c5e75ccce6c15384c59fb539cd45576e9ffb1e60",
+  "snapshot_sha256": "cfaac6b36a56147b2525b7f1d1eaecab532a729f2a10337158a744b64d2f7f70",
+  "caption_report_sha256": "c7d5da73111c86c90f06b33404a8b16da1ac6c73b988d00290a8d5936c772e33",
+  "log_sha256": {
+    "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/logs/01-node.log": "30bf8001f5aea68516b2045adea0c68712bcf58e5306bf377adb8196b81784b2",
+    "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/logs/gui.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/logs/worker-89.log": "e93603b697d04d9ed47e07d688d3d483486b018f5cc91fa9b235d1edb0c6afb3",
+    "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/logs/x.log": "f644181789ace904746106de1e297ce04089af2ef0864b14645bb404dd2a0036",
+    "/home/neo/rust/parano1d-artifacts/v2-common-gui-caption-20260925-a/logs/gui.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/home/neo/rust/parano1d-artifacts/v2-common-gui-caption-20260925-a/logs/x.log": "f644181789ace904746106de1e297ce04089af2ef0864b14645bb404dd2a0036"
+  }
+}

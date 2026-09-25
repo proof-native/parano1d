@@ -11,7 +11,11 @@ into one atomic intent with one transaction ID and one authorization capsule.
 |---|---:|---|
 | `Tx8x2` page | 8 inputs, 2 outputs | Fixed consensus and proof record |
 | `PagedSpend` | 128 pages | One atomic wallet operation |
-| Logical transaction | 1,020 inputs, 256 outputs | Maximum live records after page markers |
+| Active logical transaction | 504 inputs, class page budget | Must fit the selected proof class |
+
+Admission checks the complete intent against Small (63 pages) or Large
+(206 pages), with 504 live inputs per block. The 128-page ordinary group
+limit also applies. See [combined limits](../protocol/parameters.md).
 
 ## Fixed physical pages
 
@@ -83,8 +87,9 @@ verification:
 4. reacquire the lock and repeat the cheap State and conflict checks;
 5. reserve every live input and output slot, then relay the intent.
 
-The second cheap pass closes the race between authorization verification and a
-new block or competing transaction. Duplicate submission is idempotent.
+Both cheap passes check the candidate height's class budgets. This closes the
+race between authorization verification and a new block, fork boundary or
+competing transaction. Duplicate submission is idempotent.
 
 The mempool holds at most 1,024 logical transactions and 384 MiB of intent
 data. Slot reservations make conflicting-input and output detection constant
@@ -92,17 +97,12 @@ time.
 
 ## Selection
 
-Miners order admissible groups by fee rate, breaking ties by transaction ID.
-Groups remain indivisible. Selection also respects:
-
-- the active proof class, B25 or B255;
-- at most 1,020 live inputs per block;
-- at most 510 user outputs per block;
-- at most 256 distinct State segments touched;
-- the available physical page positions.
-
-A scheduled development-reward payout uses one physical page position, leaving
-254 user pages in that block. Otherwise up to 255 user pages are available.
+Miners order admissible atomic groups by fee rate, breaking ties by transaction
+ID. Small and Large enforce their own page limits, plus 504 live inputs,
+63 calls and 256 touched segments. Calls form the canonical user-page prefix.
+The primary coinbase is separate; a due extra system page reduces user capacity
+by one. [Class selection](mining.md#small-and-large) is a local production
+choice; every verifier accepts either class under the same contract semantics.
 
 ## Confirmation and receipts
 
@@ -117,3 +117,10 @@ wallet, are retained as outgoing payment evidence.
 For normative validity rules, see
 [Transaction protocol](../protocol/transactions.md). For user-facing behavior,
 see [Send NOID](../wallet/send.md).
+
+## Contract intent
+
+A contract intent carries public program and policy terms plus one call page.
+The wallet authorizes the branch selected at inclusion height; the miner
+proves the opening, program and exact successor. Fees, conflicts and budgets
+are checked during both admission passes. See [contracts](../contracts/index.md).

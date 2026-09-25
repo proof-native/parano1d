@@ -107,6 +107,25 @@ fn active_owner_witness(
     Ok(OwnerAuthWitness::new(spend_secret))
 }
 
+pub(super) fn object_owner_witness(
+    wallet: &WalletState,
+    opening: &noid_tx::experimental_object::ObjectOpening,
+    page: &TxPage,
+    height: u64,
+) -> Result<OwnerAuthWitness, String> {
+    let checked = opening
+        .check_call(page, height)
+        .map_err(|e| e.to_string())?;
+    if wallet.active_address() != checked.authority {
+        return Err("active wallet address is not the contract authority at this height".into());
+    }
+    let secret = wallet.spend_secret_for(wallet.active_index);
+    if derive_address(&secret) != checked.authority {
+        return Err("contract authority mismatch".into());
+    }
+    Ok(OwnerAuthWitness::new(secret))
+}
+
 // ---------------------------------------------------------------------------
 // extract_build_data
 // ---------------------------------------------------------------------------
@@ -406,6 +425,29 @@ pub fn build_and_prove_tx(
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn contract_witness_requires_the_selected_authority_and_valid_policy() {
+        use noid_tx::experimental_object::applications;
+        let (_dir, wallet) = wallet_with_utxos(1, 100);
+        let opening =
+            applications::refundable_payment(wallet.address_at(1), wallet.active_address(), 10, 4);
+        let input = TxInput {
+            slot_index: 1,
+            amount: 100,
+            creation_id: 1,
+        };
+        let claim = opening.build_call(input, 2, 1, [0; 32], 9, true).unwrap();
+        assert!(object_owner_witness(&wallet, &opening, &claim, 9).is_ok());
+        let recovery = opening.build_call(input, 2, 1, [0; 32], 10, true).unwrap();
+        assert!(object_owner_witness(&wallet, &opening, &recovery, 10)
+            .err()
+            .unwrap()
+            .contains("not the contract authority"));
+        let mut wrong = claim;
+        wrong.body.fee = 5;
+        assert!(object_owner_witness(&wallet, &opening, &wrong, 9).is_err());
+    }
 
     fn wallet_with_utxos(n: u32, value: u64) -> (TempDir, WalletState) {
         let dir = TempDir::new().unwrap();

@@ -62,3 +62,11 @@ Before replacing the secret:
 6. allow address discovery and synchronization to finish.
 
 Never paste a secret into a website, issue report, chat or support message.
+
+## Contract data
+
+Back up `wallet.contracts.json`, `contract-activity/` and the complete
+`objects/` directory, including `objects/terminals/`, together with wallet
+authority. They contain public terms, activity and proof evidence that cannot
+be reconstructed from the secret alone. Stop the node for a consistent copy.
+See [contract recovery](../contracts/receipts-and-recovery.md).

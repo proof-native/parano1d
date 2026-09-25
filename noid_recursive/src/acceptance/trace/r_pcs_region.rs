@@ -207,7 +207,7 @@ pub(crate) struct HistoryStepParentGeometry {
     carrier: HistoryStepPcsCarrierGeometry,
     child_layouts: Vec<DuplexLayout>,
     r_prev_layouts: Vec<DuplexLayout>,
-    selected_recording_blocks: [Vec<(DuplexLayout, usize)>; 2],
+    selected_recording_blocks: Vec<Vec<(DuplexLayout, usize)>>,
     rec_w_log: usize,
 }
 
@@ -251,13 +251,13 @@ impl HistoryStepParentGeometry {
         };
         carrier.leaf_lanes()?;
         carrier.path_carrier_depths()?;
-        if child_layouts.len() != 2 {
+        if !(1..=2).contains(&child_layouts.len()) {
             return Err(RegionSidecarError::UnsupportedVkShape);
         }
-        let mut arm_blocks = Vec::with_capacity(2);
+        let mut arm_blocks = Vec::with_capacity(child_layouts.len());
         let mut common_w_log = None;
         let mut common_offsets = None;
-        for arm in 0..2 {
+        for arm in 0..child_layouts.len() {
             let layouts = [&child_layouts[arm], &r_prev_layouts[arm]];
             let (offsets, w_log) = pack_recording_only_blocks(&layouts);
             if common_w_log.is_some_and(|expected| expected != w_log)
@@ -277,9 +277,7 @@ impl HistoryStepParentGeometry {
                     .collect::<Vec<_>>(),
             );
         }
-        let selected_recording_blocks: [Vec<(DuplexLayout, usize)>; 2] = arm_blocks
-            .try_into()
-            .expect("exactly two HistoryStep recording arms");
+        let selected_recording_blocks = arm_blocks;
         let rec_w_log = common_w_log.ok_or(RegionSidecarError::BadVk)?;
         Ok(Self {
             carrier,
@@ -309,6 +307,20 @@ impl HistoryStepParentGeometry {
         self.child_layouts.len()
     }
 
+    /// The v2 parent has one proof and one matrix lane. Legacy callers still
+    /// use `new`, which requires the original two-class bank.
+    pub(crate) fn single(
+        parent_params: &PcsParams,
+        child_layout: DuplexLayout,
+        r_prev_layout: DuplexLayout,
+    ) -> Result<Self, RegionSidecarError> {
+        Self::from_parts(
+            std::slice::from_ref(parent_params),
+            vec![child_layout],
+            vec![r_prev_layout],
+        )
+    }
+
     pub(crate) fn child_layout(&self, slot: usize) -> Option<&DuplexLayout> {
         self.child_layouts.get(slot)
     }
@@ -318,7 +330,7 @@ impl HistoryStepParentGeometry {
     }
 
     #[cfg(test)]
-    pub(crate) fn selected_recording_blocks(&self) -> &[Vec<(DuplexLayout, usize)>; 2] {
+    pub(crate) fn selected_recording_blocks(&self) -> &[Vec<(DuplexLayout, usize)>] {
         &self.selected_recording_blocks
     }
 
@@ -417,14 +429,31 @@ impl HistoryStepParentGeometry {
             path_geometry.w_log,
             families,
         )?;
-        let rec = RecordingDuplexRegionVk::new_selected(
-            link_recordings_purpose(),
-            self.rec_w_log,
-            rec_slices,
-            selector_slice,
-            self.selected_recording_blocks.clone(),
-        )?;
+        let rec = self.recording_vk(rec_slices, selector_slice)?;
         LinkRegionSidecarVk::new(leaf, path, rec)
+    }
+
+    fn recording_vk(
+        &self,
+        slices: [WitnessSlice; 6],
+        selector: WitnessSlice,
+    ) -> Result<RecordingDuplexRegionVk, RegionSidecarError> {
+        match self.selected_recording_blocks.as_slice() {
+            [single] => RecordingDuplexRegionVk::new_fixed(
+                link_recordings_purpose(),
+                self.rec_w_log,
+                slices,
+                single.clone(),
+            ),
+            [first, second] => RecordingDuplexRegionVk::new_selected(
+                link_recordings_purpose(),
+                self.rec_w_log,
+                slices,
+                selector,
+                [first.clone(), second.clone()],
+            ),
+            _ => Err(RegionSidecarError::BadVk),
+        }
     }
 }
 
@@ -1029,7 +1058,7 @@ fn allocate_selected_recording_columns(
     b: &mut FieldR1csBuilder,
     columns: &[Vec<F128>; 6],
     w_log: usize,
-    arms: &[Vec<(DuplexLayout, usize)>; 2],
+    arms: &[Vec<(DuplexLayout, usize)>],
 ) -> (
     [WitnessSlice; 6],
     BTreeMap<(usize, usize), DeferredConstraintSlot>,
@@ -1131,13 +1160,7 @@ pub(crate) fn prepare_history_step_parent_columns(
         asm.block_log_b,
         asm.path_families.clone(),
     )?;
-    let rec_vk = RecordingDuplexRegionVk::new_selected(
-        link_recordings_purpose(),
-        geometry.rec_w_log,
-        slices_rec,
-        selector_slice,
-        geometry.selected_recording_blocks.clone(),
-    )?;
+    let rec_vk = geometry.recording_vk(slices_rec, selector_slice)?;
     if u_rec.w_log != geometry.rec_w_log
         || u_rec.rec_blocks != geometry.selected_recording_blocks[active_slot]
     {
@@ -1269,13 +1292,17 @@ fn pin_selected_recording_role(
     union_block: usize,
     constraint_slots: &mut BTreeMap<(usize, usize), DeferredConstraintSlot>,
 ) -> Result<(), RegionSidecarError> {
-    if scratches.len() != 2 || recordings.len() != 2 || arm_selectors.len() != 2 || active_slot >= 2
+    let arms = scratches.len();
+    if !(1..=2).contains(&arms)
+        || recordings.len() != arms
+        || arm_selectors.len() != arms
+        || active_slot >= arms
     {
         return Err(RegionSidecarError::UnsupportedVkShape);
     }
 
     let mut selected_bindings: BTreeMap<(usize, usize), [Option<LinExpr>; 2]> = BTreeMap::new();
-    for arm in 0..2 {
+    for arm in 0..arms {
         let block = rec_vk
             .selected_block(arm, role)
             .ok_or(RegionSidecarError::UnsupportedVkShape)?;
@@ -1318,6 +1345,10 @@ fn pin_selected_recording_role(
             [Some(arm0), Some(arm1)] => {
                 let product = mul(b, &arm_selectors[1], &arm0.add(&arm1));
                 b.seal_deferred_constraint(constraint_slot, &arm0.add(&product), &one)
+                    .map_err(|_| RegionSidecarError::InvalidProof)?;
+            }
+            [Some(source), None] if arms == 1 => {
+                b.seal_deferred_constraint(constraint_slot, &source, &one)
                     .map_err(|_| RegionSidecarError::InvalidProof)?;
             }
             [Some(source), None] => {
@@ -1367,10 +1398,15 @@ pub(crate) fn finalize_history_step_parent_region(
     {
         return Err(RegionSidecarError::UnsupportedVkShape);
     }
-    if active_slot >= arm_selectors.len() || arm_selectors.len() != 2 {
+    if active_slot >= arm_selectors.len() || !(1..=2).contains(&arm_selectors.len()) {
         return Err(RegionSidecarError::UnsupportedVkShape);
     }
-    pin_eq(b, &slot_cell(&selector_slice, 0), &arm_selectors[1]);
+    if arm_selectors.len() == 1 {
+        pin_eq(b, &slot_cell(&selector_slice, 0), &LinExpr::zero());
+        pin_eq(b, &arm_selectors[0], &LinExpr::constant(F128::ONE));
+    } else {
+        pin_eq(b, &slot_cell(&selector_slice, 0), &arm_selectors[1]);
+    }
 
     let per_tile = 1usize << asm.u_a.block_log;
     let subchannel_slots = 1usize << asm.s_log;
@@ -1537,6 +1573,64 @@ mod tests {
             post_state: recording.post_state,
             perms: recording.perms,
         }
+    }
+
+    #[test]
+    fn single_parent_geometry_has_one_fixed_recording_recipe() {
+        let params = PcsParams {
+            m: 24 + LOG_PACKING,
+            log_inv_rate: 2,
+            log_batch_size: 5,
+            profile: Default::default(),
+        };
+        let recording = c1_recording(7);
+        let single = HistoryStepParentGeometry::single(
+            &params,
+            recording.layout.clone(),
+            recording.layout.clone(),
+        )
+        .unwrap();
+        let legacy = HistoryStepParentGeometry::new(
+            &[params.clone(), params],
+            vec![recording.layout.clone(); 2],
+            vec![recording.layout.clone(); 2],
+        )
+        .unwrap();
+        assert_eq!(single.tier_count(), 1);
+        assert_eq!(single.carrier.groups.len(), 1);
+        let spec = PublicIoSpec {
+            io_slice: WitnessSlice {
+                log2_len: 8,
+                index: 1,
+            },
+            io_len: 132,
+            claims: Vec::new(),
+        };
+        let single_vk = single.canonical_vk(&spec).unwrap();
+        let legacy_vk = legacy.canonical_vk(&spec).unwrap();
+        assert_ne!(single_vk.transcript_digest(), legacy_vk.transcript_digest());
+        assert!(single_vk.rec_c().selected_block(1, 0).is_none());
+        for role in 0..2 {
+            assert_eq!(
+                single_vk.rec_c().selected_block(0, role),
+                Some(&single.selected_recording_blocks()[0][role])
+            );
+        }
+        let union = single
+            .recording_union(
+                std::slice::from_ref(&recording),
+                std::slice::from_ref(&recording),
+                0,
+            )
+            .unwrap();
+        assert_eq!(union.rec_blocks, single.selected_recording_blocks()[0]);
+        assert!(single
+            .recording_union(
+                std::slice::from_ref(&recording),
+                std::slice::from_ref(&recording),
+                1
+            )
+            .is_err());
     }
 
     #[test]

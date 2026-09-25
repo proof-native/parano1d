@@ -51,9 +51,11 @@ use noid_ivc_core::deep_chain::source_tree::{
     compress_iv_flat, mds_weights_pub, source_tree_substitution_terms, SourceTreeRefs,
 };
 use noid_ivc_core::deep_chain::spine::{
-    build_spine_instance_columns, spine_tree_exposure_terms, spine_tree_internal_child_pattern,
-    SpineInstanceFlat, SPINE_TREE_KID_LEAF_BASE, SPINE_TREE_LEAVES, SPINE_TREE_SLOTS,
-    SPINE_WRAP_SLOT, SPINE_WRAP_SLOTS,
+    build_spine_instance_columns, build_spine_instance_columns_with_contract,
+    spine_tree_exposure_terms, spine_tree_internal_child_pattern, SpineContractInstanceFlat,
+    SpineInstanceFlat, SPINE_CONTRACT_CODE_BASE, SPINE_CONTRACT_NEW_OBJECT_BASE,
+    SPINE_CONTRACT_OLD_OBJECT_BASE, SPINE_CONTRACT_POLICY_BASE, SPINE_TREE_KID_LEAF_BASE,
+    SPINE_TREE_LEAVES, SPINE_TREE_SLOTS, SPINE_V2_WRAP_SLOTS, SPINE_WRAP_SLOT, SPINE_WRAP_SLOTS,
 };
 use noid_ivc_core::deep_chain::{
     prove_deep_chain_walk, verify_deep_chain_walk, DeepChainWalkProof, LaneClaimGroup, WalkError,
@@ -620,6 +622,7 @@ pub struct TxRootPathRegion {
 /// transaction (coinbase included), in transaction order.
 pub struct SpineRegionData {
     pub instances: Vec<SpineInstanceRegion>,
+    pub objects: bool,
 }
 
 /// One transaction's spine handoff: all sixteen canonical raw body leaves,
@@ -629,6 +632,28 @@ pub struct SpineInstanceRegion {
     pub leaves_w: [[LinExpr; 2]; SPINE_TREE_LEAVES],
     pub tx_hash_w: [LinExpr; 2],
     pub tx_hash_flat: [F128; 2],
+    pub contract: Option<SpineContractRegion>,
+}
+
+/// Contract commitment values and exact HistoryStep aliases for one body.
+pub struct SpineContractRegion {
+    pub live: LinExpr,
+    pub terminal: LinExpr,
+    pub flat: SpineContractInstanceFlat,
+    pub program_w: [[LinExpr; 2]; noid_ivc_core::deep_chain::spine::SPINE_CONTRACT_PROGRAM_STEPS],
+    pub current_w: LinExpr,
+    pub next_w: LinExpr,
+    pub controller_w: [LinExpr; 2],
+    pub refund_authority_w: [LinExpr; 2],
+    pub code_digest_w: [LinExpr; 2],
+    pub policy_digest_w: [LinExpr; 2],
+    pub contexts_w: [LinExpr; noid_tx::experimental_object::BODY_CONTEXT_FIELDS],
+    pub deadline_w: LinExpr,
+    pub claim_recipient_w: [LinExpr; 2],
+    pub refund_recipient_w: [LinExpr; 2],
+    pub rules_w: [LinExpr; 4],
+    pub old_object_root_w: [LinExpr; 2],
+    pub new_object_root_w: [LinExpr; 2],
 }
 
 /// Assemble the complete raw Meta-A/Meta-B draft without observing wallet
@@ -644,6 +669,12 @@ fn build_auth_pcs_meta_region_draft(
     wallet_overflow: Option<&super::zk_authorization_region::SelectedZkAuthorizationOverflow>,
 ) -> AuthPcsMetaRegionDraft {
     assert!(k.is_power_of_two(), "meta region tile count must be dyadic");
+    let objects = spine.is_some_and(|spine| spine.objects);
+    let wrap_slots = if objects {
+        SPINE_V2_WRAP_SLOTS
+    } else {
+        SPINE_WRAP_SLOTS
+    };
 
     // Meta-A geometry: EXSTSLT and the body spine occupy separate aligned
     // dyadic regions when both are present.
@@ -662,7 +693,7 @@ fn build_auth_pcs_meta_region_draft(
     let spine_tree_base = 0usize;
     let spine_wrap_base = spine_cap * SPINE_TREE_SLOTS;
     let spine_per_tx = if spine_cap > 0 {
-        (spine_cap * (SPINE_TREE_SLOTS + SPINE_WRAP_SLOTS)).next_power_of_two()
+        (spine_cap * (SPINE_TREE_SLOTS + wrap_slots)).next_power_of_two()
     } else {
         0
     };
@@ -1072,11 +1103,23 @@ fn build_auth_pcs_meta_region_draft(
                     .get(g)
                     .map(|inst| inst.flat.clone())
                     .unwrap_or_else(SpineInstanceFlat::ghost);
-                let icols = build_spine_instance_columns(&inst_flat);
+                let contract = sp
+                    .instances
+                    .get(g)
+                    .and_then(|instance| instance.contract.as_ref());
+                let icols = if objects {
+                    build_spine_instance_columns_with_contract(
+                        &inst_flat,
+                        contract.map(|contract| &contract.flat),
+                    )
+                } else {
+                    assert!(contract.is_none(), "legacy spine has no object opening");
+                    build_spine_instance_columns(&inst_flat)
+                };
                 let tree_abs =
                     spine_meta_base + blk * spine_per_tx + spine_tree_base + i * SPINE_TREE_SLOTS;
                 let wrap_abs =
-                    spine_meta_base + blk * spine_per_tx + spine_wrap_base + i * SPINE_WRAP_SLOTS;
+                    spine_meta_base + blk * spine_per_tx + spine_wrap_base + i * wrap_slots;
                 for j in 0..STATE_SIZE {
                     meta_cols[C0 + j][tree_abs..tree_abs + SPINE_TREE_SLOTS]
                         .copy_from_slice(&icols.tree_c[j]);
@@ -1084,18 +1127,127 @@ fn build_auth_pcs_meta_region_draft(
                         .copy_from_slice(&icols.tree_s0[j]);
                     meta_s_out[j][tree_abs..tree_abs + SPINE_TREE_SLOTS]
                         .copy_from_slice(&icols.tree_s_out[j]);
-                    meta_cols[C0 + j][wrap_abs..wrap_abs + SPINE_WRAP_SLOTS]
+                    meta_cols[C0 + j][wrap_abs..wrap_abs + wrap_slots]
                         .copy_from_slice(&icols.wrap_c[j]);
-                    meta_s0[j][wrap_abs..wrap_abs + SPINE_WRAP_SLOTS]
-                        .copy_from_slice(&icols.wrap_s0[j]);
-                    meta_s_out[j][wrap_abs..wrap_abs + SPINE_WRAP_SLOTS]
+                    meta_s0[j][wrap_abs..wrap_abs + wrap_slots].copy_from_slice(&icols.wrap_s0[j]);
+                    meta_s_out[j][wrap_abs..wrap_abs + wrap_slots]
                         .copy_from_slice(&icols.wrap_s_out[j]);
                 }
                 for lane in 0..2 {
                     meta_cols[KID0 + lane][tree_abs..tree_abs + SPINE_TREE_SLOTS]
                         .copy_from_slice(&icols.tree_kid[lane]);
-                    meta_cols[IN0 + lane][wrap_abs..wrap_abs + SPINE_WRAP_SLOTS]
+                    meta_cols[IN0 + lane][wrap_abs..wrap_abs + wrap_slots]
                         .copy_from_slice(&icols.wrap_in[lane]);
+                }
+                if let Some(contract) = contract {
+                    for step in 0..contract.program_w.len() {
+                        for lane in 0..2 {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + SPINE_CONTRACT_CODE_BASE + step,
+                                contract.program_w[step][lane].clone(),
+                            ));
+                        }
+                    }
+                    for lane in 0..2 {
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_CODE_BASE + contract.program_w.len() - 1,
+                            contract.code_digest_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            IN0 + lane,
+                            wrap_abs + SPINE_CONTRACT_POLICY_BASE,
+                            contract.code_digest_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_POLICY_BASE + 7,
+                            contract.policy_digest_w[lane].clone(),
+                        ));
+                        for object_base in [
+                            SPINE_CONTRACT_OLD_OBJECT_BASE,
+                            SPINE_CONTRACT_NEW_OBJECT_BASE,
+                        ] {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + object_base,
+                                contract.policy_digest_w[lane].clone(),
+                            ));
+                        }
+                    }
+                    for (slot, values) in [
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 1,
+                            [contract.deadline_w.clone(), contract.controller_w[0].clone()],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 2,
+                            [
+                                contract.controller_w[1].clone(),
+                                contract.refund_authority_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 3,
+                            [
+                                contract.refund_authority_w[1].clone(),
+                                contract.claim_recipient_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 4,
+                            [
+                                contract.claim_recipient_w[1].clone(),
+                                contract.refund_recipient_w[0].clone(),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 5,
+                            [
+                                contract.refund_recipient_w[1].clone(),
+                                LinExpr::constant(
+                                    noid_ivc_core::deep_chain::spine::spine_contract_object_version_flat(),
+                                ),
+                            ],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 6,
+                            [contract.rules_w[0].clone(), contract.rules_w[1].clone()],
+                        ),
+                        (
+                            SPINE_CONTRACT_POLICY_BASE + 7,
+                            [contract.rules_w[2].clone(), contract.rules_w[3].clone()],
+                        ),
+                        (
+                            SPINE_CONTRACT_OLD_OBJECT_BASE + 1,
+                            [contract.current_w.clone(), LinExpr::zero()],
+                        ),
+                        (
+                            SPINE_CONTRACT_NEW_OBJECT_BASE + 1,
+                            [contract.next_w.clone(), LinExpr::zero()],
+                        ),
+                    ] {
+                        for lane in 0..2 {
+                            cell_pins_meta.push((
+                                IN0 + lane,
+                                wrap_abs + slot,
+                                values[lane].clone(),
+                            ));
+                        }
+                    }
+                    for lane in 0..2 {
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_OLD_OBJECT_BASE + 1,
+                            contract.old_object_root_w[lane].clone(),
+                        ));
+                        cell_pins_meta.push((
+                            C0 + lane,
+                            wrap_abs + SPINE_CONTRACT_NEW_OBJECT_BASE + 1,
+                            contract.new_object_root_w[lane].clone(),
+                        ));
+                    }
                 }
                 if g >= n_inst {
                     continue;
@@ -1367,8 +1519,15 @@ pub(super) fn allocate_selected_zk_auth_pcs_region(
     es: &ExactStateRegionData,
     txr: &TxRootRegionData,
     spine: &SpineRegionData,
+    geometry: crate::region_sidecar::SelectedZkBlockGeometry,
 ) -> Result<SelectedZkAuthPcsRegionAllocation, SelectedZkAuthPcsRegionAllocationError> {
-    let geometry = preflight_selected_zk_authorization_draft(&authorization)?;
+    let authorization_geometry = preflight_selected_zk_authorization_draft(&authorization)?;
+    if spine.instances.len() != geometry.tier + 1 {
+        return Err(SelectedZkAuthPcsRegionAllocationError::SpineShape);
+    }
+    if geometry.auth_tiles != authorization_geometry.auth_tiles {
+        return Err(SelectedZkAuthPcsRegionAllocationError::AuthorizationShape);
+    }
     preflight_selected_zk_meta_inputs(es, txr, spine, geometry)?;
 
     let (owner, main, wallet_a, wallet_b, overflow) = authorization.into_parts();
@@ -1450,6 +1609,9 @@ pub(super) fn allocate_selected_zk_auth_pcs_region(
     // production HistoryStep boundary. The six family domains and their
     // committed contents are unchanged.
     let allocation_ledger = SelectedZkRegionAllocationLedger::new(b.num_wires(), geometry);
+    if std::env::var_os("NOID_ROW_LEDGER").is_some() {
+        eprintln!("[ledger] selected-region allocation {allocation_ledger:?}");
+    }
     let mut main_slices = None;
     let mut owner_slices = None;
     let mut wallet_b_slices = None;
@@ -1613,7 +1775,12 @@ pub(super) fn allocate_selected_zk_auth_pcs_region(
         ],
     )
     .expect("preflighted selected wallet-B VK drift");
-    let meta_a_vk = crate::region_sidecar::WalkARegionVk::new_meta(
+    let meta_constructor = if spine.objects {
+        crate::region_sidecar::WalkARegionVk::new_object_meta
+    } else {
+        crate::region_sidecar::WalkARegionVk::new_meta
+    };
+    let meta_a_vk = meta_constructor(
         auth_pcs_meta_a_sidecar_purpose(),
         geometry.tx_log,
         Some(geometry.exact_state_region_log),
@@ -1737,6 +1904,41 @@ mod selected_zk_common_allocator_tests {
             assert_eq!(committed_cells, expected_cells, "B{tier} committed cells");
             assert_eq!(ledger.after, expected_span, "B{tier} allocation span");
             assert!(ledger.after < 1usize << class_m, "B{tier} class domain");
+        }
+    }
+
+    #[test]
+    fn candidate_allocations_form_complete_object_registry_certificates() {
+        use crate::region_sidecar::{BlockRegionSidecarVk, SelectedZkBlockRegionVkSlices};
+        for g in crate::region_sidecar::object_block_geometries() {
+            let tier = g.tier;
+            let ledger = SelectedZkRegionAllocationLedger::new(966_647, g);
+            let slices = SelectedZkBlockRegionVkSlices {
+                wallet_a: family_slices(ledger.wallet_a, g.wallet_a_w_log),
+                wallet_b: family_slices(ledger.wallet_b, g.wallet_b_w_log),
+                meta_a: family_slices(ledger.meta_a, g.meta_a_w_log),
+                meta_b: family_slices(ledger.meta_b, g.meta_b_w_log),
+                owner_c: family_slices(ledger.owner, g.owner_w_log),
+                main_c: family_slices(ledger.main, g.main_w_log),
+            };
+            let vk = BlockRegionSidecarVk::from_object_registry_slices(g, slices).unwrap();
+            assert!(vk.supports_objects());
+            assert_eq!(vk.meta_a().w_log(), g.meta_a_w_log);
+            // A registry with the same dimensions but missing an overflow
+            // region cannot silently stand in for the candidate certificate.
+            let mut bad = vk.selected_registry_slices().unwrap();
+            bad.meta_a[0].log2_len -= 1;
+            assert!(BlockRegionSidecarVk::from_object_registry_slices(g, bad).is_err());
+            let recipe = vk.selected_registry_slices().unwrap();
+            let rebuilt = BlockRegionSidecarVk::from_object_registry_slices(g, recipe).unwrap();
+            assert_eq!(rebuilt, vk);
+            if ![25, 255].contains(&tier) {
+                assert!(BlockRegionSidecarVk::from_selected_registry_slices(
+                    tier,
+                    vk.selected_registry_slices().unwrap()
+                )
+                .is_err());
+            }
         }
     }
 
@@ -2456,11 +2658,13 @@ mod split_walk_a_layout_tests {
         let flat = SpineInstanceFlat::ghost();
         let direct = build_spine_instance_columns(&flat);
         let spine = SpineRegionData {
+            objects: false,
             instances: vec![SpineInstanceRegion {
                 leaves_w: flat.leaves.clone().map(|pair| pair.map(LinExpr::constant)),
                 tx_hash_w: direct.tx_hash.map(LinExpr::constant),
                 tx_hash_flat: direct.tx_hash,
                 flat,
+                contract: None,
             }],
         };
         let mut b = FieldR1csBuilder::new();

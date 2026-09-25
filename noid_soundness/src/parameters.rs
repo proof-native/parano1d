@@ -8,7 +8,7 @@ use noid_gkr::zk_auth_qrom::{
 };
 use noid_ivc_core::{
     field::gf2_256::C1_CHALLENGE_MIN_ENTROPY_BITS,
-    pcs::{BASEFOLD_RATE_QUARTER_C1_QUERIES, fri_commit_layout},
+    pcs::{BASEFOLD_RATE_QUARTER_C1_QUERIES, PcsParams, fri_commit_layout},
 };
 use noid_poseidon2b::{
     Digest,
@@ -29,6 +29,31 @@ pub struct HistoryClassParameters {
     pub inverse_rate: u64,
     pub plaintext_tail_len: u64,
     pub fri_arities: Vec<usize>,
+}
+
+/// Project one actual PCS instance. The label is descriptive; its geometry
+/// always comes from the prover/verifier parameters supplied by the caller.
+pub fn history_class_parameters(
+    tier: usize,
+    pcs: &PcsParams,
+) -> Result<HistoryClassParameters, String> {
+    let fri_arities = pcs.fri_arities();
+    let (_, tail) = fri_commit_layout(pcs.k_code(), &fri_arities);
+    let (plaintext_tail_len, _) =
+        tail.ok_or_else(|| format!("History instance {tier} has no plaintext tail"))?;
+    Ok(HistoryClassParameters {
+        tier,
+        message_log2: pcs.log_dim(),
+        codeword_log2: pcs.k_code(),
+        codeword_len: u64::try_from(pcs.n_positions())
+            .map_err(|_| "History codeword length does not fit u64")?,
+        inverse_rate: 1u64
+            .checked_shl(u32::try_from(pcs.log_inv_rate).map_err(|_| "inverse-rate log")?)
+            .ok_or("History inverse rate does not fit u64")?,
+        plaintext_tail_len: u64::try_from(plaintext_tail_len)
+            .map_err(|_| "History plaintext tail does not fit u64")?,
+        fri_arities,
+    })
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,26 +88,7 @@ impl ProductionParameters {
             let class_id = canonical_history_step_class_id(tier)
                 .ok_or_else(|| format!("missing production History class B{tier}"))?;
             let pcs = canonical_history_step_pcs_params(class_id);
-            let fri_arities = pcs.fri_arities();
-            let (_, tail) = fri_commit_layout(pcs.k_code(), &fri_arities);
-            let (plaintext_tail_len, _) = tail
-                .ok_or_else(|| format!("production History class B{tier} has no plaintext tail"))?;
-            Ok(HistoryClassParameters {
-                tier,
-                message_log2: pcs.log_dim(),
-                codeword_log2: pcs.k_code(),
-                codeword_len: u64::try_from(pcs.n_positions())
-                    .map_err(|_| format!("B{tier} codeword length does not fit u64"))?,
-                inverse_rate: 1u64
-                    .checked_shl(
-                        u32::try_from(pcs.log_inv_rate)
-                            .map_err(|_| format!("B{tier} inverse-rate log does not fit u32"))?,
-                    )
-                    .ok_or_else(|| format!("B{tier} inverse rate does not fit u64"))?,
-                plaintext_tail_len: u64::try_from(plaintext_tail_len)
-                    .map_err(|_| format!("B{tier} plaintext tail does not fit u64"))?,
-                fri_arities,
-            })
+            history_class_parameters(tier, &pcs)
         };
 
         let history_classes = [history_class(25)?, history_class(255)?];

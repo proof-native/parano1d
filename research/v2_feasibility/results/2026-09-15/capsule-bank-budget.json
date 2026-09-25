@@ -1,0 +1,134 @@
+{
+  "candidate_bank_layout": {
+    "free_middle_cells": 251,
+    "libra_reserved_range": [
+      512,
+      768
+    ],
+    "reclaimed_source_tail_cells": 504,
+    "state_slice_cells": 512,
+    "terminal_pad_reserved_range": [
+      768,
+      773
+    ],
+    "total_candidate_trace_cells": 1267
+  },
+  "conservative_two_capsule_candidate": {
+    "contract_object_fields": 4,
+    "current_authorization_payload_limit": 262144,
+    "fits_current_payload_limit_before_bundle_framing": true,
+    "old_and_new_commitment_cells": 1072,
+    "permutations_per_object_commitment": 2,
+    "remaining_trace_cells": 195,
+    "stored_cells_per_permutation": 268,
+    "transition_capsule_worst_bytes_if_shape_unchanged": 92696,
+    "two_capsule_worst_bytes_before_bundle_framing": 185392,
+    "wallet_capsule_worst_bytes": 92696
+  },
+  "encoder_basis_checks": [
+    {
+      "basis_index": 1024,
+      "matches": 65536,
+      "positions_checked": 65536
+    },
+    {
+      "basis_index": 1025,
+      "matches": 65536,
+      "positions_checked": 65536
+    },
+    {
+      "basis_index": 1281,
+      "matches": 65536,
+      "positions_checked": 65536
+    },
+    {
+      "basis_index": 1543,
+      "matches": 65536,
+      "positions_checked": 65536
+    }
+  ],
+  "established": [
+    "The selected affine domain contains 65536 distinct points.",
+    "The W_10 factor is nonzero at every selected domain point.",
+    "The first 520 high novel-basis coefficients have full row rank for every q <= 520 distinct source positions by the novel-basis/Vandermonde factorization.",
+    "Representative 520-by-520 matrices built from the selected code have rank 520.",
+    "Shortening only the source coin block to 520 would reclaim 504 committed bank cells without changing the 2048-symbol code geometry.",
+    "Two unchanged-shape worst-case capsule payloads fit below the current 256 KiB authorization limit before small bundle framing."
+  ],
+  "generated_unix_seconds": 1789495745,
+  "kind": "v2-capsule-bank-budget",
+  "not_established": [
+    "The complete joint hiding ledger after replacing fresh suffix cells with witness trace cells.",
+    "A simulator argument after conditioning on every transcript field and terminal relation.",
+    "A sound fragmented-bank transition relation.",
+    "Program authentication, persistent object encoding, public effect binding, or replay rules.",
+    "An integrated HistoryStep row count, proof time, verification time, or propagation measurement.",
+    "That two capsules can be represented by the current one-capsule-per-authorization-group outer layout."
+  ],
+  "rank_cases": [
+    {
+      "distinct_leaves": 65,
+      "distinct_positions": 520,
+      "elapsed_ms": 4104,
+      "matrix_columns": 520,
+      "matrix_rows": 520,
+      "name": "contiguous-max",
+      "rank": 520,
+      "submitted_leaves": 65
+    },
+    {
+      "distinct_leaves": 65,
+      "distinct_positions": 520,
+      "elapsed_ms": 4142,
+      "matrix_columns": 520,
+      "matrix_rows": 520,
+      "name": "strided-max",
+      "rank": 520,
+      "submitted_leaves": 65
+    },
+    {
+      "distinct_leaves": 65,
+      "distinct_positions": 520,
+      "elapsed_ms": 4001,
+      "matrix_columns": 520,
+      "matrix_rows": 520,
+      "name": "edge-max",
+      "rank": 520,
+      "submitted_leaves": 65
+    },
+    {
+      "distinct_leaves": 1,
+      "distinct_positions": 8,
+      "elapsed_ms": 0,
+      "matrix_columns": 8,
+      "matrix_rows": 8,
+      "name": "one-leaf-repeated",
+      "rank": 8,
+      "submitted_leaves": 65
+    }
+  ],
+  "selected_code": {
+    "domain_distinct_points": 65536,
+    "domain_len": 65536,
+    "message_len": 2048,
+    "w10_nonzero_positions": 65536
+  },
+  "source_observation_ceiling": {
+    "current_independent_coins": 1024,
+    "maximum_distinct_positions": 520,
+    "positions_per_leaf": 8,
+    "proposed_coin_range": [
+      1024,
+      1544
+    ],
+    "proposed_independent_coins": 520,
+    "query_leaves": 65,
+    "reclaimed_range": [
+      1544,
+      2048
+    ],
+    "reclaimed_tail_cells": 504
+  },
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "status": "source-rank-established-full-zk-not-established"
+}

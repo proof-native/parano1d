@@ -1,0 +1,418 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source": {
+    "source_head": "4b9ce461d363f14215c3b1a67f34cb69fea2100b",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "transition_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "transition": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-node-2250f0d9",
+    "live_origin_sha256": "687fced38bd3e853b73750d5c602dd31b0fe738b81701f63f038fa576e0ced90",
+    "live_origin": "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/producer/data/fork-origins/78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89.origin",
+    "full_origin_sha256": "8c5caf28ff8ee105b6591cfe51f3b72620d0b01dfe56b373ee3630979ad959cf",
+    "full_origin": "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2/legacy-fork-origin.bin",
+    "helper_sha256": "4d250c352040b7c91df3b6b770ee1496adbcf1f39def7e3f5d1488c281951753",
+    "retirement_key_pins": [
+      "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+      "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+    ],
+    "tool_sha256": "5631a9548d1205b0224a655f0b845dd9a75083a591c22c9debeb5a40283b8108",
+    "tool_archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+    "prior_rejected_attempt": "/home/neo/rust/paranoid/.git/v2-production-20260924/common-retirement-attempt-a-source.json",
+    "prior_rejection_reason": "Archived capacity benchmark lacked isolated-v2-fork-testnet; joint-produce rejected before creating output.",
+    "benchmark_sha256": "25b380951f0bc503ee5f98806a7a8267945686ae3530d98e17b8358dd29d1a9c",
+    "benchmark": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-production-25b38095",
+    "benchmark_features": "noid_chain/isolated-v2-fork-testnet",
+    "retired_sha256": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+    "retired": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-retired-f7726a66",
+    "live_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a/retired-v2-origin.bin",
+    "live_certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+    "full_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a/retired-v2-origin.bin",
+    "full_certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+    "production": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a",
+    "complete": true
+  },
+  "source_sha256": "63cae575ef9ce3d2927e069e3d14577ba034440262b09cca451f46aa643463ff",
+  "statuses_sha256": "ef45fc3aeb6367cf213acaedd86ba6d019d93dfcbfc2db7398a0f1e342bdf461",
+  "certificates": [
+    {
+      "fixture": "live",
+      "active_legacy_classes": [
+        0
+      ],
+      "certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+      "origin_sha256": "687fced38bd3e853b73750d5c602dd31b0fe738b81701f63f038fa576e0ced90",
+      "report": {
+        "certificate_bytes": 7353789,
+        "classes": [
+          {
+            "class": 0,
+            "preprocessing_ms": 114464,
+            "proof_bytes": 6478232,
+            "prove_verify_encode_ms": 308450
+          },
+          {
+            "class": 1,
+            "preprocessing_ms": 0,
+            "proof_bytes": 0,
+            "prove_verify_encode_ms": 0,
+            "reused_inactive_release_key": true
+          }
+        ],
+        "elapsed_ms": 457174,
+        "legacy_bank": "30feb976380c4318b3d4b64c8163a265236bcd2a1066f10c1c5ef7da78bcc78c",
+        "legacy_runtime": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "origin_binding": "78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89",
+        "release_key_pins": [
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        ],
+        "retirement_request": "840cbe9bb8859530c6abcf1eec539aa6fe2f18e8cc824da1bdec34ace7b23074",
+        "status": "passed",
+        "v2_bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+        "verification_without_legacy_rows": true
+      },
+      "preparation": {
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-live-retirement",
+          "-p",
+          "MemoryMax=20G",
+          "-p",
+          "MemorySwapMax=0",
+          "/usr/bin/time",
+          "-v",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+          "prepare",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+          "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+          "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+          "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+          "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/producer/data/fork-origins/78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89.origin",
+          "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a",
+          "64",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1",
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        ],
+        "run_seconds": 457.2032963389938,
+        "peak_rss_kib": 7143796,
+        "scope": "Offline certificate generation, including old-matrix authentication and proving; not recurring block production or receiver memory."
+      },
+      "verification": {
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-live-retirement-verify",
+          "-p",
+          "MemoryMax=8G",
+          "-p",
+          "MemorySwapMax=0",
+          "-p",
+          "CPUQuota=400%",
+          "taskset",
+          "-c",
+          "0,2,4,6",
+          "/usr/bin/python3",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/run-4cpu-scope.py",
+          "common-live-retirement-verify",
+          "/usr/bin/time",
+          "-v",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+          "verify",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+          "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+          "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+          "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267",
+          "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a/retired-v2-origin.bin"
+        ],
+        "run_seconds": 7.2128216109995265,
+        "peak_rss_kib": 86600,
+        "events": [
+          {
+            "origin_binding": "78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89",
+            "status": "verified",
+            "verification_without_legacy_rows": true,
+            "verify_ms": 924
+          }
+        ],
+        "enforcement": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "cpu_affinity": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "command": [
+            "/usr/bin/time",
+            "-v",
+            "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+            "verify",
+            "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+            "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+            "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+            "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+            "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+            "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+            "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+            "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267",
+            "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a/retired-v2-origin.bin"
+          ],
+          "control_group": "/user.slice/user-1000.slice/user@1000.service/app.slice/noid-common-live-retirement-verify.scope"
+        },
+        "resources": {
+          "memory.current": "11243520",
+          "memory.peak": "95387648",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 8194669\nuser_usec 8130734\nsystem_usec 63935\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 72\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "exit_code": 0
+        },
+        "backend": "pclmul",
+        "rayon_workers": 4,
+        "scope": "Certificate verify_ms excludes input/key loading. The full-origin command additionally authenticates new matrices, verifies H17, exercises disk-origin restart and rejects missing, old-format and tampered evidence. Whole-command time and memory include all those operations."
+      },
+      "artifact_sha256": {
+        "retirement-release.json": "00cb14e79b6e11146b439987cf62a3c30fe5236f13f9538ba9676f7ad8649ab4",
+        "common-live-retirement-prepare.log": "207d0fc687a7ec410a70e444b03525e2f26f9f804601286777346630062d3d60",
+        "common-live-retirement-verify.log": "a7e3a20f1e6ab773e50d4bdcc539fb5085b2ac606299b424aa1d047772372b04",
+        "common-live-retirement-verify-enforcement.json": "fcb3c1e3935f54a85bffd9945b1b0bd09439f2784b85586582d486908f564f73",
+        "common-live-retirement-verify-resources.json": "9c7e9762f376a006edc0f8562b9556b75db5cb1a4782f052ffba70bba48c4f96"
+      }
+    },
+    {
+      "fixture": "full-origin",
+      "active_legacy_classes": [
+        0,
+        1
+      ],
+      "certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+      "origin_sha256": "8c5caf28ff8ee105b6591cfe51f3b72620d0b01dfe56b373ee3630979ad959cf",
+      "report": {
+        "certificate_bytes": 15093850,
+        "classes": [
+          {
+            "class": 0,
+            "preprocessing_ms": 111907,
+            "proof_bytes": 6478232,
+            "prove_verify_encode_ms": 321078
+          },
+          {
+            "class": 1,
+            "preprocessing_ms": 489935,
+            "proof_bytes": 7628536,
+            "prove_verify_encode_ms": 1456097
+          }
+        ],
+        "elapsed_ms": 2522735,
+        "legacy_bank": "30feb976380c4318b3d4b64c8163a265236bcd2a1066f10c1c5ef7da78bcc78c",
+        "legacy_runtime": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "origin_binding": "b7fdcbd39c1c4ddd157acd683ac3a95db49743df5c4b12c17d5f2f6019381755",
+        "release_key_pins": [
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        ],
+        "retirement_request": "0ccf5d1af3a0008e10d30ce206949eaccf48ee4e84ae1da2df4ad940393746bc",
+        "status": "passed",
+        "v2_bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+        "verification_without_legacy_rows": true
+      },
+      "preparation": {
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-full-origin-retirement",
+          "-p",
+          "MemoryMax=20G",
+          "-p",
+          "MemorySwapMax=0",
+          "/usr/bin/time",
+          "-v",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+          "prepare",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+          "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+          "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+          "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2/legacy-fork-origin.bin",
+          "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a",
+          "64",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1",
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+        ],
+        "run_seconds": 2522.807144689985,
+        "peak_rss_kib": 20924676,
+        "scope": "Offline certificate generation, including old-matrix authentication and proving; not recurring block production or receiver memory.",
+        "cgroup_observations": [
+          {
+            "at_utc": "2026-09-25T12:35:51.758077+00:00",
+            "scope": "noid-common-full-origin-retirement.scope",
+            "memory.current": "17252106240",
+            "memory.peak": "21474836480",
+            "memory.max": "21474836480",
+            "memory.events": "low 0\nhigh 0\nmax 19719\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+            "memory.stat": "anon 17216417792\nfile 8192\nkernel 34451456\nkernel_stack 245760\npagetables 33968128\nsec_pagetables 0\npercpu 448\nsock 0\nvmalloc 0\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 0\nfile_dirty 0\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 0\nshmem_thp 0\ninactive_anon 49152\nactive_anon 17215725568\ninactive_file 8192\nactive_file 0\nunevictable 0\nslab_reclaimable 11584\nslab_unreclaimable 224392\nslab 235976\nworkingset_refault_anon 0\nworkingset_refault_file 1990919\nworkingset_activate_anon 0\nworkingset_activate_file 348144\nworkingset_restore_anon 0\nworkingset_restore_file 59\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 4831553\npgsteal 3876666\npswpin 0\npswpout 0\npgscan_kswapd 1020329\npgscan_direct 3811224\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 1020073\npgsteal_direct 2856593\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 110183360\npgmajfault 34281\npgrefill 303617\npgactivate 568712\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0",
+            "memory.pressure": "some avg10=0.00 avg60=0.34 avg300=0.18 total=981228\nfull avg10=0.00 avg60=0.34 avg300=0.18 total=978279",
+            "cpu.stat": "usage_usec 12063090186\nuser_usec 11877044211\nsystem_usec 186045975\nnice_usec 0\ncore_sched.force_idle_usec 0"
+          },
+          {
+            "at_utc": "2026-09-25T12:40:13.990391+00:00",
+            "scope": "noid-common-full-origin-retirement.scope",
+            "memory.current": "16953384960",
+            "memory.peak": "21474836480",
+            "memory.max": "21474836480",
+            "memory.events": "low 0\nhigh 0\nmax 77247\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+            "memory.stat": "anon 16919535616\nfile 8192\nkernel 33841152\nkernel_stack 245760\npagetables 33357824\nsec_pagetables 0\npercpu 448\nsock 0\nvmalloc 0\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 0\nfile_dirty 0\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 0\nshmem_thp 0\ninactive_anon 752300032\nactive_anon 16167235584\ninactive_file 8192\nactive_file 0\nunevictable 0\nslab_reclaimable 11584\nslab_unreclaimable 224008\nslab 235592\nworkingset_refault_anon 0\nworkingset_refault_file 7880221\nworkingset_activate_anon 0\nworkingset_activate_file 1446743\nworkingset_restore_anon 0\nworkingset_restore_file 184\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 19031548\npgsteal 15406566\npswpin 0\npswpout 0\npgscan_kswapd 3280303\npgscan_direct 15751245\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 3280047\npgsteal_direct 12126519\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 127332575\npgmajfault 138096\npgrefill 938277\npgactivate 2259592\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0",
+            "memory.pressure": "some avg10=0.29 avg60=0.27 avg300=0.16 total=1762959\nfull avg10=0.29 avg60=0.27 avg300=0.16 total=1759732",
+            "cpu.stat": "usage_usec 14127539137\nuser_usec 13887082898\nsystem_usec 240456239\nnice_usec 0\ncore_sched.force_idle_usec 0"
+          }
+        ],
+        "cgroup_observation_scope": "Samples collected while the offline prover ran, not final counters or receiver measurements. The full-origin process reached its 20-GiB cgroup cap and reclaimed memory without an observed OOM."
+      },
+      "verification": {
+        "command": [
+          "systemd-run",
+          "--user",
+          "--scope",
+          "--quiet",
+          "--unit=noid-common-full-origin-retirement-verify",
+          "-p",
+          "MemoryMax=8G",
+          "-p",
+          "MemorySwapMax=0",
+          "-p",
+          "CPUQuota=400%",
+          "taskset",
+          "-c",
+          "0,2,4,6",
+          "/usr/bin/python3",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/run-4cpu-scope.py",
+          "common-full-origin-retirement-verify",
+          "/usr/bin/time",
+          "-v",
+          "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+          "verify",
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+          "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+          "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+          "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+          "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+          "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267",
+          "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a/retired-v2-origin.bin",
+          "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a/h000017.block",
+          "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a/h000017.terminal",
+          "genesis"
+        ],
+        "run_seconds": 205.16800978098763,
+        "peak_rss_kib": 568776,
+        "events": [
+          {
+            "origin_binding": "b7fdcbd39c1c4ddd157acd683ac3a95db49743df5c4b12c17d5f2f6019381755",
+            "status": "verified",
+            "verification_without_legacy_rows": true,
+            "verify_ms": 1461
+          },
+          {
+            "class": 0,
+            "height": 17,
+            "status": "post_fork_terminal_verified",
+            "verification_without_legacy_rows": true,
+            "verify_including_new_matrix_setup_ms": 185790
+          },
+          {
+            "height": 17,
+            "legacy_transport_without_rows_rejected": true,
+            "missing_certificate_rejected": true,
+            "status": "protocol_origin_restart_verified",
+            "tampered_terminal_rejected": true,
+            "verification_without_legacy_rows": true
+          }
+        ],
+        "enforcement": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "cpu_affinity": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "command": [
+            "/usr/bin/time",
+            "-v",
+            "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+            "verify",
+            "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+            "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+            "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+            "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+            "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+            "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+            "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+            "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267",
+            "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a/retired-v2-origin.bin",
+            "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a/h000017.block",
+            "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a/h000017.terminal",
+            "genesis"
+          ],
+          "control_group": "/user.slice/user-1000.slice/user@1000.service/app.slice/noid-common-full-origin-retirement-verify.scope"
+        },
+        "resources": {
+          "memory.current": "49700864",
+          "memory.peak": "628113408",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 231670829\nuser_usec 231358860\nsystem_usec 311968\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2052\nnr_throttled 26\nthrottled_usec 28930\nnr_bursts 0\nburst_usec 0",
+          "exit_code": 0
+        },
+        "backend": "pclmul",
+        "rayon_workers": 4,
+        "scope": "Certificate verify_ms excludes input/key loading. The full-origin command additionally authenticates new matrices, verifies H17, exercises disk-origin restart and rejects missing, old-format and tampered evidence. Whole-command time and memory include all those operations."
+      },
+      "artifact_sha256": {
+        "retirement-release.json": "e09e66cecb5df99112d412dfa32b0aff5333d753c9c2cd7224d0511c17dbea2d",
+        "common-full-origin-retirement-prepare.log": "ed2052da94559fe4da9bf2a7f6fcbc15194015fe1538ffd8e421f0aca24aa860",
+        "common-full-origin-retirement-verify.log": "55ff9194e86fb001d1d94936bdb1dc95c1cbd5cba588f3854e3b3f4b9a3dbbc5",
+        "common-full-origin-retirement-verify-enforcement.json": "0a8ae2fd305227ebb7719c6ff58be5eb3a138993230a18ac0f896b7b92e4d527",
+        "common-full-origin-retirement-verify-resources.json": "6d52c611cb7bd186da6ca6df94a8f5144b029e90d44b54591295ae358b15dadd",
+        "common-full-origin-retirement-resource-samples.jsonl": "2b518d8103aa17a4bc23a405b56653ec92d4129761066ed0550a044540b1bbc9"
+      }
+    }
+  ],
+  "retired_node_build": {
+    "job": "common-retired-node-build",
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--locked",
+      "-p",
+      "noid_node",
+      "--example",
+      "isolated_v2_node",
+      "--features",
+      "isolated-v2-fork-testnet,retired-history"
+    ],
+    "exit_code": 0,
+    "seconds": 341.36462205901626
+  },
+  "retired_node_build_log_sha256": "b34999bd0806fc471558c04f9e6438f47bd445234d4ae1cb4f999ca3e3c2d35f",
+  "ordinary_binary_restored": true,
+  "daemon_cold_sync_qualified_by_this_run": false,
+  "mainnet_origin_certificate_produced": false
+}

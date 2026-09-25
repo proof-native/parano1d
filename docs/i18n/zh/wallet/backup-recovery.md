@@ -56,3 +56,9 @@
 6. 等待地址发现和同步完成。
 
 绝不要把密钥粘贴到网站、问题报告、聊天或客服消息中。
+
+## 合约数据
+
+请与钱包秘密一起备份 `wallet.contracts.json`、`contract-activity/` 及完整
+`objects/`（包含 `objects/terminals/`）。公开条款、活动及证明证据不能仅从
+秘密恢复。停止节点后执行一致备份，见[合约恢复](../contracts/receipts-and-recovery.md)。

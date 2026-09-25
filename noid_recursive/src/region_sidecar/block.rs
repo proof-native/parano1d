@@ -151,15 +151,104 @@ pub(crate) const fn selected_zk_block_geometry(tier: usize) -> Option<SelectedZk
             tx_root_paths_per_block: 1,
             wallet_overflow_bases: [464, 474],
         },
+        63 | 64 | 96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 => {
+            let inputs = if tier * 8 > 1_020 { 1_020 } else { tier * 8 };
+            return Some(candidate_block_geometry(tier, inputs));
+        }
         _ => return None,
     };
     Some(geometry)
 }
 
+/// Isolated candidate geometry. These capacities are not legacy consensus
+/// classes. Include the coinbase when sizing the shared body/authentication
+/// tile axis, so a power-of-two user capacity cannot overrun that axis.
+pub(crate) const fn selected_zk_block_geometry_with_inputs(
+    tier: usize,
+    inputs: usize,
+) -> Option<SelectedZkBlockGeometry> {
+    if matches!(
+        tier,
+        96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 | 255
+    ) && matches!(inputs, 256 | 384 | 504)
+    {
+        return Some(candidate_block_geometry(tier, inputs));
+    }
+    match selected_zk_block_geometry(tier) {
+        Some(geometry) if inputs == geometry.touched_capacity - 2 * tier - 1 => Some(geometry),
+        _ => None,
+    }
+}
+
+pub(crate) fn object_block_geometries() -> impl Iterator<Item = SelectedZkBlockGeometry> {
+    [
+        25, 63, 64, 96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
+    ]
+    .into_iter()
+    .filter_map(selected_zk_block_geometry)
+    .chain(
+        [
+            96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
+        ]
+        .into_iter()
+        .flat_map(|tier| {
+            [256, 384, 504]
+                .into_iter()
+                .filter_map(move |inputs| selected_zk_block_geometry_with_inputs(tier, inputs))
+        }),
+    )
+}
+
+const fn candidate_block_geometry(tier: usize, inputs: usize) -> SelectedZkBlockGeometry {
+    let auth_tiles = (tier + 1).next_power_of_two();
+    let tx_log = auth_tiles.trailing_zeros() as usize;
+    let touched = inputs + 2 * tier + 1;
+    let segments = if touched > 256 { 256 } else { touched };
+    let exact_slots = (4 * touched).next_power_of_two();
+    let metadata_half = (exact_slots
+        + 2 * auth_tiles * noid_ivc_core::deep_chain::capsule_leaf::CAPSULE_LEAF_STRIDE)
+        .next_power_of_two();
+    let spine_slots = auth_tiles * 64;
+    let meta_half = if metadata_half > spine_slots {
+        metadata_half
+    } else {
+        spine_slots
+    };
+    let caps = [touched.div_ceil(auth_tiles), segments.div_ceil(auth_tiles)];
+    let paired_bases = [0, caps[0] * 64];
+    let tx_root_base = (caps[0] + caps[1]) * 64;
+    let tx_paths = 256usize.div_ceil(auth_tiles);
+    let overflow = tx_root_base + 16 * tx_paths;
+    let block_log = (overflow + ZK_CAPSULE_PCS_SOURCE_PATH_DEPTH + ZK_CAPSULE_PCS_MID_PATH_DEPTH)
+        .next_power_of_two()
+        .trailing_zeros() as usize;
+    SelectedZkBlockGeometry {
+        tier,
+        auth_tiles,
+        tx_log,
+        owner_w_log: tx_log + 7,
+        main_w_log: tx_log + 8,
+        wallet_a_w_log: tx_log + 11,
+        wallet_b_w_log: tx_log + 10,
+        exact_state_region_log: exact_slots.trailing_zeros() as usize,
+        spine_cap_log: 0,
+        meta_a_w_log: 1 + meta_half.trailing_zeros() as usize,
+        meta_b_w_log: tx_log + block_log,
+        meta_b_block_log: block_log,
+        touched_capacity: touched,
+        segment_capacity: segments,
+        paired_caps_per_block: caps,
+        paired_bases,
+        tx_root_base,
+        tx_root_paths_per_block: tx_paths,
+        wallet_overflow_bases: [overflow, overflow + ZK_CAPSULE_PCS_SOURCE_PATH_DEPTH],
+    }
+}
+
 pub(crate) fn selected_zk_block_geometry_for_auth_tiles(
     auth_tiles: usize,
 ) -> Option<SelectedZkBlockGeometry> {
-    noid_chain::consensus::params::BLOCK_PAGE_CLASS_TIERS
+    [25, 63, 127, 255]
         .into_iter()
         .filter_map(selected_zk_block_geometry)
         .find(|geometry| geometry.auth_tiles == auth_tiles)
@@ -207,15 +296,42 @@ impl BlockRegionSidecarVk {
         tier: usize,
         slices: SelectedZkBlockRegionVkSlices,
     ) -> Result<Self, RegionSidecarError> {
-        let geometry =
-            selected_zk_block_geometry(tier).ok_or(RegionSidecarError::UnsupportedVkShape)?;
+        // Research profiles can share all dimensions with a legacy class.
+        // Only the two released tiers may use the legacy registry constructor.
+        if !matches!(tier, 25 | 255) {
+            return Err(RegionSidecarError::UnsupportedVkShape);
+        }
+        Self::from_profile_registry_slices(
+            selected_zk_block_geometry(tier).ok_or(RegionSidecarError::UnsupportedVkShape)?,
+            slices,
+            false,
+        )
+    }
+
+    pub(crate) fn from_object_registry_slices(
+        geometry: SelectedZkBlockGeometry,
+        slices: SelectedZkBlockRegionVkSlices,
+    ) -> Result<Self, RegionSidecarError> {
+        Self::from_profile_registry_slices(geometry, slices, true)
+    }
+
+    fn from_profile_registry_slices(
+        geometry: SelectedZkBlockGeometry,
+        slices: SelectedZkBlockRegionVkSlices,
+        objects: bool,
+    ) -> Result<Self, RegionSidecarError> {
         let wallet_a = WalkARegionVk::new_wallet(
             selected_zk_auth_wallet_a_sidecar_purpose(),
             geometry.tx_log,
             SELECTED_ZK_AUTH_QUERY_LOG,
             slices.wallet_a,
         )?;
-        let meta_a = WalkARegionVk::new_meta(
+        let meta_constructor = if objects {
+            WalkARegionVk::new_object_meta
+        } else {
+            WalkARegionVk::new_meta
+        };
+        let meta_a = meta_constructor(
             auth_pcs_meta_a_sidecar_purpose(),
             geometry.tx_log,
             Some(geometry.exact_state_region_log),
@@ -367,6 +483,13 @@ impl BlockRegionSidecarVk {
         &self.meta_a
     }
 
+    pub fn supports_objects(&self) -> bool {
+        matches!(
+            self.meta_a.descriptor(),
+            super::WalkARegionDescriptor::ObjectMeta { .. }
+        )
+    }
+
     pub fn wallet_b(&self) -> &MerkleRegionVk {
         &self.wallet_b
     }
@@ -413,11 +536,31 @@ impl BlockRegionSidecarVk {
             } => tx_log,
             _ => return Err(RegionSidecarError::UnsupportedVkShape),
         };
-        let geometry = noid_chain::consensus::params::BLOCK_PAGE_CLASS_TIERS
-            .into_iter()
-            .filter_map(selected_zk_block_geometry)
-            .find(|geometry| geometry.tx_log == tx_log)
+        let geometry = object_block_geometries()
+            .filter(|geometry| self.supports_objects() || [25, 255].contains(&geometry.tier))
+            .find(|geometry| {
+                geometry.tx_log == tx_log
+                    && matches!(self.meta_b.families().first(),
+                        Some(MerkleRegionFamily::PairedUpdate { n_updates, .. })
+                        if *n_updates == geometry.paired_caps_per_block[0])
+                    && matches!(self.meta_b.families().get(1),
+                        Some(MerkleRegionFamily::PairedUpdate { n_updates, .. })
+                        if *n_updates == geometry.paired_caps_per_block[1])
+            })
             .ok_or(RegionSidecarError::UnsupportedVkShape)?;
+        let expected_meta = if self.supports_objects() {
+            WalkARegionDescriptor::ObjectMeta {
+                tx_log: geometry.tx_log,
+                exact_state_region_log: Some(geometry.exact_state_region_log),
+                spine_cap_log: Some(geometry.spine_cap_log),
+            }
+        } else {
+            WalkARegionDescriptor::Meta {
+                tx_log: geometry.tx_log,
+                exact_state_region_log: Some(geometry.exact_state_region_log),
+                spine_cap_log: Some(geometry.spine_cap_log),
+            }
+        };
 
         if self.wallet_a.purpose() != &selected_zk_auth_wallet_a_sidecar_purpose()
             || self.meta_a.purpose() != &auth_pcs_meta_a_sidecar_purpose()
@@ -431,12 +574,7 @@ impl BlockRegionSidecarVk {
                     nq_log: SELECTED_ZK_AUTH_QUERY_LOG,
                 })
             || self.wallet_a.w_log() != geometry.wallet_a_w_log
-            || self.meta_a.descriptor()
-                != (WalkARegionDescriptor::Meta {
-                    tx_log: geometry.tx_log,
-                    exact_state_region_log: Some(geometry.exact_state_region_log),
-                    spine_cap_log: Some(geometry.spine_cap_log),
-                })
+            || self.meta_a.descriptor() != expected_meta
             || self.meta_a.w_log() != geometry.meta_a_w_log
             || self.wallet_b.w_log() != geometry.wallet_b_w_log
             || self.wallet_b.block_log() != 10

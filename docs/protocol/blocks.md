@@ -12,33 +12,32 @@ transition.
 
 ## Block contents
 
-Transaction position zero is the mandatory primary reward. A scheduled
-development payout, when present, follows it. User `PagedSpend` pages occupy
-the remaining positions in canonical group order.
+Position zero is the primary reward. An additional mandatory system record,
+when due, follows it. Contract calls form the prefix of user pages, followed
+by ordinary atomic `PagedSpend` groups.
 
-| Limit | Value |
-|---|---:|
-| Total fixed bodies, including system records | 256 |
-| User page positions without scheduled payout | 255 |
-| User page positions with scheduled payout | 254 |
-| Live user inputs | 1,020 |
-| Live user outputs | 510 |
-| Live user actions | 1,530 |
-| Distinct State segments touched | 256 |
+| Limit | Small / Large |
+| --- | ---: |
+| Effective pages, excluding primary coinbase | 63 / 206 |
+| User pages when an extra system record is due | 62 / 205 |
+| Live user inputs | 504 / 504 |
+| Contract calls | up to 63, within the available page budget |
+| Distinct State segments | 256 |
 
-The decoder rejects oversize counts before allocating or decoding their
-payload.
+The physical decoder retains its universal 256-body / 82,905-byte bound.
+Active class budgets are checked in addition to that format bound before
+acceptance. An ordinary logical spend can use multiple pages.
 
 ## Transaction root
 
-Every body occupies one leaf in a universal 256-leaf transaction tree. Unused
-positions have one canonical empty value. The tree is wrapped with the exact
-body count under the transaction-root domain, so appending or deleting empty-
-looking leaves cannot produce an equivalent block.
+The universal 256-leaf transaction tree commits to **logical transaction IDs**.
+Each system record and each user group contributes one leaf; a multi-page
+`PagedSpend` contributes one leaf for its complete logical ID. Unused positions
+have a canonical empty value. The root also binds the exact logical count.
 
-Receipts use an eight-level inclusion path into this tree. A logical
-`PagedSpend` may occupy several consecutive leaves; the receipt binds its
-logical position and page count.
+Receipts use an eight-level path at the logical transaction position. Their
+transaction data reconstructs the complete group ID, including page count and
+order. Physical page positions and logical leaf positions are distinct.
 
 ## Canonical header
 

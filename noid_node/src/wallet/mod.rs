@@ -27,6 +27,7 @@
 
 pub mod builder;
 pub mod keystore;
+mod object_files;
 pub mod persistence;
 pub mod prover;
 pub mod scanner;
@@ -195,6 +196,29 @@ pub fn update_for_accepted_block(
     Ok(())
 }
 
+pub fn retain_object_receipts_for_block(
+    wallet: &SharedWallet,
+    store: &noid_chain::storage::MdbxStore,
+    block: &noid_chain::Block,
+) -> Result<(), String> {
+    let guard = wallet.lock().map_err(|_| "wallet state lock is poisoned")?;
+    if let Some(wallet) = guard.as_ref() {
+        object_files::retain_from_block(&wallet.keystore_path, store, block)?;
+    }
+    Ok(())
+}
+
+pub fn retain_object_receipts_at_tip(
+    wallet: &SharedWallet,
+    chain: &noid_chain::storage::MdbxChainContext,
+) -> Result<(), String> {
+    let guard = wallet.lock().map_err(|_| "wallet state lock is poisoned")?;
+    if let Some(wallet) = guard.as_ref() {
+        object_files::retain_from_chain(&wallet.keystore_path, chain)?;
+    }
+    Ok(())
+}
+
 fn recover_outgoing_receipts_from_block(
     wallet: &mut WalletState,
     owned_addresses: &std::collections::HashSet<[u8; 32]>,
@@ -322,6 +346,7 @@ pub fn reconcile_receipts_at_startup(
         .map(|entry| entry.tx_hash)
         .collect::<std::collections::HashSet<_>>();
     let tip = chain.tip_height();
+    object_files::retain_from_chain(&wallet.keystore_path, chain)?;
     let first = tip
         .saturating_sub(RECENT_BLOCK_RETENTION_DEPTH.saturating_sub(1))
         .max(1);
@@ -499,6 +524,115 @@ fn fee_breakdown_info(
 }
 
 impl WalletOps for WalletHandle {
+    fn build_object_call(
+        &self,
+        opening: noid_tx::experimental_object::ObjectOpening,
+        page: noid_tx::TxPage,
+        height: u64,
+    ) -> Result<Vec<u8>, String> {
+        let witness = {
+            let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+            let wallet = guard.as_ref().ok_or("wallet not initialized")?;
+            builder::object_owner_witness(wallet, &opening, &page, height)?
+        };
+        let proof = noid_gkr::wallet_authorization::prove_experimental_object_authorization(
+            &page, &opening, height, witness,
+        )
+        .map_err(|e| e.to_string())?;
+        noid_tx::experimental_object::ObjectIntent {
+            opening,
+            spend: noid_tx::PagedSpendIntent::new(
+                vec![page],
+                proof.to_bytes().map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| e.to_string())?,
+        }
+        .to_bytes()
+        .map_err(|e| e.to_string())
+    }
+
+    fn remember_object_opening(
+        &self,
+        opening: &noid_tx::experimental_object::ObjectOpening,
+    ) -> Result<(), String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::save_opening(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            opening,
+        )
+    }
+    fn load_object_opening(
+        &self,
+        root: [u8; 32],
+    ) -> Result<noid_tx::experimental_object::ObjectOpening, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::load_opening(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            root,
+        )
+    }
+    fn related_object_openings(
+        &self,
+        opening: &noid_tx::experimental_object::ObjectOpening,
+        after: Option<[u8; 32]>,
+        limit: usize,
+    ) -> Result<noid_rpc::wallet_ops::WalletObjectOpeningPage, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::related_openings(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            opening,
+            after,
+            limit,
+        )
+    }
+    fn remember_object_receipt(&self, txid: [u8; 32], bytes: &[u8]) -> Result<(), String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::save_receipt(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            txid,
+            bytes,
+        )
+    }
+    fn load_object_receipt(&self, txid: [u8; 32]) -> Result<Vec<u8>, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::load_receipt(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            txid,
+        )
+    }
+    fn object_receipts(
+        &self,
+        opening: &noid_tx::experimental_object::ObjectOpening,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<noid_rpc::wallet_ops::WalletObjectReceiptPage, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::receipt_page(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            opening,
+            after,
+            limit,
+        )
+    }
+
     fn status(&self) -> WalletStatus {
         let guard = self.inner.lock().unwrap();
         match &*guard {
@@ -875,6 +1009,14 @@ impl WalletOps for WalletHandle {
 
     fn on_accepted_block(&self, block: &noid_chain::block::Block) -> Result<(), String> {
         update_for_accepted_block(&self.inner, block)
+    }
+
+    fn retain_object_receipts(
+        &self,
+        store: &noid_chain::storage::MdbxStore,
+        block: &noid_chain::Block,
+    ) -> Result<(), String> {
+        retain_object_receipts_for_block(&self.inner, store, block)
     }
 
     fn plan_send(
@@ -1262,9 +1404,11 @@ impl WalletOps for WalletHandle {
         let wallet = guard
             .as_mut()
             .ok_or_else(|| "wallet not initialized".to_string())?;
+        wallet.record_pending_send(txid, amount_micronoid, peer_address)?;
+        // The history write can fail. Do not reserve spendable slots until
+        // it succeeds; the caller has not installed its admission guard yet.
         wallet.add_pending_inputs(input_slots);
         wallet.add_pending_outputs(output_slots);
-        wallet.record_pending_send(txid, amount_micronoid, peer_address)?;
         Ok(())
     }
 
@@ -1383,6 +1527,7 @@ impl WalletOps for WalletHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::sync::Mutex;
     use tempfile::TempDir;
 
@@ -1915,6 +2060,52 @@ mod tests {
         assert!(wallet.pending_input_slots.is_empty());
         assert!(wallet.pending_output_slots.is_empty());
         assert!(wallet.history.is_empty());
+    }
+
+    #[test]
+    fn failed_pending_history_write_does_not_reserve_slots_or_leave_a_send() {
+        let (directory, handle) = handle_with_utxos(&[100_000, 100_000]);
+        let key = handle
+            .inner
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .keystore_path
+            .clone();
+        handle
+            .reserve_pending_submission([1; 32], &[0], &[10_000], 50_000, [2; 32])
+            .unwrap();
+        {
+            let mut guard = handle.inner.lock().unwrap();
+            let wallet = guard.as_mut().unwrap();
+            // A failed new send must not discard an earlier unsaved update.
+            wallet.confirm_pending_tx(&[1; 32], 12, [3; 32]);
+        }
+        let path = key.with_extension("history");
+        let held = directory.path().join("held-history");
+        std::fs::rename(&path, &held).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        let result = handle.reserve_pending_submission([4; 32], &[1], &[10_001], 60_000, [5; 32]);
+        assert!(result.is_err());
+        {
+            let guard = handle.inner.lock().unwrap();
+            let wallet = guard.as_ref().unwrap();
+            assert_eq!(wallet.pending_input_slots, HashSet::from([0]));
+            assert_eq!(wallet.pending_output_slots, HashSet::from([10_000]));
+            assert_eq!(wallet.history.len(), 1);
+            assert_eq!(wallet.history[0].height, 12);
+        }
+        std::fs::remove_dir(&path).unwrap();
+        std::fs::rename(held, &path).unwrap();
+        handle
+            .reserve_pending_submission([4; 32], &[1], &[10_001], 60_000, [5; 32])
+            .unwrap();
+        let loaded = WalletState::create_or_load(key).unwrap();
+        assert_eq!(loaded.history.len(), 2);
+        assert_eq!(loaded.history[0].height, 12);
+        assert_eq!(loaded.history[1].tx_hash, [4; 32]);
+        assert_eq!(loaded.history[1].height, 0);
     }
 
     #[test]

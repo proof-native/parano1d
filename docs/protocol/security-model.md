@@ -1,168 +1,91 @@
 # Security model
 
-Parano1d combines proof of work, recursive validity, exact Live State and
-signatureless wallet authorization. Each mechanism has a distinct job.
+Proof of work orders valid transitions. Recursive proofs establish validity;
+they do not replace cumulative-work fork choice or the 18-block hard-finality
+boundary. State transfer is checked against authenticated roots, not trusted
+because a seed supplied it.
 
-## What consensus establishes
+## What is proved
 
-An accepted canonical tip establishes that:
+An accepted terminal covers exact input incarnations, empty output targets,
+value conservation, fees, issuance, contract policy and integer-program
+transitions, the post-State root and recursive ancestry. Ordinary inputs require
+the owner's secret; a contract input requires the active authority selected by
+its committed policy and inclusion height. Possession of an authority secret
+does not bypass its program, branch permissions or amount limits.
 
-- its headers form the greatest-work eligible chain known to the node;
-- every accepted block preserves the hard-finalized prefix;
-- every wallet-authorized input belongs to a prover who knew the owner's
-  256-bit secret;
-- every input existed and every output target was empty in the exact parent
-  State;
-- values, fees, issuance and allocation followed consensus;
-- the committed post-State is the exact result;
-- recursive validity reaches the current terminal.
+The wallet proves secret knowledge bound to the logical transaction. The miner
+proves the public relation and parent link. Peers verify and materialize the
+result. A valid nonce cannot repair an invalid proof.
 
-Proof of work orders valid transitions. It does not repair invalid proofs.
-Recursive proofs establish validity. They do not replace fork choice.
+## Final v2 accounting
 
-## Production soundness
+The pinned mainnet bank is
+`c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e`.
+The source-linked calculation inventories wallet, old ancestry, v2 History and
+two matrix-retirement reductions. It covers 20 typed failure events and does
+not discard old error terms when old matrix bytes are removed.
 
-The production profile has two distinct security statements. Block–Tiwari
-measures the classical random-oracle Fiat–Shamir compilation of FRI. The
-end-to-end theorem measures acceptance of an invalid recursive State by a
-quantum adversary.
+| Quantity | Final-bank result |
+| --- | ---: |
+| Resource assessment | NIST PQC Category 1, conditional |
+| log2 dominant half-success gate-depth floor | 173.3897612554174 |
+| Ideal success bound at Category 1 reference envelope | approximately 0.04937388373372754 |
 
-| Security statement | Current production result |
-|---|---:|
-| Target FRI security | **128 bits** |
-| Provable Block–Tiwari FS-FRI security | **127 bits** |
-| Conjectured Block–Tiwari FS-FRI security | **127 bits** |
-| Sequential ideal-QROM half-success boundary | **64.707407428576 bits** |
-| NIST Post-Quantum Cryptography Category | **Category 1** |
-| Dominant Category 1 gate-depth floor | **173.391078499301 bits** |
-| Margin over the NIST `2^170` reference | **3.391078499301 bits** |
-| Complete ideal bound at the Category 1 envelope | **0.049330348228363684** |
+These are distinct resource/probability quantities, not interchangeable
+“security bits”. The limiting event is a query event in the old-ancestry
+retirement reduction. Its internal legacy class name does not designate an
+active v2 mining class. Historical classical FS-FRI and ideal-QROM tables are
+kept in the [archive](../archive/legacy-profiles.md).
 
-### Wallet analysis refinement
+The assessment retains the **all-root composition, ideal compiler,
+fixed-Poseidon2b delta, batch response-price and scalar gate-charge premises**.
+It additionally requires **honest public preprocessing** of both old keys from
+the authenticated canonical matrices. Attaching a matrix digest to arbitrary
+commitment roots is insufficient. This is a mathematical resource assessment
+under the explicit premises above.
 
-The W65 wallet uses a tighter Johnson-range analysis at radius `4/5`, with at
-most 17 candidates at each Reed–Solomon layer. The resulting local bound is
-`max(5^-65, 701202001931 / 2^255)`. The query term has a local exponent of
-`150.925326167679` bits, not an end-to-end post-quantum security level.
+The C1 profile uses 65 wallet queries and 133 History queries, with algebraic
+challenges from a trace-one support of size 2^255 in GF(2^256). Trace arithmetic
+is GF(2^128). Contract execution adds deterministic constraints, not a separate
+Fiat–Shamir protocol per application. The shared ABI does not imply that every
+custom policy is a correct implementation of its author's intent.
 
-This is an analysis-only improvement. Query counts, matrices, proof formats
-and consensus are unchanged. The dominant resource term is now limited by
-`history.query`. The classical FS-FRI result, sequential ideal-QROM boundary
-and Category 1 classification remain unchanged. The
-[wallet Johnson derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/wallet-johnson.md)
-gives the finite list bound, correlated-agreement argument and field-exception
-ledger using existing theorems valid in characteristic two.
+The [derivation and reproduction command](https://git.parano1d.org/ignotusnemo/parano1d/src/branch/v2/noid_soundness/docs/v2-retirement.md) and
+[final-bank exact records](https://git.parano1d.org/ignotusnemo/parano1d/src/branch/v2/research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md#accounting-for-the-final-banks)
+identify assumptions, inputs and rational bounds. The default legacy soundness
+calculator is not a substitute for the v2 tool. Performance and malformed-proof
+tests complement this analysis; they do not prove its correspondence premises.
 
-### Block–Tiwari FS-FRI
+## Fork and matrix boundary
 
-[Block and Tiwari](https://eprint.iacr.org/2024/1161) define concrete FS-FRI
-security as
+The first v2 proof binds to the selected last pre-v2 block. The authenticated
+origin is specific to that boundary and chain, not a trusted checkpoint.
+Reorganization must update the selected origin and roll back orphaned contract
+outputs and receipts. The existing finality limit remains in force.
 
-```text
-log2(minimum expected classical random-oracle query work),
-```
+A transition release carries both historical verification material and the new
+bank. A later retired-history build verifies the origin certificate using
+independently pinned preprocessing keys and can omit old matrix bytes. It
+still needs the two v2 matrices, authenticated metadata and origin evidence.
+Omitting files without the corresponding verifier path is not retirement.
 
-where the minimum ranges over every positive integer query budget. Applying
-their definitions, 256-bit random-oracle setting and whole-bit presentation to
-the production B25 and B255 profiles gives exact expected-work values in
-`[127, 128)` for both the provable and conjectured RBR premises. Their equality
-after integer presentation does not identify those premises.
+## Wallet, evidence and network boundaries
 
-The [Block–Tiwari derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/block-tiwari.md) proves
-the local RBR inputs for every production layer, solves both integer
-optimizations and reproduces the comparison with the systems in their
-published table.
+Protect the 256-bit master secret. Anyone who learns it acquires the same
+spending authority, subject to the same contract policy. Consensus cannot
+distinguish the owner from an attacker holding the secret.
 
-### End-to-end Category 1
+Contract terms and receipts are separate public data. The secret cannot
+reconstruct a lost program or missed successor from a commitment hash. Ordinary
+payment receipts preserve payment evidence; contract openings may also be
+necessary to spend. See [contract recovery](../contracts/receipts-and-recovery.md).
 
-The security game asks whether one stateful quantum adversary can make the
-production verifier accept an invalid terminal State whose recursive ancestry
-starts at genesis. One resource budget covers wallet authorization, the block
-relation, parent links, the exact State transition, recursive verification and
-every adversarial ancestor on which the terminal depends.
+Transactions, amounts, owners and public programs are transparent while
+available. Third parties may archive them. Zero knowledge hides the spending
+witness, not the public ledger statement.
 
-`C1` is the source identifier for the production wide-challenge profile. It
-uses 65 wallet queries, 133 History queries, a 256-bit transcript digest and
-algebraic challenges sampled uniformly from a trace-one affine set of
-cardinality `2^255` in `GF(2^256)`. Committed trace arithmetic and Poseidon2b
-remain over `GF(2^128)`.
-
-The depth-aware theorem evaluates all NIST Post-Quantum Cryptography Category 1
-`MAXDEPTH` points against the AES-128 gate-depth reference `2^170`. The base-two
-logarithm of its dominant half-success gate-depth floor is
-`173.391078499301` bits, and its complete ideal success bound at the Category 1
-envelope is at most `0.049330348228363684`.
-
-The fixed Poseidon2b production corollary requires
-`Delta_P2b^C1 < 0.450669651771636316`. It also assumes the batch gate-depth
-price and minimum scalar gate charge stated by the resource theorem. Faster
-circuits may use more gates, so the reference-depth factor is not asserted as
-a universal minimum depth. Under these premises, the theorem gives provable
-end-to-end post-quantum soundness for state validation from genesis at NIST PQC
-Category 1: every adversary inside the Category 1 resource envelope has success
-probability below one half in the from-genesis invalid-State game.
-
-The [end-to-end QROM derivation](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/category-one.md)
-states the game, reductions, finite terms and assumptions. The separate
-[response accounting](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
-gives complete field and scalar constructions plus a scoped scalar lower bound;
-construction upper bounds are not substituted for declared resource prices.
-The [`noid_soundness` certificate](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness)
-imports the production constants and evaluates every normative inequality with
-exact integer or rational arithmetic. This is a cryptographic Category 1
-resource assessment, not a claim of NIST review or certification.
-
-## Trust boundaries
-
-The protocol does not require:
-
-- a trusted proving setup;
-- a trusted snapshot publisher;
-- historical transaction-body archives for validation;
-- a public-key transaction signature scheme;
-- permission from seed nodes or peers.
-
-The released binary embeds authenticated proof matrices. Snapshot State is
-checked against canonical headers and the matching terminal before
-installation.
-
-## Wallet boundary
-
-The 256-bit master secret grants spending authority. Compromise of the device,
-secret file or original photo-derived material compromises the wallet.
-Consensus cannot distinguish the owner from an attacker who knows the same
-secret.
-
-Receipts are local records, not derived secrets. Losing them does not lose
-funds, but can remove durable payment evidence after old block bodies are
-pruned.
-
-## Network boundary
-
-Peer Ed25519 keys authenticate libp2p sessions only. They do not participate in
-wallet or block authorization. DNS seeds help locate peers but cannot define
-the canonical chain.
-
-Connection diversity, message limits, staged synchronization and mempool
-budgets bound common resource attacks. Operators should still keep RPC on
-loopback, protect wallet files and use independent network paths for public
-infrastructure.
-
-## Transparency
-
-Parano1d is not an anonymity system. Transaction owners, amounts, slots and
-fees are transparent while bodies are available. Zero knowledge hides the
-wallet secret and proves execution; it does not conceal the public ledger
-statement.
-
-## Finality assumption
-
-Consensus refuses a reorganization that changes the prefix deeper than the
-18-block finality boundary. Operators and applications may choose to wait for
-additional confirmations inside the recent suffix, but no peer can present a
-deeper branch as eligible under the same rules.
-
-For operational protection, see
-[Backup and recovery](../wallet/backup-recovery.md) and
-[Configuration](../operate/configuration.md). Consensus checks are collected
-in [Consensus invariants](invariants.md).
+Peer Ed25519 identities authenticate transport only. DNS seeds locate peers
+but do not authorize transactions or define the chain. Connection diversity,
+bounded messages and staged sync constrain resource use. Keep owner RPC local,
+protect wallet data and use independent peers for infrastructure.

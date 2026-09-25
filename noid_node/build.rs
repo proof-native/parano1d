@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Build-time staging for the preflight-authenticated embedded `HistoryStep` v1 pack.
+//! Build-time authentication and embedding of history release material.
 
 use std::env;
 use std::fmt::Write as _;
@@ -19,6 +19,11 @@ use noid_recursive::acceptance::history_step_bank::CanonicalHistoryStepClassId;
 
 const PACK_DIRECTORY_ENV: &str = "NOID_HISTORY_STEP_PACK_DIR";
 const METADATA_DIGEST_ENV: &str = "NOID_HISTORY_STEP_RUNTIME_METADATA_RELEASE_DIGEST";
+const V2_PACK_ENV: &str = "NOID_V2_PACK_DIR";
+const V2_BANK_ENV: &str = "NOID_V2_RELEASE_BANK";
+const RETIREMENT_KEYS_ENV: &str = "NOID_RETIREMENT_KEYS_DIR";
+const RETIREMENT_PIN0_ENV: &str = "NOID_RETIREMENT_KEY_0_PIN";
+const RETIREMENT_PIN1_ENV: &str = "NOID_RETIREMENT_KEY_1_PIN";
 
 const GENERATED_FILE: &str = "history_step_pack.rs";
 const STAGED_DIRECTORY: &str = "embedded-history-step";
@@ -38,7 +43,15 @@ struct EmbeddedLeaf {
 }
 
 fn main() {
-    for variable in [PACK_DIRECTORY_ENV, METADATA_DIGEST_ENV] {
+    for variable in [
+        PACK_DIRECTORY_ENV,
+        METADATA_DIGEST_ENV,
+        V2_PACK_ENV,
+        V2_BANK_ENV,
+        RETIREMENT_KEYS_ENV,
+        RETIREMENT_PIN0_ENV,
+        RETIREMENT_PIN1_ENV,
+    ] {
         println!("cargo:rerun-if-env-changed={variable}");
     }
 
@@ -46,6 +59,26 @@ fn main() {
     let metadata_digest = env::var_os(METADATA_DIGEST_ENV);
     let out_directory = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo sets OUT_DIR"));
     let generated_path = out_directory.join(GENERATED_FILE);
+    if env::var("PROFILE").as_deref() == Ok("release")
+        && noid_chain::consensus::params::V2_ACTIVATION_HEIGHT.is_some()
+    {
+        assert!([RETIREMENT_KEYS_ENV, RETIREMENT_PIN0_ENV, RETIREMENT_PIN1_ENV]
+            .into_iter().all(|name| env::var_os(name).is_some()),
+            "scheduled v2 releases require independently pinned retirement keys for origin-format interoperability");
+    }
+    write_if_changed(
+        &out_directory.join("retirement_keys.rs"),
+        b"static GENERATED_RETIREMENT_KEYS: Option<EmbeddedRetirementKeys> = None;\n",
+    );
+    if env::var_os("CARGO_FEATURE_RETIRED_HISTORY").is_some() {
+        assert!(
+            env::var_os(V2_PACK_ENV).is_some()
+                && env::var_os(RETIREMENT_KEYS_ENV).is_some()
+                && pack_directory.is_some(),
+            "retired-history requires pinned legacy metadata, the v2 pack and retirement keys"
+        );
+        // Runtime construction additionally rejects an unscheduled v2 pack.
+    }
 
     match (pack_directory, metadata_digest) {
         (None, None) => {
@@ -74,6 +107,71 @@ fn main() {
             );
         }
         _ => panic!("{PACK_DIRECTORY_ENV} and {METADATA_DIGEST_ENV} must be set together"),
+    }
+    embed_v2_pack(&out_directory);
+}
+
+fn embed_v2_pack(out_directory: &Path) {
+    use noid_miner::v2_artifacts::*;
+    let generated = out_directory.join("v2_pack.rs");
+    match (env::var_os(V2_PACK_ENV), env::var_os(V2_BANK_ENV)) {
+        (None, None) => {
+            assert!(
+                !(env::var("PROFILE").as_deref() == Ok("release")
+                    && noid_chain::consensus::params::V2_ACTIVATION_HEIGHT.is_some()),
+                "scheduled v2 release builds require {V2_PACK_ENV} and {V2_BANK_ENV}"
+            );
+            write_if_changed(
+                &generated,
+                b"static GENERATED_V2_PACK: Option<EmbeddedV2Pack> = None;\n",
+            );
+        }
+        (Some(directory), Some(pin)) => {
+            let bank = parse_hex_digest(&pin.into_string().expect("UTF-8 v2 bank"), V2_BANK_ENV);
+            let directory = PathBuf::from(directory);
+            let metadata_path = directory.join(V2_METADATA_FILE);
+            let metadata = read_bounded(&metadata_path, V2_METADATA_MAX_BYTES as u64);
+            let runtime_metadata = decode_v2_runtime_metadata_pinned(&metadata, bank)
+                .expect("pinned v2 runtime metadata");
+            assert_eq!(
+                runtime_metadata.bank().config().schedule(),
+                noid_chain::consensus::forks::ACTIVE_SCHEDULE,
+                "v2 artifact schedule differs from the executable profile",
+            );
+            println!("cargo:rerun-if-changed={}", metadata_path.display());
+            let staged = out_directory.join("embedded-v2");
+            fs::create_dir_all(&staged).expect("v2 staging directory");
+            write_if_changed(&staged.join(V2_METADATA_FILE), &metadata);
+            let mut sources = Vec::new();
+            let mut seals = Vec::new();
+            for class in noid_recursive::acceptance::history_step::v2::banked::Class::ALL {
+                let name = v2_matrix_file_name(class);
+                let path = directory.join(name);
+                let compressed = read_bounded(&path, V2_MATRIX_MAX_BYTES as u64);
+                let seal = runtime_metadata
+                    .preflight_build_matrix(class, &compressed)
+                    .expect("v2 matrix semantic authentication before embedding");
+                println!("cargo:rerun-if-changed={}", path.display());
+                write_if_changed(&staged.join(name), &compressed);
+                sources.push(format!(
+                    "include_bytes!(concat!(env!(\"OUT_DIR\"), \"/embedded-v2/{name}\"))"
+                ));
+                seals.push(format!(
+                    "unsafe {{ noid_ivc_core::field_r1cs::BuildAuthenticatedFieldR1csSeal::from_release_build(noid_ivc_core::proof::FieldShape {{ m: {}, k_log: {}, k_skip: {}, const_pin: {} }}, {}, {}) }}",
+                    seal.shape().m, seal.shape().k_log, seal.shape().k_skip,
+                    render_const_pin(seal.shape().const_pin), render_digest(seal.statement_digest()),
+                    seal.canonical_bytes(),
+                ));
+            }
+            write_if_changed(&generated, format!(
+                "static GENERATED_V2_PACK: Option<EmbeddedV2Pack> = Some(EmbeddedV2Pack {{\n\
+                metadata: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/embedded-v2/{V2_METADATA_FILE}\")),\n\
+                compressed_matrices: [{}],\n\
+                release_bank: {},\n\
+                build_seals: [{}],\n}});\n",
+                sources.join(", "), render_digest(bank), seals.join(", ")).as_bytes());
+        }
+        _ => panic!("{V2_PACK_ENV} and {V2_BANK_ENV} must be set together"),
     }
 }
 
@@ -110,6 +208,15 @@ fn embed_release_pack(
         &metadata,
     );
 
+    embed_retirement_keys(out_directory, runtime_metadata.bank());
+    if env::var_os("CARGO_FEATURE_RETIRED_HISTORY").is_some() {
+        write_if_changed(generated_path, format!(
+            "static GENERATED_HISTORY_STEP_PACK: Option<EmbeddedHistoryStepPack> = Some(EmbeddedHistoryStepPack {{\n\
+            runtime_metadata: include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{STAGED_DIRECTORY}/{HISTORY_STEP_RUNTIME_METADATA_FILE}\")),\n\
+            runtime_metadata_digest: {}, leaves: None,\n}});\n", render_digest(metadata_digest)).as_bytes());
+        return;
+    }
+
     let mut build_leaves = Vec::with_capacity(HISTORY_STEP_PACK_LEAF_COUNT);
     for index in 0..HISTORY_STEP_PACK_LEAF_COUNT {
         let class = CanonicalHistoryStepClassId::from_index(index).expect("canonical class");
@@ -137,6 +244,31 @@ fn embed_release_pack(
         .unwrap_or_else(|_| unreachable!("one build result per HistoryStep class"));
     let generated = render_generated_pack(metadata_digest, &build_leaves);
     write_if_changed(generated_path, generated.as_bytes());
+}
+
+fn embed_retirement_keys(
+    out: &Path,
+    bank: &noid_recursive::acceptance::history_step_bank::PinnedHistoryStepClassBank,
+) {
+    match (env::var_os(RETIREMENT_KEYS_ENV), env::var_os(RETIREMENT_PIN0_ENV), env::var_os(RETIREMENT_PIN1_ENV)) {
+        (None, None, None) => {},
+        (Some(directory), Some(first), Some(second)) => {
+            let directory = PathBuf::from(directory);
+            let pins = [parse_hex_digest(&first.into_string().expect("UTF-8 retirement pin"), RETIREMENT_PIN0_ENV), parse_hex_digest(&second.into_string().expect("UTF-8 retirement pin"), RETIREMENT_PIN1_ENV)];
+            let keys: [Vec<u8>; 2] = std::array::from_fn(|index| {
+                let path = directory.join(format!("class-{index}.key"));
+                println!("cargo:rerun-if-changed={}", path.display());
+                read_bounded(&path, noid_ivc_core::matrix_claim::sparse_c1::SPARSE_EVALUATION_KEY_BYTES as u64)
+            });
+            noid_recursive::acceptance::history_step::v2::banked::PinnedRetirementKeys::from_release(bank, [&keys[0], &keys[1]], pins).expect("release-pinned retirement preprocessing keys");
+            for (index, bytes) in keys.iter().enumerate() { write_if_changed(&out.join(format!("retirement-{index}.key")), bytes); }
+            write_if_changed(&out.join("retirement_keys.rs"), format!(
+                "static GENERATED_RETIREMENT_KEYS: Option<EmbeddedRetirementKeys> = Some(EmbeddedRetirementKeys {{\n\
+                encoded: [include_bytes!(concat!(env!(\"OUT_DIR\"), \"/retirement-0.key\")), include_bytes!(concat!(env!(\"OUT_DIR\"), \"/retirement-1.key\"))],\n\
+                release_pins: [{}, {}],\n}});\n", render_digest(pins[0]), render_digest(pins[1])).as_bytes());
+        },
+        _ => panic!("{RETIREMENT_KEYS_ENV}, {RETIREMENT_PIN0_ENV}, {RETIREMENT_PIN1_ENV} must be set together"),
+    }
 }
 
 fn stage_leaf(
@@ -226,7 +358,7 @@ fn render_generated_pack(
         render_digest(metadata_digest)
     )
     .expect("writing to String cannot fail");
-    generated.push_str("    leaves: [\n");
+    generated.push_str("    leaves: Some([\n");
     for (index, leaf) in leaves.iter().enumerate() {
         let class = CanonicalHistoryStepClassId::from_index(index).expect("canonical class");
         let seal = leaf.seal;
@@ -243,7 +375,7 @@ fn render_generated_pack(
         )
         .expect("writing to String cannot fail");
     }
-    generated.push_str("    ],\n});\n");
+    generated.push_str("    ]),\n});\n");
     generated
 }
 

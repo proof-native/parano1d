@@ -20,10 +20,9 @@ hosted explorer.
 
 ## Blocks
 
-The canonical block table lists height, age, block ID, proof class and data
-availability. **Full** means the body remains inside the 42-block retention
-window. **Header** means the permanent header is available but the old body has
-been pruned.
+The canonical block table lists height, age, block ID, State level and data
+availability. **Full** marks the 18-block browsing window. **Header** marks
+older entries represented by their permanent header in this list.
 
 Block details include the canonical 212-byte header, system records and user
 transactions while full data is retained.
@@ -45,3 +44,7 @@ outside the bounded undo window.
 
 The State map on Main and Scope is a visualization of current occupancy, not a
 history heatmap.
+
+The recent-transactions RPC and the GUI availability indicator use an
+18-block browsing window (about 9 minutes at target). Nodes retain 42 bodies
+for synchronization service. This serving margin does not extend the GUI list.

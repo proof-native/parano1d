@@ -19,6 +19,9 @@ use noid_chain::consensus::params::RETAINED_BLOCK_SERVING_DEPTH;
 use serde_json::Value;
 use std::io::{self, IsTerminal, Write};
 
+#[path = "noid_cli/contracts.rs"]
+mod contracts;
+
 // ---------------------------------------------------------------------------
 // ANSI terminal colours (no external crate needed)
 // ---------------------------------------------------------------------------
@@ -156,12 +159,21 @@ struct Cli {
     #[arg(long, short = 'j', global = true)]
     json: bool,
 
+    /// Maximum seconds for one RPC, including wallet proof construction.
+    #[arg(long, default_value_t = 60, global = true, value_parser = clap::value_parser!(u64).range(1..=3600))]
+    rpc_timeout: u64,
+
     #[command(subcommand)]
     cmd: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
+    /// Create, fund, call and verify v2 contracts.
+    Contract {
+        #[command(subcommand)]
+        action: contracts::ContractCommand,
+    },
     // ---- Chain ----------------------------------------------------------------
     /// Node status: height, best hash, difficulty, active UTXOs.
     Status,
@@ -406,7 +418,7 @@ async fn main() {
 async fn run(cli: Cli) -> anyhow::Result<()> {
     let client = reqwest::Client::builder()
         .user_agent(concat!("parano1d-cli/", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(cli.rpc_timeout))
         .build()?;
 
     let ctx = Ctx {
@@ -416,6 +428,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
     };
 
     match &cli.cmd {
+        Command::Contract { action } => contracts::run(&ctx, action).await,
         Command::Status => cmd_status(&ctx).await,
         Command::BlockHash { height } => cmd_block_hash(&ctx, *height).await,
         Command::BlockHeader { height } => cmd_block_header(&ctx, *height).await,
@@ -1117,7 +1130,12 @@ async fn cmd_mempool_tx(ctx: &Ctx<'_>, txhash: &str) -> anyhow::Result<()> {
     );
     if result["requires_b255_miner"].as_bool().unwrap_or(false) {
         println!();
-        warn_msg("Waiting for inclusion: this atomic PagedSpend requires a B255-qualified miner.");
+        let class = result["minimum_proof_class"]
+            .as_str()
+            .unwrap_or("the large proof class");
+        warn_msg(&format!(
+            "Waiting for inclusion: this atomic PagedSpend requires a miner supporting {class}."
+        ));
     }
     Ok(())
 }
@@ -1218,7 +1236,7 @@ async fn cmd_mempool(ctx: &Ctx<'_>) -> anyhow::Result<()> {
         .any(|tx| tx["requires_b255_miner"].as_bool().unwrap_or(false))
     {
         println!();
-        warn_msg("B255 entries are atomic and wait for a B255-qualified miner.");
+        warn_msg("Large-class entries are atomic and wait for a miner supporting their displayed proof class.");
     }
 
     Ok(())

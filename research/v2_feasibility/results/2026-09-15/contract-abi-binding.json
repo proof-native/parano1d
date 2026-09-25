@@ -1,0 +1,111 @@
+{
+  "canonical_transaction": {
+    "canonical_validation_passed": true,
+    "existing_old_state_leaf_commitment_reused": true,
+    "existing_successor_state_leaf_commitment_reused": true,
+    "old_object_root_is_input_owner": true,
+    "output1_remains_an_independent_payment": true,
+    "successor_object_root_is_output0_owner": true,
+    "txid_hex": "21b3effdf32062cc19a5106f5ef16b88fc3aba8f17f0282d6e330ded129d8160",
+    "wire_bytes": 323,
+    "wire_format_changed": false,
+    "wire_roundtrip_passed": true
+  },
+  "context_vector": {
+    "all_mutations_change_txid": true,
+    "all_selected_cells_are_raw_tx_hash_leaves": true,
+    "bindings": [
+      {
+        "program_step": 0,
+        "selected_cell_changed": true,
+        "source": "epoch_anchor_lo",
+        "txid_changed": true
+      },
+      {
+        "program_step": 1,
+        "selected_cell_changed": true,
+        "source": "epoch_anchor_hi",
+        "txid_changed": true
+      },
+      {
+        "program_step": 2,
+        "selected_cell_changed": true,
+        "source": "fee",
+        "txid_changed": true
+      },
+      {
+        "program_step": 3,
+        "selected_cell_changed": true,
+        "source": "successor_amount",
+        "txid_changed": true
+      },
+      {
+        "program_step": 4,
+        "selected_cell_changed": true,
+        "source": "payment_amount",
+        "txid_changed": true
+      },
+      {
+        "program_step": 5,
+        "selected_cell_changed": true,
+        "source": "recipient_lo",
+        "txid_changed": true
+      },
+      {
+        "program_step": 6,
+        "selected_cell_changed": true,
+        "source": "recipient_hi",
+        "txid_changed": true
+      },
+      {
+        "program_step": 7,
+        "selected_cell_changed": true,
+        "source": "validity_flags",
+        "txid_changed": true
+      }
+    ],
+    "cells": 8
+  },
+  "established": [
+    "an immutable eight-step program and one-field mutable object State bind to owner-sized roots with the measured Meta-A schedule",
+    "the old object root fits the existing shared input_owner and the successor root fits output0.owner",
+    "the carrier is a canonical 323-byte Tx8x2 body and round-trips without a wire-format change",
+    "the exact current State-leaf commitment format is reused for both old and successor objects",
+    "eight independently selected program contexts come directly from Tx-body hash leaves and every tested source mutation changes the transaction id",
+    "the program, object State and controller opening is holder-retained data rather than permanent chain data"
+  ],
+  "kind": "contract_object_to_existing_tx8x2_binding",
+  "limits": [
+    "the current shared input_owner gives one independently controlled mutable object or policy root per logical transaction",
+    "this experiment keeps code and controller immutable across a call",
+    "the one-field object State and four toy opcodes are not a final contract language or ABI",
+    "hash binding alone does not prove useful escrow, recovery, timelock or integer semantics",
+    "integrated HistoryStep links, native capsule proof and soundness composition remain to be built"
+  ],
+  "object_commitment": {
+    "all_object_field_mutations_change_root": true,
+    "all_program_field_mutations_change_both_roots": true,
+    "code_digest_hex": "8c398205bd2da66060d894cd68c7510f8b37dd9fefbdc3d98b029377bbd8723c",
+    "code_opening_bytes": 256,
+    "code_program_cells": 16,
+    "code_program_steps": 8,
+    "controller_cells": 2,
+    "controller_opening_bytes": 32,
+    "holder_receipt_bytes_when_version_is_protocol_constant": 304,
+    "mutable_state_cells": 1,
+    "mutable_state_opening_bytes": 16,
+    "object_field_mutations_tested": 6,
+    "old_object_root_hex": "a4da9cea2478bdaa812add73b86f0cf14c478e70a356abe2aef4dc0958b57885",
+    "poseidon_permutations": {
+      "code": 8,
+      "old_and_successor_roots_total": 14,
+      "one_object_root": 3
+    },
+    "program_field_mutations_tested": 16,
+    "protocol_version_cells": 1,
+    "successor_object_root_hex": "8f24fda203681228a545971d1b6dc70e976c239ed069c269f11fd96ce4140a7a"
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789501425
+}

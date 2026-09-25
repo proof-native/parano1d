@@ -86,8 +86,9 @@ new root
 No UTXO moves, no segment is copied and slot numbers remain valid. Root update
 work is independent of the number of occupied slots.
 
-Expansion also moves the issuance schedule to the next reward tier. It does not
-alter existing values or create a migration transaction.
+The [issuance schedule](../protocol/economics.md) advances by block height.
+Expansion preserves existing values and slot indices. Occupancy-sensitive
+State-growth fees continue to price net-new live outputs.
 
 ## State pressure and fees
 
@@ -120,3 +121,9 @@ State, checks its canonical metadata and resumes from the current terminal.
 
 See [State transition](../protocol/state.md) for normative rules and
 [Synchronization](synchronization.md) for authenticated State transfer.
+
+## Contract commitments
+
+An output owner may be a contract commitment. Its live amount and incarnation
+use the same State layout; public terms and counters are opened during the
+call. Participants retain those terms and [receipts](../contracts/receipts-and-recovery.md).

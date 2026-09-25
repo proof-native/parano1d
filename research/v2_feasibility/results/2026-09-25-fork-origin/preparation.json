@@ -1,0 +1,37 @@
+{
+  "certificate_bytes": 7355997,
+  "classes": [
+    {
+      "class": 0,
+      "preprocessing_ms": 103246,
+      "proof_bytes": 6478232,
+      "prove_verify_encode_ms": 316264
+    },
+    {
+      "class": 1,
+      "preprocessing_ms": 0,
+      "proof_bytes": 0,
+      "prove_verify_encode_ms": 0,
+      "reused_inactive_release_key": true
+    }
+  ],
+  "elapsed_ms": 453043,
+  "legacy_bank": "30feb976380c4318b3d4b64c8163a265236bcd2a1066f10c1c5ef7da78bcc78c",
+  "legacy_runtime": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+  "origin_binding": "1b526c5af7edf1b349a0708b1ad18088f99e7a90a0069e8f593bd1be4c7b852e",
+  "release_key_pins": [
+    "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+    "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+  ],
+  "retirement_request": "ebb82b1c965f8491b9b3edd60c2f94027850d3b32e371800cea2362ea3f1f258",
+  "status": "passed",
+  "v2_bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "verification_without_legacy_rows": true,
+  "cpu": "Intel Core i7-1365U",
+  "rayon_threads": 12,
+  "memory_max_gib": 20,
+  "swap_max_bytes": 0,
+  "process_peak_rss_kib": 7135896,
+  "wall_seconds": 453.05,
+  "certificate_sha256": "05c1683b05b3ae6d45bce98a7e0a43f4a9d7371d8fe13317f59d5ead302f8595"
+}

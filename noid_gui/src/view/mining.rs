@@ -50,7 +50,7 @@ pub fn view(app: &App, compact: bool) -> Element<'_, Message> {
         page = page.push(
             container(
                 row![
-                    text("MATRIX CACHE").size(13).color(theme::DANGER),
+                    text("PROOF DATA").size(13).color(theme::DANGER),
                     text(error).size(13).color(theme::MUTED),
                     iced::widget::Space::new().width(Length::Fill),
                     button(text("RETRY").size(12))
@@ -292,9 +292,9 @@ fn miner_controls(app: &App) -> iced::widget::Container<'_, Message> {
     } else if mining_enabled {
         "STOP MINING"
     } else if matches!(app.matrix_b25, MatrixCacheState::Failed(_)) {
-        "RETRY MATRIX PREPARATION"
+        "RETRY PREPARATION"
     } else if !b25_ready {
-        "PREPARING B25 MATRIX…"
+        "PREPARING PROOF DATA…"
     } else {
         "START MINING"
     };

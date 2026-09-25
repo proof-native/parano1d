@@ -1,0 +1,124 @@
+{
+  "source": {
+    "noid_recursive/src/acceptance/trace/zk_authorization_candidate.rs": "72af9f861b1de8cc05e78a2d96e906c05d44d2bf6f9f597a3588826ed909d3e5",
+    "bench_prover/src/bin/noid_v2_capacity.rs": "b235838807662e9aff7b6ea844271bbbc1ce80be2391762f9f8ee1dc022d51eb",
+    "bench_prover/src/bin/v2_capacity_support/state.rs": "0e1f84823936f10d3ae902027c90aea3964ec14371e0b4193d5883365c8bedf7",
+    "bench_prover/src/bin/v2_capacity_support/proof.rs": "634b159e0bd3ce9d49661819be0d7863cb517fa23ff46ff4aadbdcd1bbd66844",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "dd43cd8ea9d64e8fc9b2af98847cd0855d513219f578e6148e784eeed6df0c5f",
+    "base_revision": "fc8b459287d5e6bf4d73ee27ad3375f4d99a3268",
+    "binary_sha256": "aa07abdf3522b06ad1a6067d09e46f95f39ac5d0e10ecf94129b2110fb420665"
+  },
+  "candidate_directory": "v2-m23-p63-20260924-f",
+  "candidate_bank": "fb3e9c9ba518d563373bd7f6732bb96acd6463ee46adfec369d784b2867e8825",
+  "host": "Intel Core i7-1365U; 2 P cores + 2 E cores; not a seed server",
+  "case": {
+    "height": 20,
+    "pages": 63,
+    "contract_calls": 4,
+    "input_output_pattern": "one input, one output per page"
+  },
+  "limits": {
+    "cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "rayon_threads": 4,
+    "memory_max_bytes": 8589934592,
+    "memory_swap_max_bytes": 0,
+    "backend": "pclmul",
+    "full_node": false
+  },
+  "records": [
+    {
+      "cpu_backend": "pclmul",
+      "m": 23,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 269412
+      },
+      "pages": 63,
+      "phase": "receiver_setup",
+      "rayon_threads": 4,
+      "setup_ms": 243405.18466
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273596
+      },
+      "phase": "receiver_verify",
+      "sample": 0,
+      "terminal_bytes": 910516,
+      "verify_ms": 2196.305771,
+      "warmup": true
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273616
+      },
+      "phase": "receiver_verify",
+      "sample": 1,
+      "terminal_bytes": 910516,
+      "verify_ms": 2269.25613,
+      "warmup": false
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273652
+      },
+      "phase": "receiver_verify",
+      "sample": 2,
+      "terminal_bytes": 910516,
+      "verify_ms": 2223.270055,
+      "warmup": false
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273656
+      },
+      "phase": "receiver_verify",
+      "sample": 3,
+      "terminal_bytes": 910516,
+      "verify_ms": 2235.4144910000005,
+      "warmup": false
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273672
+      },
+      "phase": "receiver_verify",
+      "sample": 4,
+      "terminal_bytes": 910516,
+      "verify_ms": 2251.243439,
+      "warmup": false
+    },
+    {
+      "height": 20,
+      "memory": {
+        "process_peak_rss_kib": 518380,
+        "rss_kib": 273676
+      },
+      "phase": "receiver_verify",
+      "sample": 5,
+      "terminal_bytes": 910516,
+      "verify_ms": 2248.6422949999996,
+      "warmup": false
+    }
+  ],
+  "verify_ms": {
+    "median": 2248.6422949999996,
+    "min": 2223.270055,
+    "max": 2269.25613
+  }
+}

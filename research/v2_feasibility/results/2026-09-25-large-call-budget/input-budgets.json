@@ -1,0 +1,478 @@
+{
+  "run": {
+    "exit_code": 0,
+    "seconds": 1825.1479518570122,
+    "output": "/home/neo/rust/parano1d-artifacts/v2-joint-i384-budget-20260925-a"
+  },
+  "observations": [
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 300028
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 30058.711158000002
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304180
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 565.623631
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304188
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 537.240001
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304232
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 491.492553
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304260
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 476.922495
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304300
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 514.667413
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304308
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 547.5728949999999
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304320
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 518.18651
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 381204,
+        "rss_kib": 304332
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 495.022721
+    },
+    {
+      "bank": "8510e012152310a68a2e58a028368a8855e31c658f6a8baae215c1baa6871603",
+      "memory": {
+        "process_peak_rss_kib": 1555024,
+        "rss_kib": 1167028
+      },
+      "ms": 231332.348193,
+      "phase": "joint_budget_setup",
+      "source_tip": 37
+    },
+    {
+      "class": 0,
+      "height": 38,
+      "ms": 24051.012645,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 7370.355981999999,
+      "calls": 0,
+      "class": 0,
+      "height": 38,
+      "input_ms": 1686.9626580000001,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 3794744,
+        "rss_kib": 2805284
+      },
+      "pages": 63,
+      "pow_ms": 1965.1312970000001,
+      "prove_ms": 9611.073652,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 911220,
+      "verify_ms": 736.4136679999999
+    },
+    {
+      "assembly_ms": 6993.713877,
+      "calls": 0,
+      "class": 0,
+      "height": 39,
+      "input_ms": 1663.9031850000001,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5049580,
+        "rss_kib": 3296056
+      },
+      "pages": 63,
+      "pow_ms": 581.723435,
+      "prove_ms": 12911.616757999998,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 912148,
+      "verify_ms": 1137.2822600000002
+    },
+    {
+      "assembly_ms": 6986.220915,
+      "calls": 0,
+      "class": 0,
+      "height": 40,
+      "input_ms": 1610.952051,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5523576,
+        "rss_kib": 3600208
+      },
+      "pages": 63,
+      "pow_ms": 225.953575,
+      "prove_ms": 9375.358526,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914036,
+      "verify_ms": 705.7684800000001
+    },
+    {
+      "assembly_ms": 6834.033518,
+      "calls": 0,
+      "class": 0,
+      "height": 41,
+      "input_ms": 1065.973007,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5696552,
+        "rss_kib": 3620612
+      },
+      "pages": 37,
+      "pow_ms": 216.885258,
+      "prove_ms": 9863.851714,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 910804,
+      "verify_ms": 728.354825
+    },
+    {
+      "assembly_ms": 8234.523847,
+      "calls": 0,
+      "class": 0,
+      "height": 42,
+      "input_ms": 1803.70851,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5835980,
+        "rss_kib": 3671032
+      },
+      "pages": 63,
+      "pow_ms": 1239.131613,
+      "prove_ms": 14806.980721,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914292,
+      "verify_ms": 971.9676189999999
+    },
+    {
+      "class": 0,
+      "height": 43,
+      "ms": 23637.254193,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 7257.173592,
+      "calls": 0,
+      "class": 0,
+      "height": 43,
+      "input_ms": 1707.877704,
+      "label": "joint_class_0_inputs_504_per_page_8",
+      "memory": {
+        "process_peak_rss_kib": 5835980,
+        "rss_kib": 4045856
+      },
+      "pages": 63,
+      "pow_ms": 558.95148,
+      "prove_ms": 9555.630303999998,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 908980,
+      "verify_ms": 762.736548
+    },
+    {
+      "class": 0,
+      "height": 43,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_8",
+      "outputs": 126,
+      "pages": 63,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 6381.7968120000005,
+      "calls": 0,
+      "class": 0,
+      "height": 44,
+      "input_ms": 2.6390480000000003,
+      "label": "joint_budget_empty_successor",
+      "memory": {
+        "process_peak_rss_kib": 6141800,
+        "rss_kib": 4054896
+      },
+      "pages": 0,
+      "pow_ms": 789.914839,
+      "prove_ms": 10166.642422,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913140,
+      "verify_ms": 1142.845404
+    },
+    {
+      "class": 1,
+      "height": 45,
+      "ms": 65633.895479,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 14792.641631,
+      "calls": 0,
+      "class": 1,
+      "height": 45,
+      "input_ms": 4792.525708,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 7039432,
+        "rss_kib": 4866884
+      },
+      "pages": 192,
+      "pow_ms": 3013.808633,
+      "prove_ms": 22998.845009,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981172,
+      "verify_ms": 2136.1906959999997
+    },
+    {
+      "class": 1,
+      "inputs": 385,
+      "native_rejected": true,
+      "phase": "joint_input_budget_adversarial_check",
+      "r1cs_satisfied": false,
+      "same_matrix": true
+    },
+    {
+      "class": 1,
+      "height": 46,
+      "ms": 70909.088432,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 16504.267855,
+      "calls": 0,
+      "class": 1,
+      "height": 46,
+      "input_ms": 2882.638366,
+      "label": "joint_class_1_inputs_384_per_page_4",
+      "memory": {
+        "process_peak_rss_kib": 9381652,
+        "rss_kib": 5048864
+      },
+      "pages": 96,
+      "pow_ms": 109.80517300000001,
+      "prove_ms": 29722.602,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982132,
+      "verify_ms": 2890.954589
+    },
+    {
+      "class": 1,
+      "height": 46,
+      "input_segments": 256,
+      "inputs": 384,
+      "layout": "per_page_4",
+      "outputs": 192,
+      "pages": 96,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 16966.852568,
+      "calls": 0,
+      "class": 1,
+      "height": 47,
+      "input_ms": 4776.13071,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9513508,
+        "rss_kib": 4919780
+      },
+      "pages": 190,
+      "pow_ms": 1066.256417,
+      "prove_ms": 23519.972227000002,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982676,
+      "verify_ms": 3041.4920730000003
+    },
+    {
+      "class": 1,
+      "height": 48,
+      "ms": 62390.388029,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 16140.7025,
+      "calls": 0,
+      "class": 1,
+      "height": 48,
+      "input_ms": 1334.5757,
+      "label": "joint_class_1_inputs_384_per_page_8",
+      "memory": {
+        "process_peak_rss_kib": 9513508,
+        "rss_kib": 5022588
+      },
+      "pages": 48,
+      "pow_ms": 824.8689390000001,
+      "prove_ms": 33224.873289999996,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 980884,
+      "verify_ms": 2768.8361170000003
+    },
+    {
+      "class": 1,
+      "height": 48,
+      "input_segments": 256,
+      "inputs": 384,
+      "layout": "per_page_8",
+      "outputs": 96,
+      "pages": 48,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 15804.232058,
+      "calls": 0,
+      "class": 1,
+      "height": 49,
+      "input_ms": 2532.220512,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9513508,
+        "rss_kib": 5022604
+      },
+      "pages": 99,
+      "pow_ms": 1523.265067,
+      "prove_ms": 22917.493175,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982356,
+      "verify_ms": 1942.90035
+    },
+    {
+      "assembly_ms": 17060.07218,
+      "calls": 0,
+      "class": 1,
+      "height": 50,
+      "input_ms": 4952.282332000001,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9513508,
+        "rss_kib": 5094840
+      },
+      "pages": 186,
+      "pow_ms": 456.34681,
+      "prove_ms": 26387.155753,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 980052,
+      "verify_ms": 2944.104993
+    },
+    {
+      "class": 1,
+      "height": 51,
+      "ms": 78590.997879,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 18637.823865000002,
+      "calls": 0,
+      "class": 1,
+      "height": 51,
+      "input_ms": 6857.517181,
+      "label": "joint_class_1_inputs_384_full_pages",
+      "memory": {
+        "process_peak_rss_kib": 9558020,
+        "rss_kib": 5279424
+      },
+      "pages": 255,
+      "pow_ms": 646.481128,
+      "prove_ms": 30728.839101999998,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982996,
+      "verify_ms": 3526.896357
+    },
+    {
+      "class": 1,
+      "height": 51,
+      "input_segments": 256,
+      "inputs": 384,
+      "layout": "full_pages",
+      "outputs": 510,
+      "pages": 255,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 16656.28601,
+      "calls": 0,
+      "class": 1,
+      "height": 52,
+      "input_ms": 3.3182419999999997,
+      "label": "joint_budget_empty_successor",
+      "memory": {
+        "process_peak_rss_kib": 9734840,
+        "rss_kib": 5279684
+      },
+      "pages": 0,
+      "pow_ms": 403.035868,
+      "prove_ms": 35684.122236999996,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979060,
+      "verify_ms": 1784.9302599999999
+    },
+    {
+      "complete": true,
+      "memory": {
+        "process_peak_rss_kib": 9734840,
+        "rss_kib": 5279684
+      },
+      "mode": "joint-input-budgets",
+      "tip": 52
+    }
+  ]
+}

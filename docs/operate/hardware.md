@@ -56,27 +56,20 @@ grep -m1 '^flags' /proc/cpuinfo \
 The production preflight remains authoritative because it checks the same
 runtime path the node will use.
 
-## Practical starting points
+## Measured capacity
 
-The following are operational starting points, not consensus minima:
+The v2 receiver qualification used four CPU cores, 8 GiB RAM, no swap and
+PCLMUL. Full Small and Large workloads completed with a 1.65 GiB receiver
+peak in that scenario. Size the service with room for traffic, State growth,
+wallet work and snapshot staging. The [measurements](../reference/performance.md)
+separate preparation, verification and application and state each workload.
 
-| Role | CPU | Memory | Storage |
-|---|---|---:|---|
-| Wallet or ordinary node | 2 or more modern vCPUs | 4 GiB | SSD, 20 GiB free to start |
-| Public seed/full node | 4 or more modern vCPUs | 8 GiB | SSD or NVMe with monitored headroom |
-| B25 miner | Benchmark the exact host | 8 GiB or more | SSD or NVMe |
-| B255 miner | Benchmark the exact host | 16 GiB or more | NVMe preferred |
-
-CPU generation, clock, memory bandwidth and the selected carry-less
-multiplication backend matter more than a provider's vCPU label. Mining
-capacity must be measured on the final host with the production C1 profile and
-authenticated matrix pack. The required procedure is in
-[Performance measurement](../reference/performance.md).
-
-An ordinary node does not continuously build block proofs, but it still
-verifies wallet authorizations and incoming `HistoryStep` terminals. Avoid
-severely oversubscribed instances whose CPU availability changes by an order
-of magnitude under load.
+Small m23 is the default producer. Large m24 requires `--v2-large-blocks` and
+host measurements; its extra pages can cost more than the 30-second target
+on a laptop. Measure both proving memory and latency at the chosen thread
+count. An ordinary verifier does not continuously construct block proofs.
+CPU generation, available instructions, memory bandwidth and actual scheduler
+quota all matter. Use SSD or NVMe storage and monitor free space.
 
 ## Memory behavior
 
@@ -89,9 +82,8 @@ The implementation bounds major untrusted pools:
 - snapshot payload work is serialized;
 - the recent complete-block and undo windows are fixed.
 
-Those are protocol-process ceilings, not a promise that total RSS equals their
-sum. Proof matrices, proving workspaces, database pages, networking and the
-operating system also consume memory. Leave headroom and do not configure a
+Total RSS also includes proof matrices, proving workspaces, database pages,
+networking and operating-system overhead. Leave headroom and do not configure a
 service limit equal to the observed idle RSS.
 
 Internal mining uses one shared thread budget for proof construction and nonce

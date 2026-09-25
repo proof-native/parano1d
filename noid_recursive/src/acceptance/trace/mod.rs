@@ -43,6 +43,7 @@ pub mod development_allocation;
 pub mod exact_state;
 pub mod fee_arithmetic;
 pub mod fri_pcs;
+pub mod integer_program;
 pub mod matrix_fold;
 pub mod merkle_path;
 pub mod paged_spend;
@@ -664,3 +665,5 @@ mod tests {
         assert!(!active_matrix.satisfies(&active_witness));
     }
 }
+
+pub(crate) mod scheduled_allocation;

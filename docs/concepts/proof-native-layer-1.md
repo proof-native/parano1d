@@ -102,3 +102,10 @@ invalid authorization, State root or recursive terminal into a valid block.
 Continue with [System architecture](../architecture/overview.md) for the
 component flow, or [Synchronization](../architecture/synchronization.md) for
 the joining protocol.
+
+## Live rights
+
+V2 applies this model to contracts: a live commitment binds spending policy
+and counters, and its transition is proved inside the shared block relation.
+Nodes retain the live result; participants retain public terms and receipts.
+Read [From live value to live rights](proof-native-contracts.md).

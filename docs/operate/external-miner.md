@@ -103,7 +103,7 @@ Because `walletSend` carries spending authority, allow only the accounting host 
 nonce index and target. The worker searches random, independent nonce ranges
 and calls `submitBlock` with exactly 16 little-endian nonce bytes.
 
-A template expires after 30 seconds. It is also invalidated by a canonical tip
+A template expires 30 seconds after its proof has been prepared. It is also invalidated by a canonical tip
 change, successful submission or node-side cancellation. A stale result is
 normal and the worker requests another template after its poll interval.
 
@@ -120,6 +120,14 @@ If requests fail:
 - `401 Unauthorized` means the token is absent or does not match;
 - a custom coinbase error means the node did not enable it;
 - repeated stale templates usually mean the node is receiving new tips or
-  proof preparation exceeds the template lifecycle;
+  the solved work arrives after its 30-second nonce window;
 - no template means the node is not synchronized, lacks the peer quorum or is
   not in `extminer` mode.
+
+## V2 templates
+
+The node proves Small by default. Add `--v2-large-blocks` to the node command
+to permit Large; the worker protocol remains unchanged. Template expiry starts
+after proof preparation. Allow sufficient HTTP request time for preparation;
+the official worker defaults to 180 seconds. Contract RPC is outside both
+mining and operator token scopes.

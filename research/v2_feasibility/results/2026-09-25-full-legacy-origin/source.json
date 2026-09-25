@@ -1,0 +1,21 @@
+{
+  "source_head": "4f94c1aa408d9b15ffda23408013e82b28f7ad77",
+  "binary_sha256": {
+    "noid_v2_capacity": "58a14910f5a2fbc1675a9d6efbb5aa11924aea30179430b0127aa20e4ab4fd59",
+    "noid_retire_history": "3a52f8d5a9bdb7b0576af23ec3d1fa9a9901fb223d1dd3b2e94abc1c0ff190d8"
+  },
+  "candidate_bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "legacy_runtime_pin": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+  "legacy_fixture_heights": [
+    1,
+    9
+  ],
+  "new_production_heights": [
+    10,
+    17
+  ],
+  "retirement_key_pins": [
+    "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+    "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+  ]
+}

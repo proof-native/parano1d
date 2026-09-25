@@ -80,7 +80,7 @@ pub struct MempoolEntry {
     /// range metadata avoids retaining the same proof in a second allocation.
     cached_authorization_len: u32,
 
-    /// Raw `PagedSpendIntent` bytes as submitted by the wallet.
+    /// Canonical ordinary or contract intent bytes as submitted by the wallet.
     /// Stored so the P2P mempool-sync protocol can re-serve existing TXs to
     /// newly connected peers (gossipsub deduplication prevents re-gossiping;
     /// a dedicated request-response exchange is the only reliable mechanism).
@@ -122,9 +122,50 @@ impl MempoolEntry {
         if len == 0 {
             return None;
         }
-        let start = paged_spend_authorization_wire_offset(self.pages.len()).ok()?;
+        let start = paged_spend_authorization_wire_offset(self.pages.len())
+            .ok()?
+            .checked_add(self.contract_prefix_bytes())?;
         let end = start.checked_add(len)?;
         self.intent_bytes.get(start..end)
+    }
+
+    fn contract_prefix_bytes(&self) -> usize {
+        if self
+            .intent_bytes
+            .starts_with(noid_tx::experimental_object::INTENT_MAGIC)
+        {
+            noid_tx::experimental_object::INTENT_PREFIX_BYTES
+        } else {
+            0
+        }
+    }
+
+    /// Decode only the bounded opening from an already admitted envelope.
+    /// The detached authorization remains borrowed from the retained bytes.
+    pub fn contract_opening(&self) -> Option<noid_tx::experimental_object::ObjectOpening> {
+        use noid_tx::experimental_object::{ObjectOpening, INTENT_MAGIC};
+        let end = self.contract_prefix_bytes();
+        ObjectOpening::from_bytes(self.intent_bytes.get(INTENT_MAGIC.len()..end)?).ok()
+    }
+}
+
+/// User resources available in one proof class, excluding the system record.
+/// A producer derives this budget from its pinned bank. This is selection
+/// policy only; the block proof independently enforces every resource limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockSelectionBudget {
+    pub pages: usize,
+    pub live_inputs: usize,
+    pub contract_calls: usize,
+}
+
+impl BlockSelectionBudget {
+    fn pages_only(pages: usize) -> Self {
+        Self {
+            pages,
+            live_inputs: usize::MAX,
+            contract_calls: usize::MAX,
+        }
     }
 }
 
@@ -339,7 +380,7 @@ impl Mempool {
     /// the previous O(N log N) sort-all. At N=8192 and max_txs=1023:
     /// ~1023 BTreeMap lookups (~10K operations) vs ~107K comparisons.
     pub fn select_for_block(&self, max_pages: usize) -> Vec<&MempoolEntry> {
-        self.select_for_block_matching(max_pages, |_| true)
+        self.select_for_block_matching(BlockSelectionBudget::pages_only(max_pages), |_| true)
     }
 
     /// Anchor-filter before page packing so stale high-fee groups cannot
@@ -349,16 +390,35 @@ impl Mempool {
         max_pages: usize,
         epoch_anchor: &Digest,
     ) -> Vec<&MempoolEntry> {
-        self.select_for_block_matching(max_pages, |entry| &entry.spend.epoch_anchor == epoch_anchor)
+        self.select_for_block_matching(BlockSelectionBudget::pages_only(max_pages), |entry| {
+            &entry.spend.epoch_anchor == epoch_anchor
+        })
+    }
+
+    /// Filter all three resources before cloning or packing an indivisible
+    /// group. Exhausted call/input capacity must not consume remaining pages.
+    pub fn select_for_block_with_budget(
+        &self,
+        budget: BlockSelectionBudget,
+        epoch_anchor: &Digest,
+    ) -> Vec<&MempoolEntry> {
+        self.select_for_block_matching(budget, |entry| &entry.spend.epoch_anchor == epoch_anchor)
     }
 
     fn select_for_block_matching(
         &self,
-        max_pages: usize,
+        budget: BlockSelectionBudget,
         keep: impl Fn(&MempoolEntry) -> bool,
     ) -> Vec<&MempoolEntry> {
-        let mut remaining_pages = max_pages.min(crate::consensus::params::BLOCK_MAX_USER_PAGES);
+        let mut remaining_pages = budget
+            .pages
+            .min(crate::consensus::params::BLOCK_MAX_USER_PAGES);
+        let mut remaining_inputs = budget.live_inputs;
+        let mut remaining_calls = budget.contract_calls;
         let mut selected = Vec::new();
+        if remaining_pages == 0 || remaining_inputs == 0 {
+            return selected;
+        }
         for hash in self.fee_index.values() {
             let Some(entry) = self.entries.get(hash) else {
                 continue;
@@ -366,10 +426,21 @@ impl Mempool {
             if !keep(entry) {
                 continue;
             }
-            if entry.pages.len() > remaining_pages {
+            let inputs = usize::from(entry.spend.live_inputs);
+            let calls = entry
+                .pages
+                .iter()
+                .filter(|page| page.body.validity_bitmap & noid_tx::PAGED_SPEND_CONTRACT_BIT != 0)
+                .count();
+            if entry.pages.len() > remaining_pages
+                || inputs > remaining_inputs
+                || calls > remaining_calls
+            {
                 continue;
             }
             remaining_pages -= entry.pages.len();
+            remaining_inputs -= inputs;
+            remaining_calls -= calls;
             selected.push(entry);
             if remaining_pages == 0 {
                 break;
@@ -409,13 +480,14 @@ impl Mempool {
     /// this one immutable allocation by miners and the block fast path.
     pub fn set_intent_bytes(&mut self, hash: &TxBodyHash, bytes: impl Into<Arc<[u8]>>) {
         if let Some(entry) = self.entries.get_mut(hash) {
-            let bytes = bytes.into();
-            let offset = paged_spend_authorization_wire_offset(entry.pages.len()).ok();
+            entry.intent_bytes = bytes.into();
+            let offset = paged_spend_authorization_wire_offset(entry.pages.len())
+                .ok()
+                .and_then(|offset| offset.checked_add(entry.contract_prefix_bytes()));
             entry.cached_authorization_len = offset
-                .and_then(|offset| bytes.len().checked_sub(offset))
+                .and_then(|offset| entry.intent_bytes.len().checked_sub(offset))
                 .and_then(|len| u32::try_from(len).ok())
                 .unwrap_or(0);
-            entry.intent_bytes = bytes;
         }
     }
 
@@ -660,6 +732,168 @@ mod tests {
         assert_eq!(
             pool.admit(tx(5, 6, 10, 3, [9u8; 32]), 0),
             Err(MempoolError::Full)
+        );
+    }
+
+    #[test]
+    fn resource_budgets_pack_calls_and_payments_without_assuming_nested_classes() {
+        let mut pool = Mempool::new(400);
+        for slot in 0..340 {
+            let mut pages = tx(
+                slot * 2,
+                slot * 2 + 1,
+                if slot < 70 { 1_000 } else { 1 },
+                1,
+                [9; 32],
+            );
+            if slot < 70 {
+                pages[0].body.validity_bitmap |= noid_tx::PAGED_SPEND_CONTRACT_BIT;
+            }
+            pool.admit(pages, 0).unwrap();
+        }
+        // These are example independent budgets, not a release selection.
+        for (budget, expected_pages, expected_calls) in [
+            (
+                BlockSelectionBudget {
+                    pages: 63,
+                    live_inputs: 504,
+                    contract_calls: 63,
+                },
+                63,
+                63,
+            ),
+            (
+                BlockSelectionBudget {
+                    pages: 255,
+                    live_inputs: 1_020,
+                    contract_calls: 26,
+                },
+                255,
+                26,
+            ),
+            (
+                BlockSelectionBudget {
+                    pages: 63,
+                    live_inputs: 10,
+                    contract_calls: 4,
+                },
+                10,
+                4,
+            ),
+            (
+                BlockSelectionBudget {
+                    pages: 63,
+                    live_inputs: 504,
+                    contract_calls: 0,
+                },
+                63,
+                0,
+            ),
+            (
+                BlockSelectionBudget {
+                    pages: 0,
+                    live_inputs: 504,
+                    contract_calls: 63,
+                },
+                0,
+                0,
+            ),
+            (
+                BlockSelectionBudget {
+                    pages: 63,
+                    live_inputs: 0,
+                    contract_calls: 63,
+                },
+                0,
+                0,
+            ),
+        ] {
+            let selected = pool.select_for_block_with_budget(budget, &[9; 32]);
+            assert_eq!(selected.len(), expected_pages);
+            assert_eq!(
+                selected
+                    .iter()
+                    .filter(|entry| entry.spend.fee == 1_000)
+                    .count(),
+                expected_calls
+            );
+            assert!(pool
+                .select_for_block_with_budget(budget, &[8; 32])
+                .is_empty());
+        }
+        assert_eq!(
+            pool.len(),
+            340,
+            "template selection never removes pending entries"
+        );
+    }
+
+    #[test]
+    fn input_budget_skips_whole_groups_and_does_not_slice_a_spend() {
+        let mut pool = Mempool::new(4);
+        let large = paged_tx(2, 1_000, 32_000, 7);
+        let large_id = id(&large);
+        let small = tx(1, 2, 1, 8, [9; 32]);
+        let small_id = id(&small);
+        pool.admit(large, 0).unwrap();
+        pool.admit(small, 0).unwrap();
+        for (inputs, expected) in [
+            (15, vec![small_id]),
+            (16, vec![large_id]),
+            (17, vec![large_id, small_id]),
+        ] {
+            let selected = pool.select_for_block_with_budget(
+                BlockSelectionBudget {
+                    pages: 255,
+                    live_inputs: inputs,
+                    contract_calls: 255,
+                },
+                &[9; 32],
+            );
+            assert_eq!(
+                selected
+                    .iter()
+                    .map(|e| e.spend.logical_txid)
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn contract_authorization_borrows_the_exact_envelope_suffix() {
+        use noid_tx::experimental_object::{applications, ObjectIntent, INTENT_PREFIX_BYTES};
+        let opening = applications::refundable_payment(Address([1; 32]), Address([2; 32]), 10, 100);
+        let page = opening
+            .build_call(
+                TxInput {
+                    slot_index: 1,
+                    amount: 1_000,
+                    creation_id: 1,
+                },
+                2,
+                10,
+                [9; 32],
+                9,
+                true,
+            )
+            .unwrap();
+        let intent = ObjectIntent {
+            opening: opening.clone(),
+            spend: noid_tx::PagedSpendIntent::new(vec![page], vec![0xa5; 64]).unwrap(),
+        };
+        let txid = intent.spend.logical_txid();
+        let mut pool = Mempool::new(4);
+        pool.admit(intent.spend.pages.clone(), 8).unwrap();
+        pool.set_intent_bytes(&txid, intent.to_bytes().unwrap());
+        let entry = pool.get(&txid).unwrap();
+        assert_eq!(entry.contract_opening(), Some(opening));
+        let authorization = entry.cached_authorization().unwrap();
+        assert_eq!(authorization, &[0xa5; 64]);
+        let offset = INTENT_PREFIX_BYTES + paged_spend_authorization_wire_offset(1).unwrap();
+        assert_eq!(
+            authorization.as_ptr(),
+            entry.intent_bytes[offset..].as_ptr()
         );
     }
 

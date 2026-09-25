@@ -32,6 +32,7 @@ use noid_miner::template::{TemplateBuilder, TemplateChainSnapshot};
 use noid_miner::{AdaptiveProofCapacity, PreparedBlockAttempt};
 
 use crate::api::ParanoidApiServer;
+mod objects;
 use crate::types::{
     AddressInfo, BlockDetailsInfo, BlockHeaderInfo, BlockTemplateResponse, BlockTransactionInfo,
     BlockTransactionInputInfo, BlockTransactionOutputInfo, ChainInfo, FeeBreakdownInfo,
@@ -55,9 +56,10 @@ use crate::wallet_submit::{
 /// preparation, PoW, proof and commit lifecycle.
 const EXTERNAL_MINING_TEMPLATE_TTL: Duration = Duration::from_secs(30);
 
-/// Large enough for the maximum canonical transaction intent encoded as JSON
-/// hex, while rejecting jsonrpsee's otherwise unnecessary 10 MiB default.
-const RPC_MAX_REQUEST_BODY_BYTES: u32 = 1024 * 1024;
+/// Bound a holder receipt plus its JSON hex encoding and framing. The terminal
+/// transport ceiling is unchanged; this API also carries its inclusion path.
+const RPC_MAX_REQUEST_BODY_BYTES: u32 =
+    (2 * noid_block::contract_receipt::MAX_RECEIPT_BYTES + 16 * 1024) as u32;
 
 type ExternalMiningTemplateId = [u8; 16];
 
@@ -470,13 +472,38 @@ fn fee_breakdown_info(
     }
 }
 
-fn mempool_tx_info(entry: noid_mempool::MempoolEntryMetadata) -> MempoolTxInfo {
+fn mempool_tx_info(
+    entry: noid_mempool::MempoolEntryMetadata,
+    v2: Option<(
+        noid_recursive::acceptance::history_step::v2::banked::Config,
+        u64,
+    )>,
+) -> MempoolTxInfo {
     use noid_chain::consensus::paged_spend::BlockProofClass;
 
     let page_count = usize::from(entry.page_count);
-    let proof_class = BlockProofClass::for_page_count(page_count)
-        .expect("admitted PagedSpend always fits a consensus proof class");
-    let requires_b255_miner = matches!(proof_class, BlockProofClass::B255);
+    let (minimum_proof_class, requires_b255_miner) = if let Some((bank, height)) = v2 {
+        use noid_recursive::acceptance::history_step::v2::banked::Class;
+        let small = bank.class(Class::Small);
+        let system_pages = usize::from(
+            noid_chain::consensus::development_allocation::development_payout_due_at_height(height),
+        );
+        let requires_large = page_count > small.pages().saturating_sub(system_pages)
+            || usize::from(entry.n_inputs) > small.max_live_inputs();
+        let pages = bank
+            .class(if requires_large {
+                Class::Large
+            } else {
+                Class::Small
+            })
+            .pages();
+        (format!("B{pages}"), requires_large)
+    } else {
+        let proof_class = BlockProofClass::for_page_count(page_count)
+            .expect("admitted PagedSpend always fits a consensus proof class");
+        let large = matches!(proof_class, BlockProofClass::B255);
+        ((if large { "B255" } else { "B25" }).to_owned(), large)
+    };
     MempoolTxInfo {
         tx_hash: hex::encode(entry.tx_hash.0),
         fee_micronoid: entry.fee_micronoid,
@@ -484,7 +511,7 @@ fn mempool_tx_info(entry: noid_mempool::MempoolEntryMetadata) -> MempoolTxInfo {
         n_inputs: usize::from(entry.n_inputs),
         n_outputs: usize::from(entry.n_outputs),
         page_count,
-        minimum_proof_class: if requires_b255_miner { "B255" } else { "B25" }.to_owned(),
+        minimum_proof_class,
         requires_b255_miner,
         admitted_height: entry.admitted_height,
         has_authorization: entry.has_authorization,
@@ -908,8 +935,7 @@ pub struct RpcHandler {
     pub allow_custom_coinbase: bool,
     /// Pinned self-recursive HistoryStep runtime shared with local mining and
     /// inbound bundle verification.
-    pub history_step_runtime:
-        Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+    pub history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     /// Process-wide prepared ghost authorization reused by every block attempt.
     pub history_step_ghost: Option<
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
@@ -952,7 +978,131 @@ fn is_wallet_fee_rejection(error: &noid_mempool::SubmitError) -> bool {
     )
 }
 
+fn wallet_resource_error(error: noid_mempool::SubmitError) -> ErrorObject<'static> {
+    match error {
+        noid_mempool::SubmitError::InputLimitExceeded { max_inputs, .. } => {
+            wallet_plan_error(WalletSendPlanError::InputLimitExceeded { max_inputs })
+        }
+        other => rpc_err(other.to_string()),
+    }
+}
+
 impl RpcHandler {
+    async fn check_wallet_plan_resources(&self, inputs: usize, outputs: usize) -> RpcResult<()> {
+        let pages = inputs
+            .div_ceil(noid_tx::TX_INPUTS)
+            .max(outputs.div_ceil(noid_tx::TX_OUTPUTS))
+            .max(1);
+        self.mempool
+            .check_candidate_resources(pages, inputs, 0)
+            .await
+            .map_err(wallet_resource_error)
+    }
+
+    async fn wallet_send_reviewed(
+        &self,
+        to_address: String,
+        amount_micronoid: u64,
+        fee_micronoid: u64,
+        expected_sender: Option<&str>,
+        requires_v2: bool,
+    ) -> RpcResult<WalletSendResult> {
+        let _wallet_operation = self.wallet_operation_gate.lock().await;
+        if requires_v2 {
+            let height = self
+                .chain
+                .read()
+                .await
+                .tip_height()
+                .checked_add(1)
+                .ok_or_else(|| rpc_err("height exhausted"))?;
+            self.require_contracts_for_height(height)?;
+        }
+        if let Some(expected) = expected_sender {
+            if self
+                .wallet
+                .active_address()
+                .as_ref()
+                .map(|(_, address)| address.as_str())
+                != Some(expected)
+            {
+                return Err(rpc_err(
+                    "active wallet address changed; review the funding again",
+                ));
+            }
+        }
+        self.reload_active_wallet().await?;
+        let to_address = parse_address_param(&to_address)?.0;
+
+        let (fee_active_slot_count, fee_log_slots) = self.mempool.fee_context().await;
+        let fee_floor = self.mempool.fee_floor().await;
+        let plan = self
+            .wallet
+            .plan_send(
+                amount_micronoid,
+                (fee_micronoid != 0).then_some(fee_micronoid),
+                fee_active_slot_count,
+                fee_log_slots,
+                fee_floor,
+            )
+            .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, plan.output_count)
+            .await?;
+        tracing::info!(
+            amount_micronoid,
+            fee_micronoid = plan.fee_micronoid,
+            input_count = plan.input_count,
+            output_count = plan.output_count,
+            "wallet_send deterministic plan ready"
+        );
+
+        self.submit_wallet_transaction(WalletSubmissionRequest {
+            to_address,
+            amount_micronoid,
+            fee_micronoid: plan.fee_micronoid,
+            automatic_fee: fee_micronoid == 0,
+            expected_input_count: plan.input_count,
+            expected_output_count: plan.output_count,
+            pending_history_amount_micronoid: amount_micronoid,
+            build: WalletSubmissionBuild::Payment,
+            failure_label: "wallet send",
+        })
+        .await
+    }
+
+    fn require_contracts_for_height(&self, height: u64) -> RpcResult<()> {
+        if !noid_chain::consensus::params::v2_active(height) {
+            return Err(rpc_err("contracts are not active at the next block"));
+        }
+        self.history_step_runtime
+            .as_deref()
+            .ok_or_else(|| rpc_err("contract verifier unavailable"))?
+            .v2()
+            .map_err(rpc_err)?;
+        Ok(())
+    }
+
+    async fn pending_v2_bank(
+        &self,
+    ) -> RpcResult<
+        Option<(
+            noid_recursive::acceptance::history_step::v2::banked::Config,
+            u64,
+        )>,
+    > {
+        let height = self.chain.read().await.tip_height().saturating_add(1);
+        if !noid_chain::consensus::params::v2_active(height) {
+            return Ok(None);
+        }
+        let runtime = self
+            .history_step_runtime
+            .as_deref()
+            .ok_or_else(|| rpc_err("v2 history bank is unavailable"))?
+            .v2()
+            .map_err(rpc_err)?;
+        Ok(Some((runtime.bank().config(), height)))
+    }
+
     fn require_mining_network(&self) -> RpcResult<()> {
         if *self.mining_network_ready.borrow() {
             Ok(())
@@ -1046,6 +1196,10 @@ impl RpcHandler {
                     "wallet Auto fee replanned after admission rejection"
                 );
             }
+            // Recheck each attempt: the candidate can cross the fork or a
+            // reserved-page height while the wallet waits or replans its fee.
+            self.check_wallet_plan_resources(expected_input_count, expected_output_count)
+                .await?;
             let reserved_outputs = self.mempool.reserved_output_slots().await;
             let selection = {
                 let chain = self.chain.read().await;
@@ -1229,7 +1383,11 @@ impl RpcHandler {
             .unwrap_or_default()
             .as_secs();
 
-        let builder = TemplateBuilder::new(self.mempool.clone());
+        let builder = TemplateBuilder::new(self.mempool.clone()).with_history_protocol(
+            self.history_step_runtime
+                .as_deref()
+                .ok_or_else(|| rpc_err("HistoryStep runtime is unavailable"))?,
+        );
         // Snapshot/reorg installation holds the same gate while it replaces
         // chain, mempool and wallet views. Capture the exact parent+payout
         // boundary under that gate, then release it before witness preparation.
@@ -1337,7 +1495,9 @@ impl RpcHandler {
                 .lock()
                 .map_err(|_| rpc_err("external mining capacity lock poisoned"))?;
             let previous = capacity.page_limit();
-            capacity.observe_preparation(proof_class, prepare_elapsed);
+            if let noid_miner::MiningProofClass::Legacy(class) = proof_class {
+                capacity.observe_preparation(class, prepare_elapsed);
+            }
             (
                 previous,
                 capacity.page_limit(),
@@ -1345,18 +1505,41 @@ impl RpcHandler {
                 capacity.prepare_ms_ewma(noid_chain::consensus::paged_spend::BlockProofClass::B255),
             )
         };
-        tracing::info!(
-            mining = "external",
-            user_pages,
-            ?proof_class,
-            max_effective_pages,
-            previous_page_limit,
-            next_page_limit,
-            history_step_ms = prepare_elapsed.as_millis(),
-            b25_prepare_ms_ewma,
-            b255_prepare_ms_ewma,
-            "external mining template proved"
-        );
+        match proof_class {
+            noid_miner::MiningProofClass::Legacy(_) => tracing::info!(
+                mining = "external",
+                user_pages,
+                ?proof_class,
+                max_effective_pages,
+                previous_page_limit,
+                next_page_limit,
+                history_step_ms = prepare_elapsed.as_millis(),
+                b25_prepare_ms_ewma,
+                b255_prepare_ms_ewma,
+                "external mining template proved"
+            ),
+            noid_miner::MiningProofClass::V2(class) => {
+                let limits = self
+                    .history_step_runtime
+                    .as_ref()
+                    .ok_or_else(|| rpc_err("HistoryStep runtime is unavailable"))?
+                    .v2()
+                    .map_err(rpc_err)?
+                    .bank()
+                    .config()
+                    .class(class);
+                tracing::info!(
+                    mining = "external",
+                    user_pages,
+                    ?proof_class,
+                    class_pages = limits.pages(),
+                    class_inputs = limits.max_live_inputs(),
+                    class_contract_calls = limits.contract_slots(),
+                    history_step_ms = prepare_elapsed.as_millis(),
+                    "external mining template proved"
+                );
+            }
+        }
 
         let parent_height = prepared.expected_parent_height();
         let parent_id = prepared.expected_parent_id();
@@ -1447,6 +1630,10 @@ impl RpcHandler {
                     "committed RPC block but wallet update failed"
                 );
             }
+            if let Err(error) = wallet.retain_object_receipts(&ctx.store, committed.block()) {
+                tracing::error!(height = committed.block().header.height, %error,
+                    "committed RPC block but contract receipt retention failed");
+            }
             let view = noid_mempool::ChainView::from_mdbx(&ctx);
             canonical_tip_changes.send_replace(noid_p2p::object_protocol::ChainPoint::new(
                 committed.block().header.height,
@@ -1504,6 +1691,118 @@ impl RpcHandler {
 
 #[async_trait]
 impl ParanoidApiServer for RpcHandler {
+    async fn get_contract_protocol(&self) -> RpcResult<crate::object_types::ObjectProtocolInfo> {
+        objects::protocol_info(self).await
+    }
+
+    async fn preview_object_call(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallPreview> {
+        objects::preview(self, request).await
+    }
+
+    async fn create_object(
+        &self,
+        definition: crate::object_types::ObjectDefinition,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        objects::create(definition)
+    }
+    async fn get_object_status(
+        &self,
+        opening_hex: String,
+        slot_index: u32,
+    ) -> RpcResult<crate::object_types::ObjectStatus> {
+        objects::status(self, opening_hex, slot_index).await
+    }
+    async fn get_object_instances(
+        &self,
+        opening_hex: String,
+        from_slot: u32,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectInstances> {
+        objects::instances(self, opening_hex, from_slot, limit).await
+    }
+    async fn wallet_fund_object(
+        &self,
+        opening_hex: String,
+        amount_micronoid: u64,
+        fee_micronoid: u64,
+        expected_sender: Option<String>,
+    ) -> RpcResult<WalletSendResult> {
+        let opening = objects::opening(&opening_hex)?;
+        self.wallet
+            .remember_object_opening(&opening)
+            .map_err(rpc_err)?;
+        self.wallet_send_reviewed(
+            opening.root().to_bech32(),
+            amount_micronoid,
+            fee_micronoid,
+            expected_sender.as_deref(),
+            true,
+        )
+        .await
+    }
+    async fn wallet_call_object(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallResult> {
+        objects::call(self, request).await
+    }
+    async fn wallet_get_object_opening(
+        &self,
+        address: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        objects::describe(
+            &self
+                .wallet
+                .load_object_opening(parse_address_param(&address)?.0)
+                .map_err(rpc_err)?,
+        )
+    }
+    async fn wallet_watch_object(
+        &self,
+        opening_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        let opening = objects::opening(&opening_hex)?;
+        self.wallet
+            .remember_object_opening(&opening)
+            .map_err(rpc_err)?;
+        objects::describe(&opening)
+    }
+    async fn wallet_list_object_states(
+        &self,
+        opening_hex: String,
+        after_root: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectKnownStates> {
+        objects::known_states(self, opening_hex, after_root, limit).await
+    }
+    async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String> {
+        objects::export_receipt(self, opening_hex, txid).await
+    }
+    async fn wallet_list_object_receipts(
+        &self,
+        opening_hex: String,
+        after_cursor: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectActivityPage> {
+        objects::activity(self, opening_hex, after_cursor, limit).await
+    }
+    async fn verify_object_receipt(
+        &self,
+        receipt_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult> {
+        objects::verify_receipt(self, receipt_hex).await
+    }
+    async fn wallet_import_object_receipt(
+        &self,
+        receipt_hex: String,
+        expected_opening_hex: Option<String>,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult> {
+        objects::import_receipt(self, receipt_hex, expected_opening_hex).await
+    }
+
     // -----------------------------------------------------------------------
     // Chain state (always available)
     // -----------------------------------------------------------------------
@@ -1831,16 +2130,23 @@ impl ParanoidApiServer for RpcHandler {
             }));
         };
 
-        let (history_step_bytes, bundle_len) = match bundle_bytes {
+        let (history_step_bytes, bundle_len, terminal_class) = match bundle_bytes {
             Some(bytes) => {
                 let bundle = noid_chain::AcceptedBlockBundle::decode(&bytes)
                     .map_err(|error| rpc_err(format!("decode retained block bundle: {error}")))?;
                 (
                     bundle.history_step_terminal_bytes().len() as u64,
                     bytes.len() as u64,
+                    Some(
+                        noid_chain::history_step::HistoryStepTerminalMetadata::decode_prefix(
+                            bundle.history_step_terminal_bytes(),
+                        )
+                        .map_err(|error| rpc_err(error.to_string()))?
+                        .class_id(),
+                    ),
                 )
             }
-            None => (0, 0),
+            None => (0, 0, None),
         };
         let block = noid_chain::Block::from_bytes(&block_bytes)
             .map_err(|error| rpc_err(format!("decode retained block: {error:?}")))?;
@@ -2021,11 +2327,37 @@ impl ParanoidApiServer for RpcHandler {
             .map(|group| u128::from(group.spend.fee))
             .sum::<u128>()
             .to_string();
-        let proof_class = match stream.proof_class {
-            noid_chain::consensus::BlockProofClass::B25 => "B25 / m22",
-            noid_chain::consensus::BlockProofClass::B255 => "B255 / m24",
-        }
-        .to_string();
+        let proof_class = if noid_chain::consensus::params::v2_active(height) {
+            // Body occupancy cannot reveal which of the two v2 classes was
+            // actually proved. A pruned terminal leaves that detail unknown.
+            match terminal_class {
+                Some(class) => {
+                    let class =
+                        noid_recursive::acceptance::history_step::v2::banked::Class::from_wire(
+                            class,
+                        )
+                        .map_err(|error| rpc_err(error.to_string()))?;
+                    match self.history_step_runtime.as_deref() {
+                        Some(runtime) => {
+                            let config =
+                                runtime.v2().map_err(rpc_err)?.bank().config().class(class);
+                            format!("B{} / m{}", config.pages(), config.outer_m())
+                        }
+                        // Body inspection is still useful if the verifier is
+                        // unavailable. Report only the retained class identity;
+                        // its resource limits require the pinned bank.
+                        None => format!("v2 / {class:?} / parameters unavailable"),
+                    }
+                }
+                None => "v2 / class unavailable".to_owned(),
+            }
+        } else {
+            match stream.proof_class {
+                noid_chain::consensus::BlockProofClass::B25 => "B25 / m22",
+                noid_chain::consensus::BlockProofClass::B255 => "B255 / m24",
+            }
+            .to_string()
+        };
         let retained = RetainedBlockInfo {
             proof_class,
             logical_transactions: logical_txids.len() as u16,
@@ -2137,13 +2469,22 @@ impl ParanoidApiServer for RpcHandler {
     // -----------------------------------------------------------------------
 
     async fn get_mining_info(&self) -> RpcResult<MiningInfo> {
-        use noid_chain::consensus::emission::block_reward;
+        use noid_chain::consensus::emission::block_reward_at_height;
         let chain = self.chain.read().await;
         let tip = chain.tip_header();
         let height = chain.tip_height();
         let diff = tip.difficulty_target;
         let diff_bits = noid_chain::consensus::target_leading_zero_bits(&diff);
-        let reward = block_reward(tip.log_slots);
+        let next_height = tip
+            .height
+            .checked_add(1)
+            .ok_or_else(|| rpc_err("height exhausted"))?;
+        let reward = block_reward_at_height(next_height, tip.log_slots);
+        let needs_legacy = self
+            .history_step_runtime
+            .as_deref()
+            .map(|runtime| runtime.needs_legacy_matrix_cache(next_height))
+            .unwrap_or_else(|| !noid_chain::consensus::params::v2_active(next_height));
         Ok(MiningInfo {
             height,
             difficulty_bits: diff_bits,
@@ -2151,6 +2492,11 @@ impl ParanoidApiServer for RpcHandler {
             block_reward_micronoid: reward,
             block_reward_noid: reward as f64 / 1_000_000.0,
             active_slot_count: tip.active_slot_count,
+            matrix_cache_classes: if needs_legacy {
+                vec!["b25".into(), "b255".into()]
+            } else {
+                Vec::new()
+            },
         })
     }
 
@@ -2260,11 +2606,9 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn submit_tx_intent(&self, hex_str: String) -> RpcResult<String> {
         let bytes = decode_bounded_hex("tx intent", &hex_str, MAX_TX_INTENT_BYTES_GLOBAL)?;
-        let intent = noid_tx::PagedSpendIntent::from_bytes(&bytes)
-            .map_err(|e| rpc_err(format!("decode: {e:?}")))?;
         let hash = self
             .mempool
-            .submit(intent, bytes)
+            .submit_encoded(bytes)
             .await
             .map_err(|e| rpc_err(e.to_string()))?;
         Ok(hex::encode(hash.0))
@@ -2278,7 +2622,8 @@ impl ParanoidApiServer for RpcHandler {
         let hash_bytes = decode_32_byte_hex("txhash", &txhash)?;
         let hash = noid_poseidon2b::primitives::TxBodyHash(hash_bytes);
         let found = self.mempool.get_entry_metadata(&hash).await;
-        Ok(found.map(mempool_tx_info))
+        let v2 = self.pending_v2_bank().await?;
+        Ok(found.map(|entry| mempool_tx_info(entry, v2)))
     }
 
     // -----------------------------------------------------------------------
@@ -2683,7 +3028,8 @@ impl ParanoidApiServer for RpcHandler {
         let _to_address = parse_address_param(&to_address)?.0;
         let (active_slot_count, log_slots) = self.mempool.fee_context().await;
         let floor = self.mempool.fee_floor().await;
-        self.wallet
+        let plan = self
+            .wallet
             .plan_send(
                 amount_micronoid,
                 if fee_micronoid == 0 {
@@ -2695,7 +3041,10 @@ impl ParanoidApiServer for RpcHandler {
                 log_slots,
                 floor,
             )
-            .map_err(wallet_plan_error)
+            .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, plan.output_count)
+            .await?;
+        Ok(plan)
     }
 
     async fn wallet_send(
@@ -2704,42 +3053,8 @@ impl ParanoidApiServer for RpcHandler {
         amount_micronoid: u64,
         fee_micronoid: u64,
     ) -> RpcResult<WalletSendResult> {
-        let _wallet_operation = self.wallet_operation_gate.lock().await;
-        self.reload_active_wallet().await?;
-        let to_address = parse_address_param(&to_address)?.0;
-
-        let (fee_active_slot_count, fee_log_slots) = self.mempool.fee_context().await;
-        let fee_floor = self.mempool.fee_floor().await;
-        let plan = self
-            .wallet
-            .plan_send(
-                amount_micronoid,
-                (fee_micronoid != 0).then_some(fee_micronoid),
-                fee_active_slot_count,
-                fee_log_slots,
-                fee_floor,
-            )
-            .map_err(wallet_plan_error)?;
-        tracing::info!(
-            amount_micronoid,
-            fee_micronoid = plan.fee_micronoid,
-            input_count = plan.input_count,
-            output_count = plan.output_count,
-            "wallet_send deterministic plan ready"
-        );
-
-        self.submit_wallet_transaction(WalletSubmissionRequest {
-            to_address,
-            amount_micronoid,
-            fee_micronoid: plan.fee_micronoid,
-            automatic_fee: fee_micronoid == 0,
-            expected_input_count: plan.input_count,
-            expected_output_count: plan.output_count,
-            pending_history_amount_micronoid: amount_micronoid,
-            build: WalletSubmissionBuild::Payment,
-            failure_label: "wallet send",
-        })
-        .await
+        self.wallet_send_reviewed(to_address, amount_micronoid, fee_micronoid, None, false)
+            .await
     }
 
     async fn wallet_plan_consolidation(&self) -> RpcResult<WalletConsolidationPlan> {
@@ -2747,14 +3062,18 @@ impl ParanoidApiServer for RpcHandler {
         self.reload_active_wallet().await?;
         let (active_slot_count, log_slots) = self.mempool.fee_context().await;
         let relay_floor = self.mempool.fee_floor().await;
-        self.wallet
+        let plan = self
+            .wallet
             .plan_consolidation(
                 WALLET_CONSOLIDATION_INPUT_LIMIT,
                 active_slot_count,
                 log_slots,
                 relay_floor,
             )
-            .map_err(wallet_plan_error)
+            .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, 1)
+            .await?;
+        Ok(plan)
     }
 
     async fn wallet_consolidate(
@@ -2781,6 +3100,8 @@ impl ParanoidApiServer for RpcHandler {
                 relay_floor,
             )
             .map_err(wallet_plan_error)?;
+        self.check_wallet_plan_resources(plan.input_count, 1)
+            .await?;
         if selected_input_slots != plan.selected_input_slots
             || expected_fee_micronoid != plan.fee_micronoid
             || expected_output_value_micronoid != plan.output_value_micronoid
@@ -2890,12 +3211,13 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn get_mempool_info(&self) -> RpcResult<MempoolInfo> {
         let snapshot = self.mempool.metadata_snapshot().await;
+        let v2 = self.pending_v2_bank().await?;
 
         let txs: Vec<MempoolTxInfo> = snapshot
             .entries
             .iter()
             .copied()
-            .map(mempool_tx_info)
+            .map(|entry| mempool_tx_info(entry, v2))
             .collect();
 
         Ok(MempoolInfo {
@@ -3178,15 +3500,58 @@ mod tests {
             has_authorization: true,
         };
 
-        let b25 = mempool_tx_info(metadata(25));
+        let b25 = mempool_tx_info(metadata(25), None);
         assert_eq!(b25.page_count, 25);
         assert_eq!(b25.minimum_proof_class, "B25");
         assert!(!b25.requires_b255_miner);
 
-        let b255 = mempool_tx_info(metadata(26));
+        let b255 = mempool_tx_info(metadata(26), None);
         assert_eq!(b255.page_count, 26);
         assert_eq!(b255.minimum_proof_class, "B255");
         assert!(b255.requires_b255_miner);
+    }
+
+    #[test]
+    fn mempool_v2_status_follows_pinned_limits_and_system_page_reservation() {
+        use noid_chain::consensus::forks::ACTIVE_SCHEDULE;
+        use noid_recursive::acceptance::history_step::v2::{banked::Config, V2Config};
+        let Some(at) = ACTIVE_SCHEDULE.v2() else {
+            return;
+        };
+        let small = V2Config::with_limits(23, 63, 504, 63, ACTIVE_SCHEDULE).unwrap();
+        let metadata = |pages, inputs| noid_mempool::MempoolEntryMetadata {
+            tx_hash: noid_poseidon2b::primitives::TxBodyHash([1; 32]),
+            fee_micronoid: 7,
+            fee_rate: 3,
+            n_inputs: inputs,
+            n_outputs: 1,
+            page_count: pages,
+            admitted_height: at.height() - 1,
+            has_authorization: true,
+        };
+        for large_pages in [206, 211, 223, 255] {
+            let large = V2Config::with_limits(24, large_pages, 504, 63, ACTIVE_SCHEDULE).unwrap();
+            let bank = Config::new(small, large).unwrap();
+            for (pages, requires_large) in [(1, false), (26, false), (63, false), (64, true)] {
+                let info = mempool_tx_info(metadata(pages, 1), Some((bank, at.height())));
+                assert_eq!(info.requires_b255_miner, requires_large);
+                assert_eq!(
+                    info.minimum_proof_class,
+                    format!("B{}", if requires_large { large_pages } else { 63 })
+                );
+            }
+            let daily = at.height() + 86_400 / at.block_time() - 1;
+            assert!(mempool_tx_info(metadata(63, 1), Some((bank, daily))).requires_b255_miner);
+            assert!(!mempool_tx_info(metadata(62, 1), Some((bank, daily))).requires_b255_miner);
+            let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
+            let bank = Config::new(bounded, large).unwrap();
+            assert!(
+                !mempool_tx_info(metadata(48, 384), Some((bank, at.height()))).requires_b255_miner
+            );
+            assert!(
+                mempool_tx_info(metadata(49, 385), Some((bank, at.height()))).requires_b255_miner
+            );
+        }
     }
 
     #[test]
@@ -3205,6 +3570,19 @@ mod tests {
         assert_eq!(data.max_inputs, 8);
         let value = serde_json::to_value(data).unwrap();
         assert_eq!(value.as_object().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn active_bank_input_limit_keeps_the_wallet_error_contract() {
+        let error = wallet_resource_error(noid_mempool::SubmitError::InputLimitExceeded {
+            actual: 505,
+            max_inputs: 504,
+        });
+        assert_eq!(error.code(), WALLET_INPUT_LIMIT_EXCEEDED_CODE);
+        assert_eq!(error.message(), WALLET_INPUT_LIMIT_EXCEEDED_MESSAGE);
+        let data: WalletInputLimitExceeded =
+            serde_json::from_str(error.data().unwrap().get()).unwrap();
+        assert_eq!(data.max_inputs, 504);
     }
 
     #[test]
@@ -3286,7 +3664,7 @@ pub async fn start_rpc_server(
     cpu_backend: String,
     available_threads: usize,
     worker_threads: usize,
-    history_step_runtime: Option<Arc<noid_recursive::acceptance::history_step::HistoryStepRuntime>>,
+    history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     history_step_ghost: Option<
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
     >,

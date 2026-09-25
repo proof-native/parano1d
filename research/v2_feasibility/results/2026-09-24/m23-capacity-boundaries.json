@@ -1,0 +1,53 @@
+{
+  "status": "current layout, not a theoretical bound on optimized designs",
+  "source": {
+    "noid_recursive/src/acceptance/trace/zk_authorization_candidate.rs": "72af9f861b1de8cc05e78a2d96e906c05d44d2bf6f9f597a3588826ed909d3e5",
+    "bench_prover/src/bin/noid_v2_capacity.rs": "b235838807662e9aff7b6ea844271bbbc1ce80be2391762f9f8ee1dc022d51eb",
+    "bench_prover/src/bin/v2_capacity_support/state.rs": "0e1f84823936f10d3ae902027c90aea3964ec14371e0b4193d5883365c8bedf7",
+    "bench_prover/src/bin/v2_capacity_support/proof.rs": "634b159e0bd3ce9d49661819be0d7863cb517fa23ff46ff4aadbdcd1bbd66844",
+    "bench_prover/src/bin/v2_capacity_support/mod.rs": "dd43cd8ea9d64e8fc9b2af98847cd0855d513219f578e6148e784eeed6df0c5f",
+    "base_revision": "fc8b459287d5e6bf4d73ee27ad3375f4d99a3268",
+    "binary_sha256": "aa07abdf3522b06ad1a6067d09e46f95f39ac5d0e10ecf94129b2110fb420665"
+  },
+  "parameters": {
+    "m": 23,
+    "v1_1_height": 5,
+    "v2_height": 10,
+    "block_seconds": 30,
+    "contract_call_slots": 16
+  },
+  "results": [
+    {
+      "pages": 64,
+      "status": "exceeds_m23_witness_capacity",
+      "witness_positions": 8538565,
+      "limit": 8388608,
+      "frozen_matrix": false,
+      "proof_generated": false
+    },
+    {
+      "pages": 96,
+      "status": "exceeds_m23_witness_capacity",
+      "witness_positions": 8839013,
+      "limit": 8388608,
+      "frozen_matrix": false,
+      "proof_generated": false
+    },
+    {
+      "pages": 127,
+      "status": "exceeds_m23_witness_capacity",
+      "witness_positions": 9376384,
+      "limit": 8388608,
+      "frozen_matrix": false,
+      "proof_generated": false
+    },
+    {
+      "pages": 128,
+      "status": "exceeds_m23_witness_capacity",
+      "witness_positions": 14579605,
+      "limit": 8388608,
+      "frozen_matrix": false,
+      "proof_generated": false
+    }
+  ]
+}

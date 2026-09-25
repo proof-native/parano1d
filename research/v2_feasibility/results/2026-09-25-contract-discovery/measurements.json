@@ -1,0 +1,795 @@
+{
+  "daemon": {
+    "status": "passed",
+    "source_tip": {
+      "height": 81,
+      "best_hash": "5df57fe9d390c800f814737cc47df0e651bab0887a067fbc5b400f20eb0e949d",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 667,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1440335000"
+    },
+    "observations": [
+      {
+        "node": "producer",
+        "label": "original balance",
+        "height": 82,
+        "tip_hash": "4fcf6f47a0b685d2ea6060fac520f48dfa5d15b2eeb02df18a419922f6f63428",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": true
+        }
+      },
+      {
+        "node": "receiver",
+        "label": "original balance",
+        "height": 82,
+        "tip_hash": "4fcf6f47a0b685d2ea6060fac520f48dfa5d15b2eeb02df18a419922f6f63428",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": true
+        }
+      },
+      {
+        "node": "producer",
+        "label": "pending is not a balance",
+        "height": 82,
+        "tip_hash": "4fcf6f47a0b685d2ea6060fac520f48dfa5d15b2eeb02df18a419922f6f63428",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": true,
+          "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae": false
+        }
+      },
+      {
+        "node": "producer",
+        "label": "confirmed successor",
+        "height": 83,
+        "tip_hash": "c62b01225d0239b3d7a655af47a6fce61e19ac25f48826435b73d719d5a5b3cb",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": false,
+          "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae": true
+        }
+      },
+      {
+        "node": "receiver",
+        "label": "confirmed successor",
+        "height": 83,
+        "tip_hash": "c62b01225d0239b3d7a655af47a6fce61e19ac25f48826435b73d719d5a5b3cb",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": false,
+          "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae": true
+        }
+      },
+      {
+        "node": "producer",
+        "label": "predecessor restored by reorg",
+        "height": 84,
+        "tip_hash": "e79cc8d64b435fb291cf60c73e6680a14bf7762117a53b50c9dc6892f848e7ac",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": true,
+          "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae": false
+        }
+      },
+      {
+        "node": "producer",
+        "label": "restored discovery after restart",
+        "height": 84,
+        "tip_hash": "e79cc8d64b435fb291cf60c73e6680a14bf7762117a53b50c9dc6892f848e7ac",
+        "balances": {
+          "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel": true,
+          "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae": false
+        }
+      }
+    ],
+    "source_head": "f6505b14dffa8da235806566c741a9067b4e39b2",
+    "script_sha256": {
+      "live_v2_contract_discovery_scenario.py": "9f81bac3273b92f2daa5d0032896459ae6241b80efafa570079adcacadf81a1f",
+      "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "binary_sha256": {
+      "isolated_v2_node": "ea180c090ab51665c9a29c3a1a00689af46e30a9ecb78e8620630ff4b70eac56",
+      "parano1d-miner": "e32ebb3a618cc7066ef4e569db9d644ca6e5a4ebe96276895c2ae2ca3603b1c7"
+    },
+    "stage": "complete",
+    "common_height": 82,
+    "opening": {
+      "abi_version": 3,
+      "state": [
+        "0",
+        "0"
+      ],
+      "address": "o1j0wd3z59w7dxjdklml53eztyrkdzkh7vjtr6z55d8vygr53kfvtsrdfwel",
+      "opening_hex": "4e4f49444f424a33030002700a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f00000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f0000000000000000000000000040420f00000000000b",
+      "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+      "state_hex": "00000000000000000000000000000000",
+      "program": [
+        {
+          "opcode": "add",
+          "destination": "state0",
+          "left": "state0",
+          "right": "one",
+          "predicate": {
+            "source": "terminal",
+            "inverted": true
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        }
+      ],
+      "claim_authority": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+      "recovery_authority": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+      "claim_recipient": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+      "recovery_recipient": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+      "deadline_height": 1000000,
+      "max_fee_micronoid": 1000000,
+      "max_payout_micronoid": 1000000,
+      "min_retained_micronoid": 0,
+      "claim_can_continue": true,
+      "claim_can_close": true,
+      "recovery_can_continue": false,
+      "recovery_can_close": true,
+      "unrestricted_payout_recipient": false
+    },
+    "successor": {
+      "abi_version": 3,
+      "state": [
+        "1",
+        "0"
+      ],
+      "address": "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae",
+      "opening_hex": "4e4f49444f424a33030002700a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f00000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f0000000000000000000000000040420f00000000000b",
+      "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+      "state_hex": "00000000000000000000000000000001",
+      "program": [
+        {
+          "opcode": "add",
+          "destination": "state0",
+          "left": "state0",
+          "right": "one",
+          "predicate": {
+            "source": "terminal",
+            "inverted": true
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        }
+      ],
+      "claim_authority": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+      "recovery_authority": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+      "claim_recipient": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+      "recovery_recipient": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+      "deadline_height": 1000000,
+      "max_fee_micronoid": 1000000,
+      "max_payout_micronoid": 1000000,
+      "min_retained_micronoid": 0,
+      "claim_can_continue": true,
+      "claim_can_close": true,
+      "recovery_can_continue": false,
+      "recovery_can_close": true,
+      "unrestricted_payout_recipient": false
+    },
+    "call": {
+      "transaction": {
+        "txid": "accf07fc35e5e779d71a196d7f348e97011db1548b746dbf611e34271c313afd",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 83,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "1",
+          "0"
+        ],
+        "address": "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae",
+        "opening_hex": "4e4f49444f424a33030002700a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f00000000005d947959b918cd718ffcab67d4bd9684a8c79fd6d1cff47e3242b6c5cc1e64434189eda37ba1f19287f027478e4e2e74c2052fd5ca6bd43196b2efbabca3ed9e40420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000001",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+        "recovery_authority": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+        "claim_recipient": "o1tk28jkderrxhrrlu4dnaf0vksj5v087k688lgl3jg2mvtnq7v3ps7z55hn",
+        "recovery_recipient": "o1gxy7mgmm58ce9plsyarcun3wwnpq2t74ef4agvvkkthm409rak0qjvrhah",
+        "deadline_height": 1000000,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 9759847
+    },
+    "losing_tip": {
+      "height": 83,
+      "best_hash": "c62b01225d0239b3d7a655af47a6fce61e19ac25f48826435b73d719d5a5b3cb",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 670,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1469132500"
+    },
+    "losing_work": "262144",
+    "winning_tip": {
+      "height": 84,
+      "best_hash": "e79cc8d64b435fb291cf60c73e6680a14bf7762117a53b50c9dc6892f848e7ac",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 671,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1483532500"
+    },
+    "winning_work": "524288",
+    "orphan_receipt_rejected": "RPC verifyObjectReceipt@26301 failed: {'code': -32000, 'message': 'receipt is not on the selected chain'}",
+    "final_tip": {
+      "height": 84,
+      "best_hash": "e79cc8d64b435fb291cf60c73e6680a14bf7762117a53b50c9dc6892f848e7ac",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 671,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1483532500"
+    }
+  },
+  "gui": {
+    "source_tip": {
+      "height": 84,
+      "best_hash": "e79cc8d64b435fb291cf60c73e6680a14bf7762117a53b50c9dc6892f848e7ac",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 671,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1483532500"
+    },
+    "final_tip": {
+      "height": 85,
+      "best_hash": "624d33e958021699f6a0b67d5707474d05d50a75d56b069f04095c5e56f31607",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 672,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1497932500"
+    },
+    "binary_sha256": {
+      "isolated_v2_node": "ea180c090ab51665c9a29c3a1a00689af46e30a9ecb78e8620630ff4b70eac56",
+      "parano1d-gui": "bb1f70055394b8938765f9bc51916ac8319177ac42a73759c262173d92d3c696"
+    },
+    "call": {
+      "txid": "dd4646dd298945dbf98b43879d22a600b6ac7a2142c139c2c6f5985755a579b4",
+      "height": 85,
+      "successor_state": [
+        "1",
+        "0"
+      ],
+      "successor_instances": {
+        "address": "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae",
+        "height": 85,
+        "tip_hash": "624d33e958021699f6a0b67d5707474d05d50a75d56b069f04095c5e56f31607",
+        "slots": [
+          {
+            "slot_index": 9742729,
+            "value": 9994200,
+            "creation_id": 1397,
+            "owner": "o1hat3rs4rk5ju33jtz20l7cdhhpkvhj0zjt57ldhayp5uamh4ex5sfy3dae",
+            "empty": false
+          }
+        ],
+        "next_slot": null
+      },
+      "receipt_verified": true,
+      "receipt_bytes": 914122,
+      "receipt_sha256": "ae2d561a87a4e4ba5c62d1ec52b9f8c9c3406fb051d614b94f7a4aec7bcbc527",
+      "interaction": "Real GUI buttons: open saved orphaned terms, select discovered predecessor, review call without payment, confirm, mine normally, check successor balance. RPC only checked the resulting transaction and receipt.",
+      "screenshots": {
+        "03-loaded.png": "bb8e3b4a4af8c5c7173c92e28ca8d5c5b438ef47ec8b02072aa25ee8dd031f3c",
+        "05-current.png": "87069023372319ee24e38c54d94092d1c1c349467f781c8a7d8d872158ad551e",
+        "07-review-details.png": "f1c5bd12340af0e7eaa6c35ff149542b9870113e36c84e47d8776d23a2cc4be6",
+        "10-confirmed.png": "465aefd0488029e3af9dfdd158feb7dfa6fc1f13a8003d0f868ee50a891881f6"
+      }
+    },
+    "note": "The interactive GUI binary predates the final stale waiting-notice cleanup. The cleanup subsequently passed the GUI suite and release build."
+  }
+}

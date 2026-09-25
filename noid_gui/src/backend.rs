@@ -40,6 +40,8 @@ use crate::model::{
     WALLET_CONSOLIDATION_INPUT_LIMIT,
 };
 
+mod contracts;
+
 const DEFAULT_RPC_URL: &str = "http://127.0.0.1:9601";
 const DEFAULT_RPC_LISTEN: &str = "127.0.0.1:9601";
 const DEFAULT_P2P_LISTEN: &str = "0.0.0.0:9600";
@@ -629,6 +631,12 @@ impl Backend {
 
     pub async fn prepare_matrix_cache(&self, class: MatrixClass) -> Result<(), String> {
         if self.is_mock() {
+            return Ok(());
+        }
+        let info: MiningInfo = self.rpc("getMiningInfo", json!([])).await?;
+        if !info.needs_matrix_cache(class)? {
+            // The running daemon loaded its authenticated embedded v2 data
+            // before opening RPC. Do not ask a new-only binary for old rows.
             return Ok(());
         }
         let config = self.config_snapshot()?;
@@ -1894,11 +1902,8 @@ fn persist_owner_only_atomically(path: &Path, bytes: &[u8], label: &str) -> Resu
     }
     drop(file);
 
-    #[cfg(target_os = "windows")]
-    if path.exists() {
-        std::fs::remove_file(path)
-            .map_err(|error| format!("replace {label} {}: {error}", path.display()))?;
-    }
+    // std::fs::rename replaces an existing file on Windows as well as Unix.
+    // Keep the preceding copy intact until that replacement succeeds.
     if let Err(error) = std::fs::rename(&temporary, path) {
         let _ = std::fs::remove_file(&temporary);
         return Err(format!("install {label} {}: {error}", path.display()));
@@ -2119,6 +2124,28 @@ struct MiningInfo {
     difficulty_bits: u32,
     difficulty_target: String,
     block_reward_micronoid: u64,
+    #[serde(default = "legacy_matrix_cache_classes")]
+    matrix_cache_classes: Vec<String>,
+}
+
+fn legacy_matrix_cache_classes() -> Vec<String> {
+    vec!["b25".into(), "b255".into()]
+}
+
+impl MiningInfo {
+    fn needs_matrix_cache(&self, class: MatrixClass) -> Result<bool, String> {
+        if self
+            .matrix_cache_classes
+            .iter()
+            .any(|value| value != "b25" && value != "b255")
+        {
+            return Err("Unsupported proof data preparation profile. Update the wallet.".into());
+        }
+        Ok(self
+            .matrix_cache_classes
+            .iter()
+            .any(|value| value == class.cli_value()))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -3164,6 +3191,23 @@ fn mock_receipt_verification(txid: &str) -> ReceiptVerificationSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn matrix_preparation_obeys_the_node_profile_and_keeps_old_rpc_compatibility() {
+        let old = json!({"height":100,"difficulty_bits":1,"difficulty_target":"00",
+            "block_reward_micronoid":1000});
+        let info: MiningInfo = serde_json::from_value(old.clone()).unwrap();
+        assert!(info.needs_matrix_cache(MatrixClass::B25).unwrap());
+        assert!(info.needs_matrix_cache(MatrixClass::B255).unwrap());
+        let mut current = old;
+        current["matrix_cache_classes"] = json!([]);
+        let info: MiningInfo = serde_json::from_value(current.clone()).unwrap();
+        assert!(!info.needs_matrix_cache(MatrixClass::B25).unwrap());
+        assert!(!info.needs_matrix_cache(MatrixClass::B255).unwrap());
+        current["matrix_cache_classes"] = json!(["unknown-profile"]);
+        let info: MiningInfo = serde_json::from_value(current).unwrap();
+        assert!(info.needs_matrix_cache(MatrixClass::B25).is_err());
+    }
 
     #[test]
     fn sibling_node_discovery_rejects_the_gui_itself() {

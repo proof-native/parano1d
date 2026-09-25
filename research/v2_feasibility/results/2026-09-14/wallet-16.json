@@ -1,0 +1,73 @@
+{
+  "backend": "avx2+vpclmul",
+  "cpu": "model name\t: 13th Gen Intel(R) Core(TM) i7-1365U",
+  "rayon_threads": 12,
+  "result": {
+    "authorization_bytes": {
+      "max": 1434176.0,
+      "median": 1431872.0,
+      "min": 1431488.0
+    },
+    "encode_ms": {
+      "max": 2.4689170000000003,
+      "median": 2.017599,
+      "min": 1.8459800000000002
+    },
+    "exclusions": [
+      "parallel proving across owners",
+      "shared authorization proof",
+      "atomic multi-owner transaction",
+      "recursive verification in HistoryStep",
+      "network and storage"
+    ],
+    "independent_capsules": 16,
+    "intent_bytes": {
+      "max": 1439456.0,
+      "median": 1437152.0,
+      "min": 1436768.0
+    },
+    "kind": "independent_existing_wallet_capsules_not_multi_owner_transaction",
+    "measured_samples": 3,
+    "raw_samples": [
+      {
+        "authorization_bytes": 1434176,
+        "encode_ms": 2.4689170000000003,
+        "intent_bytes": 1439456,
+        "sequential_decode_verify_ms": 553.089172,
+        "sequential_prove_ms": 16516.056789000002
+      },
+      {
+        "authorization_bytes": 1431488,
+        "encode_ms": 2.017599,
+        "intent_bytes": 1436768,
+        "sequential_decode_verify_ms": 435.522966,
+        "sequential_prove_ms": 15619.149923
+      },
+      {
+        "authorization_bytes": 1431872,
+        "encode_ms": 1.8459800000000002,
+        "intent_bytes": 1437152,
+        "sequential_decode_verify_ms": 435.68911199999997,
+        "sequential_prove_ms": 15229.565814000001
+      }
+    ],
+    "recipient_mutation_rejected": true,
+    "sequential_decode_verify_ms": {
+      "max": 553.089172,
+      "median": 435.68911199999997,
+      "min": 435.522966
+    },
+    "sequential_prove_ms": {
+      "max": 16516.056789000002,
+      "median": 15619.149923,
+      "min": 15229.565814000001
+    },
+    "total_authorization_bytes_last_sample": 1431872,
+    "total_intent_bytes_last_sample": 1437152,
+    "warmup_samples": 1
+  },
+  "schema": 1,
+  "source_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "unix_time": 1789419231,
+  "whole_process_peak_rss": "VmHWM:\t   12544 kB"
+}

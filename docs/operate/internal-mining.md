@@ -57,11 +57,17 @@ parano1d-cli peers
 parano1d-cli mining
 ```
 
-The process prepares its embedded B25 and B255 proof matrices and selects the
-best available CPU backend. Each mining session starts with B25. Its first
-completed preparation permits B255 if `prepare_time_B25 × 4 ≤ 20 seconds`.
-Eligible page count then determines whether a template needs the larger class.
-See [Mining architecture](../architecture/mining.md).
+The process selects the supported CPU backend and uses Small m23 by default:
+63 pages, 504 inputs, 63 calls. A server can permit Large m24 (206 pages,
+the same input/call limits) with:
+
+```sh
+parano1d --mode miner --v2-large-blocks
+```
+
+Large is selected when the eligible set yields more claimable fees. The flag
+permits it; Small remains available. Benchmark the intended host. The GUI has
+no Large control. See [class selection](../architecture/mining.md).
 
 ## CPU planning
 

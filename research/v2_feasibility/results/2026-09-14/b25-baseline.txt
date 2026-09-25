@@ -1,0 +1,44 @@
+HistoryStep benchmark backend=avx2+vpclmul threads=12
+HistoryStep benchmark parent_class=c00
+B25 wire_audit legacy_bytes=971732 shared_bytes=872724 saved_bytes=99008 exact_legacy_roundtrip=true original_terminal_verified=true both_formats_native_verified=true fork_format_checks=8 malformed_inputs_rejected=530
+B25 wire_codec operation=legacy_encode samples=32 p50_us=470.200 p95_us=515.876
+B25 wire_codec operation=shared_encode samples=32 p50_us=1593.796 p95_us=1732.962
+B25 wire_codec operation=legacy_decode samples=32 p50_us=602.552 p95_us=655.215
+B25 wire_codec operation=shared_decode samples=32 p50_us=1531.432 p95_us=1636.601
+B25 class=c00 sample=1/3 user_pages=0 wires=4185273 parent_decode_ms=0 input_preparation_ms=4 staged_assembly_ms=5032 prove_encode_ms=9222 history_step_ms=14260 verify_ms=866 terminal_bytes=971732
+B25 wire_audit legacy_bytes=971732 shared_bytes=872724 saved_bytes=99008 exact_legacy_roundtrip=true original_terminal_verified=true both_formats_native_verified=true fork_format_checks=8 malformed_inputs_rejected=530
+B25 wire_codec operation=legacy_encode samples=32 p50_us=462.953 p95_us=505.459
+B25 wire_codec operation=shared_encode samples=32 p50_us=1551.074 p95_us=1631.611
+B25 wire_codec operation=legacy_decode samples=32 p50_us=575.340 p95_us=614.529
+B25 wire_codec operation=shared_decode samples=32 p50_us=1472.668 p95_us=1593.436
+B25 class=c00 sample=2/3 user_pages=0 wires=4185273 parent_decode_ms=0 input_preparation_ms=3 staged_assembly_ms=4993 prove_encode_ms=8900 history_step_ms=13898 verify_ms=793 terminal_bytes=971732
+B25 wire_audit legacy_bytes=971732 shared_bytes=872724 saved_bytes=99008 exact_legacy_roundtrip=true original_terminal_verified=true both_formats_native_verified=true fork_format_checks=8 malformed_inputs_rejected=530
+B25 wire_codec operation=legacy_encode samples=32 p50_us=529.147 p95_us=975.402
+B25 wire_codec operation=shared_encode samples=32 p50_us=1759.996 p95_us=2989.524
+B25 wire_codec operation=legacy_decode samples=32 p50_us=643.094 p95_us=1210.545
+B25 wire_codec operation=shared_decode samples=32 p50_us=1660.240 p95_us=2757.924
+B25 class=c00 sample=3/3 user_pages=0 wires=4185273 parent_decode_ms=0 input_preparation_ms=3 staged_assembly_ms=4995 prove_encode_ms=8917 history_step_ms=13917 verify_ms=848 terminal_bytes=971732
+B25 summary samples=3 user_pages=0 wires=4185273 parent_decode_p50_ms=0 parent_decode_p95_ms=0 input_preparation_p50_ms=3 input_preparation_p95_ms=4 staged_assembly_p50_ms=4995 staged_assembly_p95_ms=5032 prove_encode_p50_ms=8917 prove_encode_p95_ms=9222 history_step_p50_ms=13917 history_step_p95_ms=14260 verify_p50_ms=848 verify_p95_ms=866 terminal_bytes=971732
+	Command being timed: "target/release/deps/history_step_proof-cc0a66853abeee38"
+	User time (seconds): 1013.08
+	System time (seconds): 29.35
+	Percent of CPU this job got: 473%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:40.35
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 2358228
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 9635497
+	Voluntary context switches: 302766
+	Involuntary context switches: 1066388
+	Swaps: 0
+	File system inputs: 11880
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -6,7 +6,7 @@ Core предоставляет JSON-RPC 2.0 через HTTP и отклоняе
 http://127.0.0.1:9601
 ```
 
-Имена всех методов начинаются с префикса пространства имён `paranoid_`. Параметры передаются позиционными JSON-массивами. Размер тела запроса ограничен 1 МиБ, а JSON-RPC batch продолжает поддерживаться в пределах этого размера.
+Имена всех методов начинаются с префикса пространства имён `paranoid_`. Параметры передаются позиционными JSON-массивами. Размер тела запроса ограничен 2 237 632 байтами, а JSON-RPC batch продолжает поддерживаться в пределах этого размера.
 
 ```sh
 curl --silent --show-error \
@@ -129,6 +129,9 @@ Operator-токен может расходовать средства акти�
 Подробный расчёт принимает от 1 до 1 020 входов и от 1 до 256 выходов.
 Возвращаемая комиссия учитывает текущую локальную границу ретрансляции.
 
+Расчёт комиссии принимает пределы формата, но не разрешает вместимость блока.
+Планирование и допуск v2 соблюдают 504 входа и бюджет страниц класса.
+
 ## Вспомогательные методы и отправка
 
 | Суффикс метода | Позиционные параметры | Результат |
@@ -144,8 +147,8 @@ Operator-токен может расходовать средства акти�
 меньше, если свободных слотов недостаточно. Декодированный salt ограничен 256
 байтами.
 
-`submitTxIntent` принимает один канонически закодированный `PagedSpendIntent`
-вместе с отдельной капсулой авторизации. До парсинга и проверки
+`submitTxIntent` принимает каноническое намерение обычного платежа либо вызова
+контракта v2 вместе с отдельной капсулой авторизации. До парсинга и проверки
 доказательства декодированный вход ограничен 303 495 байтами.
 
 ## Методы мемпула
@@ -204,7 +207,6 @@ Operator-токен может расходовать средства акти�
 `walletListUtxos` всегда возвращает прежний полный результат. GUI использует его,
 если метод условного снимка недоступен. Доступ operator от этого не расширяется.
 
-
 | Суффикс метода | Позиционные параметры | Результат |
 |---|---|---|
 | `walletStatus` | `[]` | `WalletStatus` |
@@ -237,6 +239,197 @@ Operator-токен может расходовать средства акти�
 `walletConsolidate` привязан к расчёту. Список слотов, комиссия и стоимость
 выхода должны точно совпадать с последним планом; иначе вызов завершится
 ошибкой и потребуется новый расчёт.
+
+## Методы контрактов
+
+Все методы имеют префикс `paranoid_` и требуют **локальных прав владельца**.
+Установленный бинарник v2 предоставляет условия, метаданные и наблюдение до
+H210537. `walletFundObject`, `previewObjectCall`, `walletCallObject` требуют
+v2 на следующей высоте кандидата и `runtime_available = true`.
+
+| Суффикс метода | Позиционные параметры | Результат |
+| --- | --- | --- |
+| `getContractProtocol` | `[]` | `ObjectProtocolInfo` |
+| `createObject` | `[definition]` | `ObjectInfo` |
+| `getObjectStatus` | `[opening_hex, slot_index]` | `ObjectStatus` |
+| `getObjectInstances` | `[opening_hex, from_slot, limit]` | `ObjectInstances` |
+| `previewObjectCall` | `[request]` | `ObjectCallPreview` |
+| `walletFundObject` | `[opening_hex, amount_micronoid, fee_micronoid, expected_sender?]` | `WalletSendResult` |
+| `walletCallObject` | `[request]` | `ObjectCallResult` |
+| `walletGetObjectOpening` | `[address]` | `ObjectInfo` |
+| `walletWatchObject` | `[opening_hex]` | `ObjectInfo` |
+| `walletListObjectStates` | `[opening_hex, after_root, limit]` | `ObjectKnownStates` |
+| `walletListObjectReceipts` | `[opening_hex, after_cursor, limit]` | `ObjectActivityPage` |
+| `exportObjectReceipt` | `[opening_hex, txid]` | `hex` |
+| `verifyObjectReceipt` | `[receipt_hex]` | `ObjectReceiptResult` |
+| `walletImportObjectReceipt` | `[receipt_hex, expected_opening_hex?]` | `ObjectReceiptResult` |
+
+`getObjectInstances` использует включительный курсор слота и limit 1–256.
+Списки состояний и журнала — исключительные nullable-курсоры и limit 1–64;
+ответы содержат высоту и хеш вершины. Журнал включает сохранённые вызовы обеих
+сторон и признак `canonical`. Импорт объединяет проверенные данные по txid,
+сохраняя свои записи. Балансы проверяются по State.
+
+[Руководство API контрактов](../contracts/api.md) задаёт конструкторы, поля
+собственных программ, защиту предпросмотра, обработку ошибок и CLI.
+Контрактные квитанции проверяются через `verifyObjectReceipt` /
+`walletImportObjectReceipt`, предел после декодирования — 1 110 624 байта.
+У `verifyReceipt` отдельный платёжный формат до 128 KiB. `createObject`
+создаёт условия без комиссии; `max_fee_micronoid` ограничивает будущий вызов.
+Счётчики и константы инструкций — канонические десятичные строки u64.
+
+### Схемы контрактов
+
+`ObjectDefinition` и `ObjectProgramStep` описаны в [API](../contracts/api.md)
+и [ядре](../contracts/core.md). Поля `ObjectCallDetails` включаются непосредственно
+в объекты квитанций и журнала. Квитанция доказывает прошлый вызов, текущий State
+проверяется отдельно.
+
+```text
+ObjectInfo {
+  abi_version: u16
+  state: [decimal u64 string, decimal u64 string]
+  address: string
+  opening_hex: string
+  code_id: string
+  state_hex: string
+  program: ObjectProgramStep[16]
+  claim_authority: string
+  recovery_authority: string
+  claim_recipient: string
+  recovery_recipient: string
+  deadline_height: u64
+  max_fee_micronoid: u64
+  max_payout_micronoid: u64
+  min_retained_micronoid: u64
+  claim_can_continue: bool
+  claim_can_close: bool
+  recovery_can_continue: bool
+  recovery_can_close: bool
+  unrestricted_payout_recipient: bool
+}
+
+ObjectStatus {
+  object: ObjectInfo
+  slot: SlotInfo
+  matches_opening: bool
+  tip_height: u64
+  next_call_height: u64
+  active_authority: string
+}
+
+ObjectInstances {
+  address: string
+  height: u64
+  tip_hash: string
+  slots: SlotInfo[]
+  next_slot: u32 | null
+}
+
+ObjectKnownState {
+  object: ObjectInfo
+  has_balance: bool
+}
+
+ObjectKnownStates {
+  states: ObjectKnownState[]
+  height: u64
+  tip_hash: string
+  next_root: string | null
+}
+
+ObjectPayout {
+  address: string
+  amount_micronoid: u64
+}
+
+ObjectCallRequest {
+  opening_hex: string
+  slot_index: u32
+  creation_id: u64
+  terminal: bool
+  payout: ObjectPayout | null
+  fee_micronoid: u64
+  expected_recovery: bool | null
+  expected_authority: string | null
+  expected_call_height: u64 | null
+  expected_txid: string | null
+}
+
+ObjectCallPreview {
+  txid: string
+  call_height: u64
+  authority: string
+  recovery: bool
+  terminal: bool
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+  successor: ObjectInfo | null
+}
+
+ObjectCallResult {
+  transaction: WalletSendResult
+  call_height: u64
+  successor: ObjectInfo | null
+  output_slot: u32
+}
+
+ObjectReceiptResult {
+  valid: bool
+  ...ObjectCallDetails
+}
+
+ObjectCallDetails {
+  height: u64
+  txid: string
+  terminal: bool
+  authority: string
+  original: ObjectInfo
+  successor: ObjectInfo | null
+  input_micronoid: u64
+  fee_micronoid: u64
+  retained_micronoid: u64
+  payout: ObjectPayout | null
+}
+
+ObjectActivityEntry {
+  ...ObjectCallDetails
+  block_hash: string
+  canonical: bool
+}
+
+ObjectActivityPage {
+  height: u64
+  tip_hash: string
+  entries: ObjectActivityEntry[]
+  next_cursor: string | null
+}
+
+ObjectClassLimits {
+  class: string
+  pages: usize
+  live_inputs: usize
+  contract_calls: usize
+}
+
+ObjectProtocolInfo {
+  tip_height: u64
+  activation_height: u64 | null
+  active_at_next_block: bool
+  runtime_available: bool
+  next_block_time_seconds: u64
+  abi_version: u16
+  instructions: usize
+  persistent_registers: usize
+  classes: ObjectClassLimits[]
+}
+```
+
+Необязательные защиты запроса можно опустить либо передать null. `creation_id`
+обязателен. Закрытие: `terminal: true`, `payout: null`; смысловой результат
+показывает выплату закрытия без преемника. Нулевая комиссия запрашивает текущий
+минимум в пределах потолка политики. Ответ отправки ещё требует включения.
 
 ## Схемы ответов
 
@@ -758,7 +951,7 @@ BlockTemplateResponse {
   "code": -32011,
   "message": "InputLimitExceeded",
   "data": {
-    "max_inputs": 1020
+    "max_inputs": 504
   }
 }
 ```
@@ -773,3 +966,10 @@ BlockTemplateResponse {
 3. обрабатывать документированные стабильные коды;
 4. показывать остальные сообщения приложения оператору, не пытаясь разбирать
    их текст.
+
+`requires_b255_miner` сохраняет имя для совместимости API. В v2 оно означает
+необходимость Large; реальные бюджеты сообщает `getContractProtocol`.
+
+Средства контрактов запрашиваются через методы объектов. Обычный баланс
+кошелька перечисляет его владельцев и не включает произвольные обязательства
+контрактов. `getTx` сохраняет индексный указатель после очистки тела.

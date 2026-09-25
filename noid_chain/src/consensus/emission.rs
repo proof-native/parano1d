@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Block reward schedule.
+//! Height-selected block reward schedules. The table below is the legacy rule;
+//! v2 advances through [`V2_REWARDS_MICRONOID`] by elapsed block height,
+//! starting at its activation block. State size does not select a v2 reward.
 //!
-//! Reward halves with every state expansion (`log_slots += 1`), floored at 1 NOID.
+//! Before v2, reward halves with every state expansion (`log_slots += 1`),
+//! floored at 1 NOID.
 //!
 //! ```text
 //! log_slots | expansion | reward
@@ -17,9 +20,9 @@
 //!    30+     |     6+    |  1.000000 NOID  (floor, forever)
 //! ```
 //!
-//! Anti-spam property: state expands only when ~75% capacity is reached.
-//! Filling slots to trigger expansion halves the miner reward.
-//! The natural economic consequence of network growth is decreasing inflation.
+//! The v2 height schedule does not change occupancy-sensitive State-growth
+//! fees or their deterministic burn. Consolidation still avoids charges for
+//! adding live slots; other applicable transaction fees remain payable.
 
 use crate::consensus::fees::claimable_fee_for_tx_body;
 use crate::consensus::params::{
@@ -27,7 +30,44 @@ use crate::consensus::params::{
 };
 use noid_tx::types::TxBody;
 
-/// Compute the block reward in μNOID for the given `log_slots` value.
+/// One nominal 365-day year at the v2 target of 30 seconds per block.
+/// The activation block has elapsed height zero; the first reduction occurs
+/// exactly this many blocks after activation, independent of State size.
+pub const V2_REWARD_INTERVAL_BLOCKS: u64 = 1_051_200;
+
+/// Exact gross subsidy for successive v2 height epochs, before allocation.
+/// These decimal amounts are consensus constants, not a floating-point formula.
+pub const V2_REWARDS_MICRONOID: [u64; 9] = [
+    16_000_000, 11_300_000, 8_000_000, 5_650_000, 4_000_000, 2_830_000, 2_000_000, 1_410_000,
+    1_000_000,
+];
+
+pub fn v2_block_reward_at_elapsed(elapsed_blocks: u64) -> u64 {
+    let epoch = (elapsed_blocks / V2_REWARD_INTERVAL_BLOCKS)
+        .min((V2_REWARDS_MICRONOID.len() - 1) as u64) as usize;
+    V2_REWARDS_MICRONOID[epoch]
+}
+
+pub fn block_reward_with_schedule(
+    height: u64,
+    log_slots: u32,
+    schedule: super::forks::ForkSchedule,
+) -> u64 {
+    match schedule.v2() {
+        Some(activation) if height >= activation.height() => {
+            v2_block_reward_at_elapsed(height - activation.height())
+        }
+        _ => block_reward(log_slots),
+    }
+}
+
+pub fn block_reward_at_height(height: u64, log_slots: u32) -> u64 {
+    block_reward_with_schedule(height, log_slots, super::forks::ACTIVE_SCHEDULE)
+}
+
+/// Compute the legacy block reward in μNOID for the given `log_slots` value.
+/// Frozen legacy relations retain this function; network callers use
+/// [`block_reward_at_height`].
 ///
 /// `log_slots` is the current state capacity exponent from the block header.
 /// Halves once per state expansion, never below `FLOOR_REWARD_MICRONOID`.
@@ -98,10 +138,27 @@ pub fn max_coinbase_value_from_claimable_fee_sum(
     child_log_slots: u32,
     claimable_fee_sum: u128,
 ) -> u128 {
-    u128::from(crate::consensus::development_allocation::miner_subsidy(
+    max_coinbase_value_from_claimable_fee_sum_with_schedule(
         child_height,
         child_log_slots,
-    )) + claimable_fee_sum
+        claimable_fee_sum,
+        super::forks::ACTIVE_SCHEDULE,
+    )
+    .expect("release emission and daily intervals are exact")
+}
+
+pub fn max_coinbase_value_from_claimable_fee_sum_with_schedule(
+    child_height: u64,
+    child_log_slots: u32,
+    claimable_fee_sum: u128,
+    schedule: super::forks::ForkSchedule,
+) -> Result<u128, super::development_allocation::DevelopmentAllocationError> {
+    let allocation = super::development_allocation::development_allocation_with_schedule(
+        child_height,
+        child_log_slots,
+        schedule,
+    )?;
+    Ok(u128::from(allocation.miner_subsidy) + claimable_fee_sum)
 }
 
 /// Format a μNOID amount as a human-readable string (not consensus-critical).
@@ -140,6 +197,79 @@ mod tests {
             block_reward(LOG_SLOTS_GENESIS + 100),
             FLOOR_REWARD_MICRONOID
         );
+    }
+
+    #[test]
+    fn v2_rewards_advance_by_elapsed_height_independently_of_state() {
+        use crate::consensus::forks::{ForkSchedule, V2Activation};
+        let expected = [
+            16_000_000, 11_300_000, 8_000_000, 5_650_000, 4_000_000, 2_830_000, 2_000_000,
+            1_410_000, 1_000_000,
+        ];
+        assert_eq!(V2_REWARD_INTERVAL_BLOCKS, 365 * 24 * 60 * 60 / 30);
+        for activation in [10, super::super::params::MAINNET_V2_ACTIVATION_HEIGHT] {
+            let schedule = ForkSchedule::new(Some(5), V2Activation::new(activation, 30)).unwrap();
+            for level in 24..=32 {
+                for height in [0, 4, 5, activation - 1] {
+                    assert_eq!(
+                        block_reward_with_schedule(height, level, schedule),
+                        block_reward(level)
+                    );
+                }
+                for (epoch, reward) in expected.into_iter().enumerate() {
+                    let threshold = activation + epoch as u64 * V2_REWARD_INTERVAL_BLOCKS;
+                    for height in [
+                        threshold,
+                        threshold + 1,
+                        threshold + V2_REWARD_INTERVAL_BLOCKS - 1,
+                    ] {
+                        assert_eq!(block_reward_with_schedule(height, level, schedule), reward);
+                    }
+                    if epoch > 0 {
+                        assert_eq!(
+                            block_reward_with_schedule(threshold - 1, level, schedule),
+                            expected[epoch - 1]
+                        );
+                    }
+                }
+                assert_eq!(
+                    block_reward_with_schedule(u64::MAX, level, schedule),
+                    1_000_000
+                );
+            }
+        }
+        assert_eq!(v2_block_reward_at_elapsed(u64::MAX), 1_000_000);
+    }
+
+    #[test]
+    fn reward_clock_never_wraps_at_the_height_limit() {
+        use crate::consensus::forks::{ForkSchedule, V2Activation};
+        for activation in [u64::MAX, u64::MAX - V2_REWARD_INTERVAL_BLOCKS] {
+            let schedule = ForkSchedule::new(Some(5), V2Activation::new(activation, 30)).unwrap();
+            assert_eq!(
+                block_reward_with_schedule(activation - 1, 25, schedule),
+                25_000_000
+            );
+            assert_eq!(
+                block_reward_with_schedule(activation, 32, schedule),
+                16_000_000
+            );
+            assert_eq!(
+                block_reward_with_schedule(u64::MAX, 24, schedule),
+                if activation == u64::MAX {
+                    16_000_000
+                } else {
+                    11_300_000
+                }
+            );
+        }
+        let legacy = ForkSchedule::new(Some(5), None).unwrap();
+        for level in 24..=32 {
+            assert_eq!(
+                block_reward_with_schedule(u64::MAX, level, legacy),
+                block_reward(level)
+            );
+        }
     }
 
     #[test]

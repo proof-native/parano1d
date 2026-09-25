@@ -1,0 +1,125 @@
+{
+  "status": "completed conditional accounting",
+  "source": {
+    "source_head": "0a7ff09e003fcdb366cbc8003ecf3b8e47e536c8",
+    "binary_sha256": "9cb7e6d49f949e1b823164993bdd4fb35bf3fd11ed653df0d34406919937c816",
+    "archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-v2-soundness-9cb7e6d4",
+    "banks": [
+      {
+        "profile": "isolated",
+        "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+        "activation_height": 10,
+        "artifacts_sha256": {
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+          "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin": "5b2f7967483a8ee596c83c65ae7c99bf38b14197b4a774cb5a1ddb181e0c0958",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8"
+        },
+        "output_sha256": "b6cfbbecb53e8ab45c39a3ec7e4edd5d7f4f89ba7b21e09a1350f419ea4a9b5c",
+        "resource_work_floor_bits": 173.3897612554174
+      },
+      {
+        "profile": "mainnet",
+        "bank": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+        "activation_height": 210537,
+        "artifacts_sha256": {
+          "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+          "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-runtime-metadata.bin": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+          "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8"
+        },
+        "output_sha256": "f99af13256d02f4cbd6554367a234725fc551806a163624e4cc892ccf0abbebd",
+        "resource_work_floor_bits": 173.3897612554174
+      }
+    ],
+    "negative_checks": [
+      {
+        "profile": "isolated",
+        "case": "wrong-bank",
+        "exit_code": 1,
+        "error": "v2 soundness accounting failed: v2 runtime differs from the independently supplied bank pin"
+      },
+      {
+        "profile": "mainnet",
+        "case": "wrong-bank",
+        "exit_code": 1,
+        "error": "v2 soundness accounting failed: v2 runtime differs from the independently supplied bank pin"
+      }
+    ]
+  },
+  "source_sha256": "89bd2dc10f02d059ae4bbefd92386ffc07023bcc2ee45e15703e8a1af6ff230a",
+  "runs": [
+    {
+      "job": "common-soundness-build",
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--locked",
+        "-p",
+        "bench_prover",
+        "--bin",
+        "noid_v2_soundness"
+      ],
+      "exit_code": 0,
+      "seconds": 10.232288694998715
+    },
+    {
+      "job": "common-soundness-isolated",
+      "command": [
+        "/home/neo/rust/paranoid/target/release/noid_v2_soundness",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a/v2-runtime-metadata.bin",
+        "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+        "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+        "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+      ],
+      "exit_code": 0,
+      "seconds": 1.637072042998625
+    },
+    {
+      "job": "common-soundness-mainnet",
+      "command": [
+        "/home/neo/rust/paranoid/target/release/noid_v2_soundness",
+        "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1/v1/history-step.runtime",
+        "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+        "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a/v2-runtime-metadata.bin",
+        "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-0.key",
+        "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+        "/home/neo/rust/parano1d-artifacts/isolated-v2-retirement-full-20260924-1/class-1.key",
+        "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+      ],
+      "exit_code": 0,
+      "seconds": 1.6175141239946242
+    }
+  ],
+  "outputs": [
+    {
+      "profile": "isolated",
+      "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+      "file": "soundness-isolated.json",
+      "sha256": "b6cfbbecb53e8ab45c39a3ec7e4edd5d7f4f89ba7b21e09a1350f419ea4a9b5c",
+      "resource_limiting_event": "retirement.b25.query",
+      "resource_work_floor_bits": 173.3897612554174,
+      "category_one_ideal_envelope": "0.049373883733727537476616126637309763374280300856473073419837237536446487795553505501245513",
+      "fixed_poseidon2b_delta_headroom": "0.450626116266272462523383873362690236625719699143526926580162762463553512204446494498754488"
+    },
+    {
+      "profile": "mainnet",
+      "bank": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+      "file": "soundness-mainnet.json",
+      "sha256": "f99af13256d02f4cbd6554367a234725fc551806a163624e4cc892ccf0abbebd",
+      "resource_limiting_event": "retirement.b25.query",
+      "resource_work_floor_bits": 173.3897612554174,
+      "category_one_ideal_envelope": "0.049373883733727537476616126637309763374280300856473073419837237536446487795553505501245513",
+      "fixed_poseidon2b_delta_headroom": "0.450626116266272462523383873362690236625719699143526926580162762463553512204446494498754488"
+    }
+  ],
+  "premises_document": "noid_soundness/docs/v2-retirement.md",
+  "premises_sha256": "704137df7874e8913936ba7b5539aa2ac48ce55468db908d2fa2c1bef4cc0ba3",
+  "claims": "Exact source-derived inventory under the documented all-root, compiler, honest public preprocessing, fixed-Poseidon2b and resource-price premises; not an independent security audit or a replacement for those premises."
+}

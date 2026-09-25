@@ -30,7 +30,7 @@ choosing disk and memory limits.
 ## Install the Core release
 
 Download the archive for the server architecture and `SHA256SUMS` from the
-[release page](https://github.com/ignotusnemo/parano1d/releases). Verify the
+[release page](https://github.com/proof-native/parano1d/releases). Verify the
 archive before extracting it. Replace `VERSION` with the release number:
 
 ```sh

@@ -61,3 +61,11 @@ wallet's possible address set.
 
 For the underlying proof format, see
 [Receipts and pruned history](../concepts/receipts.md).
+
+## Contract calls
+
+F4 handles ordinary payment receipts, including deposits to a contract.
+Call receipts and shared contract files open in **F7 Contracts → Open file**.
+They include public terms and proof of a state transition. Import merges
+verified evidence into the local contract journal while preserving existing
+records. See [contract receipts and recovery](../contracts/receipts-and-recovery.md).

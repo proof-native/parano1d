@@ -1,0 +1,81 @@
+{
+  "schema": "parano1d-v2-heterogeneous-direct-research-v2",
+  "recorded_utc_date": "2026-09-16",
+  "base_revision": "edb998f745ca5092fee1abd4cf52eabddcbfc9e5",
+  "prototype_revision": "590b489a2bc5c7c78dfa16241b534fd921227beb",
+  "author": "Ignotus Nemo",
+  "status": "research-prototype",
+  "tier": 255,
+  "fixture_user_pages": 26,
+  "fixed_contract_slots": 16,
+  "relation": {
+    "useful_rows": 14402324,
+    "contract_policy_rows_for_sixteen_fixed_slots": 4112,
+    "deferred_contract_execution_and_partition_rows_for_sixteen_fixed_slots": 2768,
+    "execution_rows_per_slot": 144,
+    "statement_digest_hex": "39c62a8b991eda71829910c38866bb98c56256f7e0ac8343d6b7f806c2c21f01",
+    "content_independent_for_measured_call_counts": true,
+    "measured_call_counts": [
+      0,
+      1,
+      4,
+      16
+    ]
+  },
+  "positive_cases": [
+    {
+      "contract_calls": 0,
+      "satisfied": true,
+      "fixture_preparation_ms": 19210.2,
+      "matrix_build_and_satisfaction_scan_ms": 9650.8
+    },
+    {
+      "contract_calls": 1,
+      "satisfied": true,
+      "fixture_preparation_ms": 20590.3,
+      "matrix_build_and_satisfaction_scan_ms": 9688.3
+    },
+    {
+      "contract_calls": 4,
+      "satisfied": true,
+      "fixture_preparation_ms": 22809.2,
+      "matrix_build_and_satisfaction_scan_ms": 9423.8
+    },
+    {
+      "contract_calls": 16,
+      "satisfied": true,
+      "fixture_preparation_ms": 33587.5,
+      "matrix_build_and_satisfaction_scan_ms": 9683.1
+    }
+  ],
+  "comparison_with_b25": {
+    "same_contract_envelope": true,
+    "same_policy_and_execution_row_increments": true,
+    "b25_contract_policy_rows": 4112,
+    "b255_contract_policy_rows": 4112,
+    "b25_deferred_execution_and_partition_rows": 2768,
+    "b255_deferred_execution_and_partition_rows": 2768
+  },
+  "capacity_check": {
+    "authorization_positions": 256,
+    "live_positions_tested": 255,
+    "dyadic_pad_positions": 1,
+    "contract_counts_tested": [
+      0,
+      16
+    ],
+    "all_live_positions_preserved": true,
+    "layout": "The first sixteen existing authorization positions select wallet-owner or contract-authority semantics. No additional positions are reserved, so all 255 live B255 positions remain available."
+  },
+  "timing_boundary": {
+    "fixture_preparation": "Builds deterministic transactions and authorization proofs for the research fixture. It is not miner block-production latency because users normally supply their authorization proofs.",
+    "matrix_build_and_satisfaction_scan": "Builds the complete fixed B255 direct relation and evaluates every constraint. It is not recursive proof construction.",
+    "samples_per_case": 1
+  },
+  "limitations": [
+    "The fixture contains 26 live user pages, the minimum occupancy selecting B255, while the relation has the complete fixed B255 shape.",
+    "No B255 terminal proof was frozen for the changed relation.",
+    "No new soundness certificate was calculated.",
+    "The measurements establish fixed-shape feasibility, not production latency or throughput."
+  ]
+}

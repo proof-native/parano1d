@@ -1,0 +1,622 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source": {
+    "job": "reorg",
+    "source_head": "6acf202e589243149ff14d52c4e3f150cb642aae",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "node_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "script_sha256": "c38e44c91f9af692a957a17564491d3f918106f1b3df14c0c50a9c9a2a82c583",
+    "command": [
+      "unshare",
+      "--user",
+      "--map-root-user",
+      "--net",
+      "python3",
+      "scripts/live_v2_boundary_reorg_scenario.py"
+    ],
+    "output": "/home/neo/rust/parano1d-artifacts/v2-common-live-reorg-20260925-a"
+  },
+  "node_build": {
+    "source_head": "f3029445383b632afc5e9707f529ed741ed24c7d",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "pack": "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a",
+    "node_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-node-2250f0d9",
+    "cli_sha256": "9d2912e054293c55cc66e9d5160b0f0d3551c2f9ba50de940177140247e6ba61",
+    "miner_sha256": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68",
+    "patch": "common-diagnostic-source.patch",
+    "patch_sha256": "e4116a19c07220ee20407546cc73af38d959cc09a32b2a254cadc8419ea72458",
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--locked",
+      "-p",
+      "noid_node",
+      "--example",
+      "isolated_v2_node",
+      "--features",
+      "isolated-v2-fork-testnet"
+    ]
+  },
+  "node_source_equivalent_commit": "cb9504f4b88ddcb7b28807e02814a2c38a6600e4",
+  "run_seconds": 335.5149228340015,
+  "summary": {
+    "common_height": 8,
+    "old_branch_height": 12,
+    "winning_height": 13,
+    "final_height": 14,
+    "reorg_seconds": 1.7859542740043253
+  },
+  "startup": [
+    {
+      "label": "01-b-common",
+      "height": 0,
+      "seconds": 3.022
+    },
+    {
+      "label": "02-a-common",
+      "height": 0,
+      "seconds": 3.506
+    },
+    {
+      "label": "03-b-competing",
+      "height": 8,
+      "seconds": 3.506
+    },
+    {
+      "label": "04-b-winner",
+      "height": 13,
+      "seconds": 3.004
+    },
+    {
+      "label": "05-a-reorganizes",
+      "height": 12,
+      "seconds": 3.004
+    },
+    {
+      "label": "06-a-reopened",
+      "height": 13,
+      "seconds": 4.009
+    }
+  ],
+  "report": {
+    "status": "passed",
+    "stages": [
+      "common real legacy prefix through H8",
+      "branch A crosses H10, funds and calls a persistent counter",
+      "branch B builds an independent H9 origin and strictly greater work",
+      "P2P reorg crosses the v2 boundary and invalidates the old call",
+      "restart after origin replacement and mine its v2 successor",
+      "complete"
+    ],
+    "mining": [
+      {
+        "node": "branch-a",
+        "first": 1,
+        "last": 8,
+        "seconds": 109.7088717459992
+      },
+      {
+        "node": "branch-a",
+        "first": 9,
+        "last": 10,
+        "seconds": 37.14608960901387
+      },
+      {
+        "node": "branch-a",
+        "first": 11,
+        "last": 11,
+        "seconds": 19.7734236230026
+      },
+      {
+        "node": "branch-a",
+        "first": 12,
+        "last": 12,
+        "seconds": 20.5217036579852
+      },
+      {
+        "node": "branch-b",
+        "first": 9,
+        "last": 13,
+        "seconds": 99.33877682700404
+      },
+      {
+        "node": "branch-a",
+        "first": 14,
+        "last": 14,
+        "seconds": 21.526145936979447
+      }
+    ],
+    "source_head": "6acf202e589243149ff14d52c4e3f150cb642aae",
+    "script_sha256": {
+      "live_v2_boundary_reorg_scenario.py": "c38e44c91f9af692a957a17564491d3f918106f1b3df14c0c50a9c9a2a82c583",
+      "live_v2_contract_scenario.py": "2cd0171011deb6fe5af48455418a27009c98e3afcb6d23af049725d656916e5d",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "binary_sha256": {
+      "isolated_v2_node": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+      "parano1d-miner": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68"
+    },
+    "stage": "complete",
+    "common": {
+      "height": 8,
+      "best_hash": "9e463e21d4e9997cd7de8f263b0f18e0ac0a78233a03e9dbd32e150e8390f917",
+      "difficulty_target": "00000000000000000000000000000000000000000000000000000000093b0000",
+      "active_slot_count": 8,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "360000000"
+    },
+    "branch_a": {
+      "height": 12,
+      "best_hash": "5bf6be97f631118f800b8ea3850a333c16dee2ba20031e578abe24665a151992",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000010d4d920320000",
+      "active_slot_count": 13,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "448197500"
+    },
+    "branch_a_work": "1266123",
+    "old_origin_header": "7adddbb7e85c8781d0eda1195f15ee668f849f1354a28e55ccfc741d3503e8dc",
+    "opening": {
+      "abi_version": 3,
+      "state": [
+        "0",
+        "0"
+      ],
+      "address": "o19z3p2d2h8n4cdyxsr0y5kh8edus8n2p3leqmvn5nm5vqgyt2rceqqjgrgk",
+      "opening_hex": "4e4f49444f424a33030002700a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe8712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe64000000000000008712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe8712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe40420f0000000000000000000000000040420f00000000000b",
+      "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+      "state_hex": "00000000000000000000000000000000",
+      "program": [
+        {
+          "opcode": "add",
+          "destination": "state0",
+          "left": "state0",
+          "right": "one",
+          "predicate": {
+            "source": "terminal",
+            "inverted": true
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        }
+      ],
+      "claim_authority": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+      "recovery_authority": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+      "claim_recipient": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+      "recovery_recipient": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+      "deadline_height": 100,
+      "max_fee_micronoid": 1000000,
+      "max_payout_micronoid": 1000000,
+      "min_retained_micronoid": 0,
+      "claim_can_continue": true,
+      "claim_can_close": true,
+      "recovery_can_continue": false,
+      "recovery_can_close": true,
+      "unrestricted_payout_recipient": false
+    },
+    "call": {
+      "transaction": {
+        "txid": "404bfa8472bfbd575c165d85a1434a0293857c285d5c8902ede6cbf0e54ba0a3",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 12,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "1",
+          "0"
+        ],
+        "address": "o10pn642faregrq44hm74ftuyww393fz83a63xpwl7t7lf55gwksksd7ga74",
+        "opening_hex": "4e4f49444f424a33030002700a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000008712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe8712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe64000000000000008712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe8712409e1c50d764656ed4542099298a9e2aafa90c780a95fdecc4bf6540d9fe40420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000001",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+        "recovery_authority": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+        "claim_recipient": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+        "recovery_recipient": "o1sufyp8su2rtkgetw632zpxff320z4tafp3uq490aanzt7e2qm8lqfkvdsw",
+        "deadline_height": 100,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 9759847
+    },
+    "funding": {
+      "txid": "f878a41a3da626bbae2092d388e1f4c8ff1af7a0630a4473c90c7625ca218b32",
+      "amount_micronoid": 10000000,
+      "fee_micronoid": 9000,
+      "input_count": 1,
+      "output_count": 2
+    },
+    "branch_b": {
+      "height": 13,
+      "best_hash": "2f2a537eaf90f234fa2e4a73a8d2b3ee6538a9623e44f43ecbfe23c0254b1805",
+      "difficulty_target": "00000000000000000000000000000000000000000000000000e04bc04b370000",
+      "active_slot_count": 13,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "462600000"
+    },
+    "branch_b_work": "1437266",
+    "new_origin_header": "5efb73771550082576e2787973ae3fe66799f8d1429db155d640f22a83644287",
+    "reorg_seconds": 1.7859542740043253,
+    "orphan_receipt_rejected": "RPC verifyObjectReceipt@26401 failed: {'code': -32000, 'message': 'receipt is not on the selected chain'}",
+    "orphan_export_rejected": "RPC exportObjectReceipt@26401 failed: {'code': -32000, 'message': 'contract transaction is not confirmed'}",
+    "orphan_call_rejected": "RPC walletCallObject@26401 failed: {'code': -32000, 'message': 'inclusion height changed; preview and authorize the call again'}",
+    "final_tip": {
+      "height": 14,
+      "best_hash": "9c72a1e149041d10c11bf274e550772da5d5f5c097b69ad971b34a32e1f9d7e1",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000030d8dfb8370000",
+      "active_slot_count": 14,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "477000000"
+    }
+  },
+  "report_sha256": "be41a97188c336c8db8c72d21a02b2ae83a4f2d34c5f638ab0f32c34b79e3425",
+  "scenario_log_sha256": "260b2194b6c68aba1873a4ba9f24beae81e1c961f41cd34d2feef290fb7a7241",
+  "log_sha256": {
+    "01-b-common.log": "97c56e8e5ae8350844f1f34f2ba3eb292811cd000f3477556192401823b311e3",
+    "02-a-common.log": "d8773a80d2d6712acb7eb279e2b0be4f4813df56ffdec7dcb1b5cb559a4dbde7",
+    "03-b-competing.log": "a9a61bcc3520ce028b1db7db156ea22f22e9791451ca9b89726abba7daf9dde8",
+    "04-b-winner.log": "dfec192a551865191779e7e97f213ab7a2fdd5348a6dd17a8912376035e98907",
+    "05-a-reorganizes.log": "bf318f8eba5aef335d32f91ab374b8b41d71435e02cd2c3ed7b4d9764f13a3de",
+    "06-a-reopened.log": "22ca1977b8c20c4d7bd848b31c1d6f563fe5c5c0c3be534824676d3aa2f1789c",
+    "worker-branch-a-1.log": "84814c2b3a8a17b563fe1dd39aa59f627f85a253a157881ed32a89f11b479782",
+    "worker-branch-a-11.log": "144c4b32c8ec67f7e00b9cc2125b9c474f719443c5acb52321062bcb460a29b4",
+    "worker-branch-a-12.log": "5bd4c47d6d4f4133142475a1a777e58e592858b9ca3fb7cab13ae092cf9fbbb3",
+    "worker-branch-a-14.log": "01dfd407bb9b940c09a9d67963fec2d53ac8204555c66947fca8c746efb7beab",
+    "worker-branch-a-9.log": "ce9809a125a006c9b7e11ff4c1f0531eca6a3bc4a3087be4ee41337bc0dc0e8d",
+    "worker-branch-b-9.log": "308d1c66f84edf205498f2713af0d8356c0c3cb9bd342eb71c59fe90d57326ce"
+  }
+}

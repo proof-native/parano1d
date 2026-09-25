@@ -223,6 +223,7 @@ fn classify(command: &NetworkCommand) -> CommandClass {
         BroadcastTx { .. }
         | ResolveTxGossip { .. }
         | FetchObjects { .. }
+        | FetchForkOrigin { .. }
         | FetchSnapshotHeaders { .. }
         | RequestStateManifest { .. }
         | RequestStateSegment { .. }

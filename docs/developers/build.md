@@ -54,20 +54,15 @@ Development binaries exercise parsing, UI and non-production test paths. A
 block-producing release requires the authenticated HistoryStep matrix pack
 described below.
 
-## Reproduce the soundness certificate
+## Production proof material
 
-The production calculations and proof documents are in
-[`noid_soundness`](https://github.com/ignotusnemo/parano1d/tree/main/noid_soundness).
+A production v2 build needs the authenticated joint bank and old-ancestry
+verification material. The source schedule is mainnet H210537, with Small
+63/504/63 and Large 206/504/63. An H10 test-network bank fails the mainnet build
+checks. Keep expensive generated artifacts outside the disposable `target/` tree.
 
-```sh
-cargo run --release --locked -p noid_soundness
-cargo run --release --locked -p noid_soundness -- --exact
-cargo test --release --locked -p noid_soundness
-```
-
-## Generate the proof pack
-
-The canonical pack contains:
+The transition release reuses the unchanged historical pack. Its layout and
+reproduction command are:
 
 ```text
 v1/history-step.runtime
@@ -77,48 +72,85 @@ pins.env
 SHA256SUMS
 ```
 
-Generate B25 and B255 matrices from honest fixtures:
-
 ```sh
 mkdir -p ../parano1d-artifacts
 ./scripts/generate_history_step_pack.sh \
   ../parano1d-artifacts/history-step-pack-v1
 ```
 
-Generation is expensive and only needs to be performed once for an unchanged
-relation. Keep the pack outside `target/`.
+Generation writes a fresh staging directory, derives pins, authenticates the
+artifacts and publishes atomically. Existing output directories are not overwritten.
 
-The script writes to a staging directory, derives semantic pins, authenticates
-every artifact and publishes the completed directory atomically. It refuses to
-overwrite an existing output path.
+Freeze the v2 relation from source under the mainnet schedule:
 
-## Build native deliverables
+```sh
+cargo build --release --locked -p bench_prover --bin noid_v2_capacity
+target/release/noid_v2_capacity joint-freeze-mainnet \
+  LEGACY_PACK LEGACY_METADATA_PIN NEW_OUTPUT \
+  63 504 63 504 63 --large-pages=206
+```
+
+Replace uppercase placeholders with actual paths and independently checked
+pins. This mode assembles both matrices under hypothetical boundary witnesses
+and checks their identity and transport bounds. The real fork origin is obtained
+at the boundary. The pack includes `v2-runtime-metadata.bin`,
+`v2-small.field-r1cs.zst` and `v2-large.field-r1cs.zst`.
+
+The preprocessing directory contains `class-0.key` and `class-1.key`, derived
+and authenticated against the canonical historical matrices. A separate pin
+file contains exactly three assignments:
+
+```text
+NOID_V2_RELEASE_BANK=c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e
+NOID_RETIREMENT_KEY_0_PIN=<authenticated-key-0-digest>
+NOID_RETIREMENT_KEY_1_PIN=<authenticated-key-1-digest>
+```
+
+Use the independently recomputed key digests. The script parses this file as
+data; it does not execute shell code. The [final-bank record](https://git.parano1d.org/ignotusnemo/parano1d/src/branch/v2/research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md)
+links generation, authentication and qualification evidence.
+
+## Soundness reproduction
+
+The v2 tool evaluates the actual bank, both keys and historical ancestry:
+
+```sh
+cargo build --release --locked -p bench_prover --bin noid_v2_soundness
+target/release/noid_v2_soundness \
+  LEGACY_METADATA LEGACY_METADATA_PIN V2_METADATA V2_BANK_PIN \
+  CLASS_0_KEY CLASS_0_KEY_PIN CLASS_1_KEY CLASS_1_KEY_PIN
+```
+
+The [derivation](https://git.parano1d.org/ignotusnemo/parano1d/src/branch/v2/noid_soundness/docs/v2-retirement.md)
+explains its assumptions. The default `noid_soundness` executable retains the
+archived profile's calculation; use the v2 tool for this bank.
+
+## Native deliverables
+
+Run source checks and [qualification](testing.md) before packaging:
 
 ```sh
 ./scripts/build_release.sh \
-  --pack ../parano1d-artifacts/history-step-pack-v1
-```
+  --pack ../parano1d-artifacts/history-step-pack-v1 \
+  --v2-pack PATH_TO_FROZEN_V2_PACK \
+  --v2-pins PATH_TO_REVIEWED_PIN_FILE \
+  --retirement-keys PATH_TO_AUTHENTICATED_KEYS
 
-The script:
-
-1. authenticates the pack and derives its pins;
-2. checks formatting and the complete workspace;
-3. embeds runtime metadata and both matrices into the node;
-4. builds Core, external miner and GUI;
-5. runs the native release tests;
-6. smoke-tests every executable;
-7. packages the Core archive and native GUI installer;
-8. verifies archive membership and writes SHA-256 sums.
-
-Find the output:
-
-```sh
 cat target/release-builds/LAST_RELEASE
 ```
 
-Use `--output PATH` to choose a fresh output directory. `--skip-tests` is for a
-platform packaging job whose source revision has already passed the complete
-release gates; it should not be used for an independent release build.
+The release script validates input layouts and pins, embeds authenticated
+material, rejects a mismatched schedule, builds Core and GUI, smoke-tests the
+executables and verifies package membership and SHA-256 sums. It does not run
+the entire protocol test suite. `proof-pins.env` records the embedded identities.
+Use `--output PATH` for a fresh output directory.
+
+A later `--retired-history` build omits old matrix bytes once the selected
+origin's authenticated certificate is available over P2P. It still requires the
+two new matrices, old runtime metadata, independently pinned preprocessing keys
+and full certificate verification. Its historical pack may contain only
+`v1/history-step.runtime` and `pins.env`. Build the transition release without
+that flag so it can cross the boundary using the original matrices.
 
 ## Portable binaries
 
@@ -136,6 +168,7 @@ to zero. The Core archive has a fixed member set:
 
 ```text
 README.txt
+CONTRACTS.md
 LICENSE
 NOTICE
 parano1d
