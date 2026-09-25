@@ -71,6 +71,11 @@ returns after submission; otherwise the command waits for confirmation and
 saves a verified `.receipt` file. A removed pending call is reported explicitly;
 inspect the transaction and current balance before authorizing again.
 
+The call file saves the reviewed transaction ID, request and candidate successor
+before sending the authorization request. If the RPC response is lost, its
+`submission_status` remains `unknown`; query that transaction before retrying.
+Receiving a submission response updates the file atomically to `submitted`.
+
 Additional constructors are `payment`, `allowance`, `budget`, `recurring` and
 `vesting`; `create` accepts a definition JSON file. `watch`, `restore`, `status`,
 `receipt` and `verify` manage shared terms, live instances and retained evidence.

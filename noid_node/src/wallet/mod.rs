@@ -1370,9 +1370,11 @@ impl WalletOps for WalletHandle {
         let wallet = guard
             .as_mut()
             .ok_or_else(|| "wallet not initialized".to_string())?;
+        wallet.record_pending_send(txid, amount_micronoid, peer_address)?;
+        // The history write can fail. Do not reserve spendable slots until
+        // it succeeds; the caller has not installed its admission guard yet.
         wallet.add_pending_inputs(input_slots);
         wallet.add_pending_outputs(output_slots);
-        wallet.record_pending_send(txid, amount_micronoid, peer_address)?;
         Ok(())
     }
 
@@ -1491,6 +1493,7 @@ impl WalletOps for WalletHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::sync::Mutex;
     use tempfile::TempDir;
 
@@ -2023,6 +2026,52 @@ mod tests {
         assert!(wallet.pending_input_slots.is_empty());
         assert!(wallet.pending_output_slots.is_empty());
         assert!(wallet.history.is_empty());
+    }
+
+    #[test]
+    fn failed_pending_history_write_does_not_reserve_slots_or_leave_a_send() {
+        let (directory, handle) = handle_with_utxos(&[100_000, 100_000]);
+        let key = handle
+            .inner
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .keystore_path
+            .clone();
+        handle
+            .reserve_pending_submission([1; 32], &[0], &[10_000], 50_000, [2; 32])
+            .unwrap();
+        {
+            let mut guard = handle.inner.lock().unwrap();
+            let wallet = guard.as_mut().unwrap();
+            // A failed new send must not discard an earlier unsaved update.
+            wallet.confirm_pending_tx(&[1; 32], 12, [3; 32]);
+        }
+        let path = key.with_extension("history");
+        let held = directory.path().join("held-history");
+        std::fs::rename(&path, &held).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        let result = handle.reserve_pending_submission([4; 32], &[1], &[10_001], 60_000, [5; 32]);
+        assert!(result.is_err());
+        {
+            let guard = handle.inner.lock().unwrap();
+            let wallet = guard.as_ref().unwrap();
+            assert_eq!(wallet.pending_input_slots, HashSet::from([0]));
+            assert_eq!(wallet.pending_output_slots, HashSet::from([10_000]));
+            assert_eq!(wallet.history.len(), 1);
+            assert_eq!(wallet.history[0].height, 12);
+        }
+        std::fs::remove_dir(&path).unwrap();
+        std::fs::rename(held, &path).unwrap();
+        handle
+            .reserve_pending_submission([4; 32], &[1], &[10_001], 60_000, [5; 32])
+            .unwrap();
+        let loaded = WalletState::create_or_load(key).unwrap();
+        assert_eq!(loaded.history.len(), 2);
+        assert_eq!(loaded.history[0].height, 12);
+        assert_eq!(loaded.history[1].tx_hash, [4; 32]);
+        assert_eq!(loaded.history[1].height, 0);
     }
 
     #[test]

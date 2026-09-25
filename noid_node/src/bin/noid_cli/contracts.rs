@@ -200,6 +200,49 @@ fn save_json(mut file: File, value: &Value) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn sync_artifact_directory(path: &Path) -> anyhow::Result<()> {
+    #[cfg(unix)]
+    File::open(
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new(".")),
+    )?
+    .sync_all()?;
+    Ok(())
+}
+
+fn retain_review(path: &Path, request: &Value, reviewed: &Value) -> anyhow::Result<()> {
+    // Persist before sending: a lost RPC response says nothing about whether
+    // authorization and admission succeeded. Keep enough to query the exact
+    // transaction and recover its candidate without signing a second call.
+    save_json(
+        new_output(path)?,
+        &json!({
+            "submission_status":"unknown",
+            "transaction":{"txid":reviewed["txid"]},
+            "successor":reviewed["successor"],
+            "request":request,
+            "preview":reviewed,
+        }),
+    )?;
+    sync_artifact_directory(path)
+}
+
+fn replace_call_artifact(path: &Path, value: &Value) -> anyhow::Result<()> {
+    let temporary = path.with_extension(format!("{:032x}.partial", rand::random::<u128>()));
+    // Preserve the pre-submission review until the entire response is durable.
+    // Neither a failed write nor interruption can leave a truncated review.
+    let result = (|| {
+        save_json(new_output(&temporary)?, value)?;
+        std::fs::rename(&temporary, path)?;
+        sync_artifact_directory(path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(temporary);
+    }
+    result
+}
+
 async fn owner(ctx: &Ctx<'_>) -> anyhow::Result<String> {
     rpc(ctx, "walletActiveAddress", &[]).await?["address"]
         .as_str()
@@ -305,11 +348,19 @@ pub(super) async fn run(ctx: &Ctx<'_>, command: &ContractCommand) -> anyhow::Res
             if *preview { return print_json(&reviewed); }
             bind_review(&mut request, &reviewed)?;
             let out = out.as_ref().context("--out is required when submitting a call")?;
-            let file = new_output(out)?;
-            let mut result = rpc(ctx, "walletCallObject", &[request.clone()]).await?;
+            retain_review(out, &request, &reviewed)?;
+            let mut result = rpc(ctx, "walletCallObject", &[request.clone()]).await
+                .with_context(|| format!("Call outcome is not confirmed. Review and transaction ID are saved in {}; inspect this transaction before authorizing another call", out.display()))?;
+            anyhow::ensure!(
+                result["transaction"]["txid"] == reviewed["txid"]
+                    && result["call_height"] == reviewed["call_height"]
+                    && result["successor"] == reviewed["successor"],
+                "call response differs from the saved review; inspect the reviewed transaction before authorizing again"
+            );
             result["request"] = request;
             result["preview"] = reviewed;
-            save_json(file, &result)?;
+            result["submission_status"] = json!("submitted");
+            replace_call_artifact(out, &result)?;
             let txid = result["transaction"]["txid"].as_str().context("call transaction id missing")?;
             if *wait_seconds == 0 {
                 if ctx.json { return print_json(&result); }
@@ -391,6 +442,39 @@ fn bind_review(request: &mut Value, reviewed: &Value) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_review_survives_a_lost_response_and_failed_response_write() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("call.json");
+        let review = json!({"txid":"ab".repeat(32), "successor":{"opening_hex":"cafe"}});
+        let request = json!({"expected_txid":review["txid"], "opening_hex":"beef"});
+        retain_review(&path, &request, &review).unwrap();
+        let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["submission_status"], "unknown");
+        assert_eq!(saved["transaction"]["txid"], review["txid"]);
+        assert_eq!(saved["request"], request);
+        assert_eq!(read_opening(&path).unwrap(), "cafe");
+        assert!(retain_review(&path, &request, &review).is_err());
+        assert_eq!(
+            serde_json::from_slice::<Value>(&std::fs::read(&path).unwrap()).unwrap(),
+            saved
+        );
+        let updated = json!({"submission_status":"submitted", "successor":review["successor"]});
+        replace_call_artifact(&path, &updated).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&std::fs::read(&path).unwrap()).unwrap(),
+            updated
+        );
+        // A destination changed to a directory causes atomic replacement to
+        // fail. It must not overwrite its contents or leave a temporary file.
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        std::fs::write(path.join("held"), b"keep").unwrap();
+        assert!(replace_call_artifact(&path, &updated).is_err());
+        assert_eq!(std::fs::read(path.join("held")).unwrap(), b"keep");
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
 
     #[test]
     fn call_signing_is_bound_to_the_complete_review_and_authority() {

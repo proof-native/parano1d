@@ -393,8 +393,17 @@ impl WalletState {
             own_address: Some(self.active_address().to_bech32()),
             own_key_index: Some(self.active_index),
         });
-        self.mark_history_dirty(self.history.len() - 1);
-        self.save_history()
+        let index = self.history.len() - 1;
+        self.mark_history_dirty(index);
+        if let Err(error) = self.save_history() {
+            self.history.truncate(index);
+            // A failed fsync may have made a complete frame visible. Keep a
+            // corrective suffix dirty so the next write removes that entry,
+            // without losing any earlier unpersisted history updates.
+            self.mark_history_dirty(index);
+            return Err(error);
+        }
+        Ok(())
     }
 
     /// Remove a pending send that never entered the mempool.
