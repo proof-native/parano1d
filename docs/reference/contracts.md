@@ -125,5 +125,10 @@ bank and an authenticated fork origin. A receipt proves the recorded call; it
 does not prove that its successor remains unspent. Watched calls are retained
 locally so exported evidence can survive body pruning.
 
+The daemon stores a shared proof once when several watched calls use it.
+Receipt export reconstructs a complete portable receipt. For a backup of the
+daemon's local artifacts, copy the entire `objects` directory, including its
+`terminals` subdirectory.
+
 The matrix/call capacities remain candidate qualification parameters. Read them
 from the node instead of hardcoding the earlier research default of 16 calls.

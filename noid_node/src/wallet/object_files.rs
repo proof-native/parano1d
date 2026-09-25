@@ -13,6 +13,12 @@ use std::{
 };
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+// Local storage only: exported receipts keep their original self-contained
+// consensus-proof framing. Calls in one block share these exact proof bytes.
+const RECEIPT_REFERENCE_MAGIC: &[u8; 8] = b"NOIDORF1";
+const RECEIPT_REFERENCE_HEADER: usize = RECEIPT_REFERENCE_MAGIC.len() + 32;
+const TERMINAL_LIMIT: usize =
+    noid_chain::consensus::wire_limits::MAX_HISTORY_STEP_TERMINAL_TRANSPORT_BYTES;
 
 fn directory(key_path: &Path) -> Result<PathBuf, String> {
     Ok(key_path
@@ -78,7 +84,11 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
 
 pub(super) fn save_opening(key_path: &Path, opening: &ObjectOpening) -> Result<(), String> {
     let path = directory(key_path)?.join(format!("{}.opening", hex::encode(opening.root().0)));
-    write_atomic(&path, &opening.to_bytes().map_err(|e| e.to_string())?)
+    let bytes = opening.to_bytes().map_err(|e| e.to_string())?;
+    if read_bounded(&path, OPENING_BYTES).is_ok_and(|existing| existing == bytes) {
+        return Ok(());
+    }
+    write_atomic(&path, &bytes)
 }
 
 pub(super) fn load_opening(key_path: &Path, root: [u8; 32]) -> Result<ObjectOpening, String> {
@@ -100,17 +110,66 @@ pub(super) fn save_receipt(key_path: &Path, txid: [u8; 32], bytes: &[u8]) -> Res
     {
         return Err("object receipt transaction mismatch".into());
     }
+    let directory = directory(key_path)?;
+    let digest = blake3::hash(&receipt.terminal);
+    let terminal_path = directory
+        .join("terminals")
+        .join(format!("{}.terminal", digest.to_hex()));
+    // Check an existing object as well: a valid replacement receipt can heal
+    // local corruption while its block still belongs to the serving window.
+    if !read_bounded(&terminal_path, TERMINAL_LIMIT)
+        .is_ok_and(|existing| existing == receipt.terminal)
+    {
+        write_atomic(&terminal_path, &receipt.terminal)?;
+    }
+    // to_bytes/from_bytes place the terminal at the end, with its exact length
+    // immediately before it. This preserves both direct and descendant forms.
+    let prefix = &bytes[..bytes.len() - receipt.terminal.len()];
+    let mut reference = Vec::with_capacity(RECEIPT_REFERENCE_HEADER + prefix.len());
+    reference.extend_from_slice(RECEIPT_REFERENCE_MAGIC);
+    reference.extend_from_slice(digest.as_bytes());
+    reference.extend_from_slice(prefix);
+    // Proof first, reference last. The final directory sync also persists a
+    // newly created terminals/ directory alongside the receipt reference.
     write_atomic(
-        &directory(key_path)?.join(format!("{}.receipt", hex::encode(txid))),
-        bytes,
+        &directory.join(format!("{}.receipt", hex::encode(txid))),
+        &reference,
     )
 }
 
 pub(super) fn load_receipt(key_path: &Path, txid: [u8; 32]) -> Result<Vec<u8>, String> {
-    let bytes = read_bounded(
+    let stored = read_bounded(
         &directory(key_path)?.join(format!("{}.receipt", hex::encode(txid))),
         MAX_RECEIPT_BYTES,
     )?;
+    let bytes = if stored.starts_with(RECEIPT_REFERENCE_MAGIC) {
+        if stored.len() < RECEIPT_REFERENCE_HEADER + noid_block::contract_receipt::FIXED_BYTES
+            || stored.len() > RECEIPT_REFERENCE_HEADER + MAX_RECEIPT_BYTES - TERMINAL_LIMIT
+        {
+            return Err("saved object receipt reference bound".into());
+        }
+        let digest = &stored[8..RECEIPT_REFERENCE_HEADER];
+        let prefix = &stored[RECEIPT_REFERENCE_HEADER..];
+        let length = u32::from_le_bytes(prefix[prefix.len() - 4..].try_into().unwrap()) as usize;
+        if length == 0 || length > TERMINAL_LIMIT || prefix.len() + length > MAX_RECEIPT_BYTES {
+            return Err("saved object receipt terminal bound".into());
+        }
+        let terminal_path = directory(key_path)?
+            .join("terminals")
+            .join(format!("{}.terminal", hex::encode(digest)));
+        let terminal = read_bounded(&terminal_path, length)?;
+        if terminal.len() != length || blake3::hash(&terminal).as_bytes() != digest {
+            return Err("saved object receipt terminal mismatch".into());
+        }
+        let mut bytes = Vec::with_capacity(prefix.len() + length);
+        bytes.extend_from_slice(prefix);
+        bytes.extend_from_slice(&terminal);
+        bytes
+    } else {
+        // Read existing full receipts unchanged. A later save may migrate one
+        // atomically; merely opening a wallet never rewrites its backups.
+        stored
+    };
     let receipt = ObjectTransitionReceipt::from_bytes(&bytes)?;
     if noid_tx::hash_paged_spend(std::slice::from_ref(&receipt.page))
         .map_err(|e| e.to_string())?
@@ -212,6 +271,173 @@ pub(super) fn retain_from_block(
 mod tests {
     use super::*;
     use noid_poseidon2b::primitives::Address;
+
+    // Local framing/inclusion fixtures only; the dummy terminal is not proof
+    // authority. Live exported-receipt verification is tested by real nodes.
+    fn receipt_fixtures() -> Vec<ObjectTransitionReceipt> {
+        use noid_tx::{Transaction, TxBody, TxInput, TxOutput};
+        let height = noid_chain::consensus::params::V2_ACTIVATION_HEIGHT.unwrap();
+        let owner = Address([7; 32]);
+        let opening = noid_tx::experimental_object::applications::timelocked_vault(owner, 0, 5);
+        let mut outputs = [TxOutput::dummy(); noid_tx::TX_OUTPUTS];
+        outputs[0] = TxOutput {
+            slot_index: 0,
+            amount: 16_000_000,
+            owner,
+        };
+        let mut transactions = vec![Transaction::new(TxBody {
+            epoch_anchor: [0; 32],
+            fee: 0,
+            input_owner: Address([0; 32]),
+            inputs: [TxInput::dummy(); noid_tx::TX_INPUTS],
+            outputs,
+            validity_bitmap: noid_tx::output_bitmap_bit(0),
+            is_coinbase: true,
+        })];
+        for index in 0..2u32 {
+            let call = opening
+                .build_call(
+                    TxInput {
+                        slot_index: index + 1,
+                        amount: 1001,
+                        creation_id: u64::from(index) + 1,
+                    },
+                    index + 100,
+                    1,
+                    [0; 32],
+                    height,
+                    true,
+                )
+                .unwrap();
+            transactions.push(Transaction::new(call.body));
+        }
+        let epoch = noid_chain::consensus::genesis_header();
+        let mut header = epoch;
+        header.height = height;
+        header.difficulty_target = [0xff; 32];
+        header.tx_root = noid_chain::block::compute_tx_root(&transactions);
+        let block = noid_chain::Block {
+            header,
+            transactions,
+        };
+        (0..2)
+            .map(|index| {
+                ObjectTransitionReceipt::from_block(
+                    &block,
+                    index,
+                    opening.clone(),
+                    epoch,
+                    vec![42; 8192],
+                )
+                .unwrap()
+            })
+            .collect()
+    }
+
+    fn receipt_id(receipt: &ObjectTransitionReceipt) -> [u8; 32] {
+        noid_tx::hash_paged_spend(std::slice::from_ref(&receipt.page))
+            .unwrap()
+            .0
+    }
+
+    #[test]
+    fn same_block_receipts_share_proof_bytes_and_export_identical_wire() {
+        let temporary = tempfile::tempdir().unwrap();
+        let key = temporary.path().join("wallet.key");
+        let receipts = receipt_fixtures();
+        let mut wire_total = 0;
+        let mut stored_total = 0;
+        for receipt in &receipts {
+            let txid = receipt_id(receipt);
+            let wire = receipt.to_bytes().unwrap();
+            save_receipt(&key, txid, &wire).unwrap();
+            assert_eq!(load_receipt(&key, txid).unwrap(), wire);
+            let path = directory(&key)
+                .unwrap()
+                .join(format!("{}.receipt", hex::encode(txid)));
+            let stored = std::fs::read(path).unwrap();
+            assert!(stored.starts_with(RECEIPT_REFERENCE_MAGIC));
+            assert_eq!(
+                stored.len(),
+                RECEIPT_REFERENCE_HEADER + wire.len() - receipt.terminal.len()
+            );
+            stored_total += stored.len();
+            wire_total += wire.len();
+        }
+        let proofs = directory(&key).unwrap().join("terminals");
+        assert_eq!(std::fs::read_dir(proofs).unwrap().count(), 1);
+        stored_total += receipts[0].terminal.len();
+        assert!(stored_total < wire_total);
+        let first = &receipts[0];
+        let second = &receipts[1];
+        let root = directory(&key).unwrap();
+        std::fs::copy(
+            root.join(format!("{}.receipt", hex::encode(receipt_id(first)))),
+            root.join(format!("{}.receipt", hex::encode(receipt_id(second)))),
+        )
+        .unwrap();
+        assert!(load_receipt(&key, receipt_id(second))
+            .unwrap_err()
+            .contains("transaction mismatch"));
+    }
+
+    #[test]
+    fn proof_references_fail_closed_and_valid_receipts_heal_local_corruption() {
+        let temporary = tempfile::tempdir().unwrap();
+        let key = temporary.path().join("wallet.key");
+        let receipt = receipt_fixtures().remove(0);
+        let txid = receipt_id(&receipt);
+        let wire = receipt.to_bytes().unwrap();
+        save_receipt(&key, txid, &wire).unwrap();
+        let root = directory(&key).unwrap();
+        let proof = root.join("terminals").join(format!(
+            "{}.terminal",
+            blake3::hash(&receipt.terminal).to_hex()
+        ));
+        let mut corrupt = receipt.terminal.clone();
+        corrupt[0] ^= 1;
+        std::fs::write(&proof, corrupt).unwrap();
+        assert!(load_receipt(&key, txid)
+            .unwrap_err()
+            .contains("terminal mismatch"));
+        save_receipt(&key, txid, &wire).unwrap();
+        assert_eq!(load_receipt(&key, txid).unwrap(), wire);
+        std::fs::remove_file(proof).unwrap();
+        assert!(load_receipt(&key, txid).is_err());
+        save_receipt(&key, txid, &wire).unwrap();
+        let path = root.join(format!("{}.receipt", hex::encode(txid)));
+        let mut reference = std::fs::read(&path).unwrap();
+        let len = reference.len();
+        reference[len - 4..].copy_from_slice(&u32::MAX.to_le_bytes());
+        std::fs::write(path, reference).unwrap();
+        assert!(load_receipt(&key, txid)
+            .unwrap_err()
+            .contains("terminal bound"));
+    }
+
+    #[test]
+    fn full_receipts_and_descendant_receipts_survive_local_storage_migration() {
+        let temporary = tempfile::tempdir().unwrap();
+        let key = temporary.path().join("wallet.key");
+        let mut receipt = receipt_fixtures().remove(0);
+        let mut child = receipt.header;
+        child.height += 1;
+        child.prev_block_hash = noid_chain::block_id(&receipt.header);
+        receipt.descendants.push(child);
+        let wire = receipt.to_bytes().unwrap();
+        let txid = receipt_id(&receipt);
+        let root = directory(&key).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join(format!("{}.receipt", hex::encode(txid)));
+        std::fs::write(&path, &wire).unwrap();
+        assert_eq!(load_receipt(&key, txid).unwrap(), wire);
+        assert_eq!(std::fs::read(&path).unwrap(), wire); // Reads do not migrate.
+        save_receipt(&key, txid, &wire).unwrap();
+        assert!(std::fs::read(path)
+            .unwrap()
+            .starts_with(RECEIPT_REFERENCE_MAGIC));
+        assert_eq!(load_receipt(&key, txid).unwrap(), wire);
+    }
 
     #[test]
     fn durable_openings_are_bounded_and_bound_to_their_filename() {
