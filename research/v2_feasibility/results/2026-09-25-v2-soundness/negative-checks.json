@@ -1,0 +1,17 @@
+[
+  {
+    "label": "wrong-bank",
+    "exit_code": 1,
+    "error": "v2 soundness accounting failed: v2 runtime differs from the independently supplied bank pin"
+  },
+  {
+    "label": "wrong-key-pin",
+    "exit_code": 1,
+    "error": "v2 soundness accounting failed: v2 HistoryStep: Retirement(\"sparse evaluation matrix identity mismatch\")"
+  },
+  {
+    "label": "swapped-keys",
+    "exit_code": 1,
+    "error": "v2 soundness accounting failed: v2 HistoryStep: Origin"
+  }
+]

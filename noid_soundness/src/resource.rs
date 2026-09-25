@@ -127,7 +127,7 @@ pub struct CategoryOneCertificate {
     pub fixed_poseidon2b_delta_headroom: ExactProbability,
 }
 
-fn resource_event(
+pub(crate) fn resource_event(
     id: &'static str,
     bad_density: ExactProbability,
     response_cost: CoherentResponseCost,
@@ -304,7 +304,7 @@ pub fn certificate(parameters: &ProductionParameters) -> CategoryOneCertificate 
     let scalar = poseidon_response_cost.clone();
     let wallet_query = scalar.sequential_permutations(wallet_query_permutations);
     let history_query = scalar.sequential_permutations(history_query_permutations);
-    let mut events = vec![
+    let events = vec![
         resource_event("wallet.query", wallet.query_escape.clone(), wallet_query),
         resource_event(
             "wallet.field",
@@ -337,6 +337,19 @@ pub fn certificate(parameters: &ProductionParameters) -> CategoryOneCertificate 
             scalar.clone(),
         ),
     ];
+    compose_events(parameters, wallet, history, events)
+}
+
+/// Apply the existing all-root resource calculation to an explicitly supplied
+/// inventory. Callers must establish each event's local RBR bound separately.
+pub(crate) fn compose_events(
+    parameters: &ProductionParameters,
+    wallet: WalletLocalCertificate,
+    history: HistorySelection,
+    mut events: Vec<ResourceEvent>,
+) -> CategoryOneCertificate {
+    let poseidon_response_cost = poseidon2b_response_cost(parameters);
+    assert!(!events.is_empty(), "resource inventory must not be empty");
     events.sort_by(|left, right| {
         right
             .bad_density_per_gate_depth

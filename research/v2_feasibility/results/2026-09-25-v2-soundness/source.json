@@ -1,0 +1,24 @@
+{
+  "source_revision_before_commit": "9f6490ff7191f8ed53fd352854be0fadb6b12d95",
+  "binary_sha256": "f319493e9c04c75d47a842c696bf3cf417d0aad0dee5bf0252614169ae2aa4c5",
+  "checks": [
+    {
+      "job": "v2-soundness-tests",
+      "exit_code": 0,
+      "seconds": 39.73142571398057
+    },
+    {
+      "job": "v2-soundness-build",
+      "exit_code": 0,
+      "seconds": 3.7266905000142287
+    },
+    {
+      "job": "v2-soundness-candidate",
+      "exit_code": 0,
+      "seconds": 1.649245954991784
+    }
+  ],
+  "unit_tests_passed": 39,
+  "source_compiler": "Rust 1.96.0 release profile",
+  "protocol_parameters_changed": false
+}

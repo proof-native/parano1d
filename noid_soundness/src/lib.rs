@@ -12,6 +12,7 @@ pub mod qrom;
 pub mod resource;
 pub mod response_audit;
 pub mod reversible_multiplier;
+pub mod v2;
 
 use block_tiwari::BlockTiwariCertificate;
 use parameters::ProductionParameters;

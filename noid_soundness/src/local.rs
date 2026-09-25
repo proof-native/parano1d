@@ -103,7 +103,7 @@ fn history_proximity_at_domain(
     ExactProbability::dyadic(exceptional_integer, challenge_bits)
 }
 
-fn maximum_layer_proximity(
+pub(crate) fn maximum_layer_proximity(
     challenge_bits: u32,
     class: &HistoryClassParameters,
     multiplicity: u32,
@@ -130,7 +130,10 @@ fn maximum_layer_proximity(
 
 /// Integer list bound `ceil((m+1/2)/s_N)-1`, where
 /// `s_N=1/2-2/N<sqrt((N/4-1)/N)`.
-fn initial_list_size_bound(class: &HistoryClassParameters, multiplicity: u32) -> BigUint {
+pub(crate) fn initial_list_size_bound(
+    class: &HistoryClassParameters,
+    multiplicity: u32,
+) -> BigUint {
     let numerator = BigUint::from(2 * multiplicity + 1) * class.codeword_len;
     let denominator = BigUint::from(class.codeword_len - 4);
     assert!(!denominator.is_zero());

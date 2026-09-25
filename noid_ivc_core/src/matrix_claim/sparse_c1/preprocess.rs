@@ -91,6 +91,12 @@ impl SparseMatrixEvaluationKey {
         (0..ALL_COLUMNS).map(|column| params(self.column_log(column)))
     }
 
+    /// Number of prover-selected commitments that precede reduction challenges.
+    /// The other opening columns belong to the authenticated preprocessing key.
+    pub const fn dynamic_commitment_count(&self) -> usize {
+        ALL_COLUMNS - STATIC_COLUMNS
+    }
+
     pub fn digest(&self) -> [u8; 32] {
         let mut bytes = Vec::new();
         for item in [
