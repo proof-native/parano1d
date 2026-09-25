@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "source_head": "73bebb041326160417c6ebf92a080a83efd40257",
+  "script_sha256": {
+    "live_v2_boundary_reorg_scenario.py": "c38e44c91f9af692a957a17564491d3f918106f1b3df14c0c50a9c9a2a82c583",
+    "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+    "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+  },
+  "binary_sha256": {
+    "isolated_v2_node": "7eeae6522680fb6ed532c956190ac8fad156a3f409b5267be7f2dbf80b112241",
+    "parano1d-miner": "e32ebb3a618cc7066ef4e569db9d644ca6e5a4ebe96276895c2ae2ca3603b1c7"
+  },
+  "common": {
+    "height": 8,
+    "best_hash": "3ba6643f7c2bb807df8436c61ac090d53417d5318243cb8219ad877b7f6b25d2",
+    "difficulty_target": "00000000000000000000000000000000000000000000000000000080603b0000",
+    "active_slot_count": 8,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "360000000"
+  },
+  "branch_a": {
+    "height": 12,
+    "best_hash": "32b2ea7f81a37db813925be4a58e6c1be7f118a255b921fe7a1f41b3a79e4829",
+    "difficulty_target": "00000000000000000000000000000000000000000000000000809fd54c330000",
+    "active_slot_count": 13,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "448197500"
+  },
+  "branch_b": {
+    "height": 13,
+    "best_hash": "07578a3080ee4df4aaf05145a6878204bcce6c627aef45ca2c771ed063898491",
+    "difficulty_target": "00000000000000000000000000000000000000000000000000006d2909360000",
+    "active_slot_count": 13,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "462600000"
+  },
+  "old_origin_header": "b692080f0312ab0779c6fdfaad891835e8c07248412779bf4290b7dd51056c06",
+  "new_origin_header": "a3ec6b0ee9231de9d70434ca05636dd799947225fbb72052e298e7a08d8f4b71",
+  "branch_a_work": "1240573",
+  "branch_b_work": "1429902",
+  "reorg_seconds": 2.0190584769879933,
+  "orphan_receipt_rejected": "RPC verifyObjectReceipt@26401 failed: {'code': -32000, 'message': 'receipt is not on the selected chain'}",
+  "orphan_export_rejected": "RPC exportObjectReceipt@26401 failed: {'code': -32000, 'message': 'contract transaction is not confirmed'}",
+  "orphan_call_rejected": "RPC walletCallObject@26401 failed: {'code': -32000, 'message': 'inclusion height changed; preview and authorize the call again'}",
+  "final_tip": {
+    "height": 14,
+    "best_hash": "10980aea3f745b4ef274ce80aa20d5f0c3f9d077af66935282f15dbfa0313980",
+    "difficulty_target": "000000000000000000000000000000000000000000000000000005d0a9360000",
+    "active_slot_count": 14,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "477000000"
+  },
+  "mining": [
+    {
+      "node": "branch-a",
+      "first": 1,
+      "last": 8,
+      "seconds": 111.31268573299167
+    },
+    {
+      "node": "branch-a",
+      "first": 9,
+      "last": 10,
+      "seconds": 40.74248194898246
+    },
+    {
+      "node": "branch-a",
+      "first": 11,
+      "last": 11,
+      "seconds": 18.944296433997806
+    },
+    {
+      "node": "branch-a",
+      "first": 12,
+      "last": 12,
+      "seconds": 18.336535084003117
+    },
+    {
+      "node": "branch-b",
+      "first": 9,
+      "last": 13,
+      "seconds": 93.79104507499142
+    },
+    {
+      "node": "branch-a",
+      "first": 14,
+      "last": 14,
+      "seconds": 27.658781887002988
+    }
+  ],
+  "bank_pin": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "orphan_call_txid": "760f44312b03eeada3e74789dadc5471c04ea45ed0ee98cf756e2a445ca77415"
+}
