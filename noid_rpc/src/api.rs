@@ -74,6 +74,16 @@ pub trait ParanoidApi {
         opening_hex: String,
     ) -> RpcResult<crate::object_types::ObjectInfo>;
 
+    /// Browse locally retained counters with the same immutable program and
+    /// policies. Each page checks balances against one selected chain tip.
+    #[method(name = "walletListObjectStates")]
+    async fn wallet_list_object_states(
+        &self,
+        opening_hex: String,
+        after_root: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectKnownStates>;
+
     #[method(name = "exportObjectReceipt")]
     async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String>;
 

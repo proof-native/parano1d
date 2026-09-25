@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::contracts::{
-    Info, Instances, LibraryEntry, Outcome, Preview, Request, LIBRARY_LIMIT, TERMS_LIMIT,
+    Info, Instances, KnownStates, LibraryEntry, Outcome, Preview, Request, LIBRARY_LIMIT,
+    TERMS_LIMIT,
 };
 const RECEIPT_LIMIT: usize = 2 * 1024 * 1024;
 
@@ -69,7 +70,13 @@ impl Backend {
         let library = self
             .remember_contract(&info, None, !instances.slots.is_empty())
             .await?;
-        Ok(Outcome::Loaded(info, instances, library))
+        let states = self
+            .contract_rpc(
+                "walletListObjectStates",
+                json!([info.opening_hex, null, 32]),
+            )
+            .await?;
+        Ok(Outcome::Loaded(info, instances, library, states))
     }
 
     pub async fn contract_operation(&self, request: Request) -> Result<Outcome, String> {
@@ -150,6 +157,15 @@ impl Backend {
                 self.contract_instances(info, 0).await
             }
             Request::Refresh(info, cursor) => self.contract_instances(info, cursor).await,
+            Request::Related(info, cursor) => {
+                let states: KnownStates = self
+                    .contract_rpc(
+                        "walletListObjectStates",
+                        json!([info.opening_hex, cursor, 32]),
+                    )
+                    .await?;
+                Ok(Outcome::Related(states))
+            }
             Request::Save(info) => {
                 let Some(file) = rfd::AsyncFileDialog::new()
                     .set_file_name("contract.json")

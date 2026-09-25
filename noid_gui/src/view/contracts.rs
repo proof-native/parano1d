@@ -404,6 +404,47 @@ pub fn view(app: &App, _compact: bool) -> Element<'_, Message> {
                 current = current.push(command("NEXT PAGE", Action::NextPage, ready));
             }
         }
+        if let Some(known) = &state.known_states {
+            current = current.push(
+                row![
+                    text("OTHER SAVED COUNTERS AND BALANCES").size(12),
+                    text(format!("#{}", known.height)).size(12)
+                ]
+                .spacing(8),
+            );
+            current = current.push(text("Use a funded state after another participant calls the contract or the chain changes. All entries use the same program and spending rules.").size(12).color(theme::MUTED));
+            let mut available = false;
+            for (index, entry) in known.states.iter().enumerate() {
+                if !entry.has_balance || entry.object.address == info.address {
+                    continue;
+                }
+                available = true;
+                current = current.push(
+                    button(
+                        text(format!(
+                            "state0 = {} · state1 = {} · {}",
+                            entry.object.state[0], entry.object.state[1], entry.object.address
+                        ))
+                        .size(12),
+                    )
+                    .on_press_maybe(
+                        ready.then_some(Message::Contract(Action::UseKnownState(index))),
+                    )
+                    .padding(8)
+                    .style(|_, status| theme::button(ButtonKind::Command, status)),
+                );
+            }
+            if !available {
+                current = current.push(
+                    text("No other funded states on this page.")
+                        .size(12)
+                        .color(theme::MUTED),
+                );
+            }
+            if known.next_root.is_some() {
+                current = current.push(command("NEXT SAVED STATES", Action::NextStates, ready));
+            }
+        }
         current = current.push(
             row![
                 field(

@@ -173,6 +173,22 @@ pub struct ObjectInstances {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectKnownState {
+    pub object: ObjectInfo,
+    /// Queried from verified canonical State, not inferred from local files.
+    pub has_balance: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectKnownStates {
+    pub states: Vec<ObjectKnownState>,
+    pub height: u64,
+    pub tip_hash: String,
+    /// Exclusive root cursor. Only locally retained public terms are listed.
+    pub next_root: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectPayout {
     pub address: String,

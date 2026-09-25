@@ -12,6 +12,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+mod related;
+
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 // Local storage only: exported receipts keep their original self-contained
 // consensus-proof framing. Calls in one block share these exact proof bytes.
@@ -85,10 +87,23 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
 pub(super) fn save_opening(key_path: &Path, opening: &ObjectOpening) -> Result<(), String> {
     let path = directory(key_path)?.join(format!("{}.opening", hex::encode(opening.root().0)));
     let bytes = opening.to_bytes().map_err(|e| e.to_string())?;
-    if read_bounded(&path, OPENING_BYTES).is_ok_and(|existing| existing == bytes) {
-        return Ok(());
+    if !read_bounded(&path, OPENING_BYTES).is_ok_and(|existing| existing == bytes) {
+        write_atomic(&path, &bytes)?;
     }
-    write_atomic(&path, &bytes)
+    related::remember(key_path, opening)
+}
+
+pub(super) fn related_openings(
+    key_path: &Path,
+    opening: &ObjectOpening,
+    after: Option<[u8; 32]>,
+    limit: usize,
+) -> Result<noid_rpc::wallet_ops::WalletObjectOpeningPage, String> {
+    let (openings, next_root) = related::page(key_path, opening, after, limit)?;
+    Ok(noid_rpc::wallet_ops::WalletObjectOpeningPage {
+        openings,
+        next_root,
+    })
 }
 
 pub(super) fn load_opening(key_path: &Path, root: [u8; 32]) -> Result<ObjectOpening, String> {

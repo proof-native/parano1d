@@ -5,6 +5,11 @@ use crate::model::Language;
 
 pub(super) fn translate(language: Language, source: &str) -> Option<String> {
     let pair = match source {
+        "OTHER SAVED COUNTERS AND BALANCES" => ("ДРУГИЕ СОХРАНЁННЫЕ СОСТОЯНИЯ И ОСТАТКИ", "其他已保存的状态和余额"),
+        "Use a funded state after another participant calls the contract or the chain changes. All entries use the same program and spending rules." => ("Выберите состояние со средствами после вызова другим участником или изменения цепи. У всех записей одинаковые программа и правила расходования.", "其他参与者调用合约或链发生变化后，可选择仍有余额的状态。所有条目使用相同的程序和支出规则。"),
+        "No other funded states on this page." => ("На этой странице нет других состояний со средствами.", "本页没有其他有余额的状态。"),
+        "NEXT SAVED STATES" => ("СЛЕДУЮЩИЕ СОСТОЯНИЯ", "下一页已保存状态"),
+        "No more saved states." => ("Больше сохранённых состояний нет.", "没有更多已保存状态。"),
         "Each deposit creates a separate balance with its own counters and limits. Deposits do not merge." => ("Каждое пополнение создаёт отдельный остаток со своими счётчиками и лимитами. Пополнения не объединяются.", "每次充值都会创建独立余额，并使用自己的计数器和限额。充值不会合并。"),
         "PERIOD BUDGET" => ("БЮДЖЕТ НА ПЕРИОД", "周期预算"),
         "RECURRING PAYMENT" => ("РЕГУЛЯРНЫЙ ПЛАТЁЖ", "定期付款"),

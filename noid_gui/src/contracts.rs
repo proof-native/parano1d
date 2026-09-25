@@ -210,6 +210,19 @@ pub struct LibraryEntry {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct KnownState {
+    pub object: Info,
+    pub has_balance: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct KnownStates {
+    pub states: Vec<KnownState>,
+    pub height: u64,
+    pub next_root: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Payout {
     pub address: String,
     pub amount_micronoid: u64,
@@ -339,6 +352,8 @@ pub enum Action {
     EditProgram(iced::widget::text_editor::Action),
     EditLoaded,
     UseCandidate,
+    UseKnownState(usize),
+    NextStates,
     ReviewContinue,
     Kind(Kind),
     Edit(Field, String),
@@ -372,6 +387,7 @@ pub enum Request {
     Import,
     Restore(String),
     Refresh(Info, u32),
+    Related(Info, String),
     Save(Info),
     Fund {
         info: Info,
@@ -403,7 +419,8 @@ pub enum Outcome {
         payload: Value,
         preview: Preview,
     },
-    Loaded(Info, Instances, Vec<LibraryEntry>),
+    Loaded(Info, Instances, Vec<LibraryEntry>, KnownStates),
+    Related(KnownStates),
     Submitted {
         txid: String,
         old_opening: Option<String>,
@@ -423,6 +440,7 @@ pub struct State {
     pub budget: String,
     pub editor: iced::widget::text_editor::Content,
     pub candidate: Option<Info>,
+    pub known_states: Option<KnownStates>,
     pub kind: Kind,
     pub authority: String,
     pub deadline: String,
@@ -455,6 +473,7 @@ impl Default for State {
             budget: "10".into(),
             editor: iced::widget::text_editor::Content::new(),
             candidate: None,
+            known_states: None,
             kind: Kind::Payment,
             authority: String::new(),
             deadline: String::new(),
@@ -514,6 +533,28 @@ impl State {
                     self.candidate.clone().ok_or("No candidate successor.")?,
                     0,
                 )))
+            }
+            Action::UseKnownState(index) => {
+                self.review = None;
+                let info = self
+                    .known_states
+                    .as_ref()
+                    .and_then(|page| page.states.get(index))
+                    .ok_or("Saved contract list changed. Reload it.")?
+                    .object
+                    .clone();
+                return Ok(Some(Request::Refresh(info, 0)));
+            }
+            Action::NextStates => {
+                return Ok(Some(Request::Related(
+                    self.info
+                        .clone()
+                        .ok_or("Create or import contract terms first.")?,
+                    self.known_states
+                        .as_ref()
+                        .and_then(|page| page.next_root.clone())
+                        .ok_or("No more saved states.")?,
+                )));
             }
             Action::EditProgram(action) => {
                 let mut candidate =
@@ -846,8 +887,13 @@ impl State {
                 self.finish(Ok(*outcome));
                 self.notice = Some(notice);
             }
-            Ok(Outcome::Loaded(info, instances, library)) => {
+            Ok(Outcome::Related(states)) => self.known_states = Some(states),
+            Ok(Outcome::Loaded(info, instances, library, states)) => {
+                // This is a fresh balance view, not a transaction receipt.
+                // Do not carry an older submission's waiting message into it.
+                self.notice = None;
                 self.library = library;
+                self.known_states = Some(states);
                 self.candidate = self
                     .library
                     .iter()
@@ -878,6 +924,7 @@ impl State {
                     self.last_call = Some((txid, opening));
                 }
                 self.candidate = successor;
+                self.known_states = None;
                 self.instances = None;
                 self.selected = None;
             }
@@ -926,6 +973,7 @@ pub(crate) mod tests {
 
     fn loaded() -> State {
         let mut state = State::default();
+        state.notice = Some("Earlier submission awaiting confirmation".into());
         state.protocol = Some(Protocol {
             activation_height: Some(10),
             runtime_available: true,
@@ -943,7 +991,13 @@ pub(crate) mod tests {
                 next_slot: None,
             },
             Vec::new(),
+            KnownStates {
+                states: Vec::new(),
+                height: 50,
+                next_root: None,
+            },
         )));
+        assert!(state.notice.is_none());
         state.amount = "1".into();
         state
     }
@@ -960,6 +1014,37 @@ pub(crate) mod tests {
             payout: serde_json::from_value(payload["payout"].clone()).unwrap(),
             successor: Some(info()),
         }
+    }
+
+    #[test]
+    fn discovered_state_requires_a_fresh_balance_query_before_selecting_a_slot() {
+        let mut state = loaded();
+        let original = state.info.as_ref().unwrap().address.clone();
+        let mut recovered = info();
+        recovered.address = "recovered-state".into();
+        state.known_states = Some(KnownStates {
+            states: vec![KnownState {
+                object: recovered,
+                has_balance: true,
+            }],
+            height: 51,
+            next_root: Some("ab".repeat(32)),
+        });
+        let Some(Request::Refresh(target, 0)) = state
+            .action(Action::UseKnownState(0), "spending-key", 51)
+            .unwrap()
+        else {
+            panic!("discovery must request current instances");
+        };
+        assert_eq!(target.address, "recovered-state");
+        assert_eq!(state.info.as_ref().unwrap().address, original);
+        assert!(state
+            .action(Action::UseKnownState(1), "spending-key", 51)
+            .is_err());
+        assert!(
+            matches!(state.action(Action::NextStates, "spending-key", 51).unwrap(),
+            Some(Request::Related(_, cursor)) if cursor == "ab".repeat(32))
+        );
     }
 
     #[test]

@@ -577,6 +577,23 @@ impl WalletOps for WalletHandle {
             root,
         )
     }
+    fn related_object_openings(
+        &self,
+        opening: &noid_tx::experimental_object::ObjectOpening,
+        after: Option<[u8; 32]>,
+        limit: usize,
+    ) -> Result<noid_rpc::wallet_ops::WalletObjectOpeningPage, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::related_openings(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            opening,
+            after,
+            limit,
+        )
+    }
     fn remember_object_receipt(&self, txid: [u8; 32], bytes: &[u8]) -> Result<(), String> {
         let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
         object_files::save_receipt(

@@ -92,6 +92,11 @@ pub struct WalletReceiptSlice {
     pub receipts: Vec<WalletReceiptRecord>,
 }
 
+pub struct WalletObjectOpeningPage {
+    pub openings: Vec<noid_tx::experimental_object::ObjectOpening>,
+    pub next_root: Option<[u8; 32]>,
+}
+
 pub trait WalletOps: Send + Sync {
     /// Prove with the locally selected policy authority. No key material is
     /// accepted from RPC or returned by this boundary.
@@ -114,6 +119,16 @@ pub trait WalletOps: Send + Sync {
         _root: [u8; 32],
     ) -> Result<noid_tx::experimental_object::ObjectOpening, String> {
         Err("object opening unavailable".into())
+    }
+    /// Local public terms with identical program and rules but different
+    /// counters. Presence in this catalog never implies a confirmed balance.
+    fn related_object_openings(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+        _after: Option<[u8; 32]>,
+        _limit: usize,
+    ) -> Result<WalletObjectOpeningPage, String> {
+        Err("object catalog unavailable".into())
     }
     fn remember_object_receipt(&self, _txid: [u8; 32], _bytes: &[u8]) -> Result<(), String> {
         Err("object wallet unavailable".into())

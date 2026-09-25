@@ -1722,6 +1722,14 @@ impl ParanoidApiServer for RpcHandler {
             .map_err(rpc_err)?;
         objects::describe(&opening)
     }
+    async fn wallet_list_object_states(
+        &self,
+        opening_hex: String,
+        after_root: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectKnownStates> {
+        objects::known_states(self, opening_hex, after_root, limit).await
+    }
     async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String> {
         objects::export_receipt(self, opening_hex, txid).await
     }

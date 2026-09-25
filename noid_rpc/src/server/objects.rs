@@ -328,6 +328,50 @@ pub(super) async fn instances(
     })
 }
 
+pub(super) async fn known_states(
+    handler: &RpcHandler,
+    opening_hex: String,
+    after_root: Option<String>,
+    limit: u32,
+) -> RpcResult<ObjectKnownStates> {
+    if !(1..=64).contains(&limit) {
+        return Err(rpc_err("related contract page must contain 1..64 terms"));
+    }
+    let opening = opening(&opening_hex)?;
+    let after = after_root
+        .map(|text| -> RpcResult<[u8; 32]> {
+            decode_bounded_hex("object cursor", &text, 32)?
+                .try_into()
+                .map_err(|_| rpc_err("object cursor must be 32 bytes"))
+        })
+        .transpose()?;
+    let wallet = Arc::clone(&handler.wallet);
+    let page = tokio::task::spawn_blocking(move || {
+        wallet.related_object_openings(&opening, after, limit as usize)
+    })
+    .await
+    .map_err(|error| rpc_err(error.to_string()))?
+    .map_err(rpc_err)?;
+    let chain = handler.chain.read().await;
+    let mut states = Vec::with_capacity(page.openings.len());
+    for opening in page.openings {
+        let balance = chain
+            .store
+            .get_verified_owner_page(&opening.root().0, 0, 1)
+            .map_err(|error| rpc_err(error.to_string()))?;
+        states.push(ObjectKnownState {
+            object: describe(&opening)?,
+            has_balance: !balance.utxos.is_empty(),
+        });
+    }
+    Ok(ObjectKnownStates {
+        states,
+        height: chain.tip_height(),
+        tip_hash: hex::encode(noid_chain::block_id(chain.tip_header())),
+        next_root: page.next_root.map(hex::encode),
+    })
+}
+
 struct PreparedObjectCall {
     opening: ObjectOpening,
     page: noid_tx::TxPage,

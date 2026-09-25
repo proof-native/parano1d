@@ -130,5 +130,26 @@ Receipt export reconstructs a complete portable receipt. For a backup of the
 daemon's local artifacts, copy the entire `objects` directory, including its
 `terminals` subdirectory.
 
+The GUI also finds locally saved counters under the same program and spending
+rules. Refresh balances, then select another funded state if a participant's
+call or a chain reorganization changed the current one. Previous terms remain
+available even when the saved GUI entry has advanced to a successor.
+
+Applications can use `walletListObjectStates(opening_hex, after_root, limit)`
+for the same discovery. `after_root` is an exclusive hexadecimal root cursor
+or `null`; `limit` is 1–64. The response returns terms, a `has_balance` result
+for each, the selected height/hash, and the next cursor. Balances are queried
+from verified State at one tip. The local index itself is not confirmation,
+and results can include pending, spent or orphaned terms. Reload a state's
+instances before reviewing a call. Each page has its own tip; restart paging
+after a tip change if an application needs one consistent view.
+
+Discovery covers openings retained by this wallet, including successors found
+when processing watched calls. It does not recover an unknown program from a
+wallet key. Nodes that missed an entire pruned call window still need exported
+terms or a verified receipt from a participant. The local index reads compact
+public terms without scanning full proof receipts and can be rebuilt from the
+saved openings.
+
 The matrix/call capacities remain candidate qualification parameters. Read them
 from the node instead of hardcoding the earlier research default of 16 calls.
