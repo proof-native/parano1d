@@ -65,7 +65,7 @@ cargo run --release --locked -p noid_soundness -- --exact
 cargo test --release --locked -p noid_soundness
 ```
 
-## Generate the proof pack
+## Legacy proof pack
 
 The canonical pack contains:
 
@@ -77,7 +77,8 @@ pins.env
 SHA256SUMS
 ```
 
-Generate B25 and B255 matrices from honest fixtures:
+The v2 transition keeps the published B25 and B255 matrices unchanged. Reuse
+the authenticated legacy pack. The generator is retained for reproduction:
 
 ```sh
 mkdir -p ../parano1d-artifacts
@@ -92,23 +93,69 @@ The script writes to a staging directory, derives semantic pins, authenticates
 every artifact and publishes the completed directory atomically. It refuses to
 overwrite an existing output path.
 
+## Scheduled v2 material
+
+The v2 branch also needs a frozen joint bank matching the source activation
+height, and both independently authenticated legacy preprocessing keys. An H10
+isolated-network pack cannot be embedded in a mainnet executable: the node's
+build checks reject the schedule mismatch.
+
+After choosing and qualifying the final capacities, the matrix tool can freeze
+the mainnet relation before the real predecessor block exists:
+
+```sh
+cargo build --release --locked -p bench_prover --bin noid_v2_capacity
+target/release/noid_v2_capacity joint-freeze-mainnet \
+  LEGACY_PACK LEGACY_METADATA_PIN NEW_OUTPUT \
+  SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS
+```
+
+This mode requires the normal mainnet build profile. It reassembles both
+matrices under the final pins and two hypothetical boundary witnesses, then
+checks matrix identity and the transport bounds. It creates no verified fork
+origin or accepted terminal. The resulting pack contains
+`v2-runtime-metadata.bin`, `v2-small.field-r1cs.zst` and
+`v2-large.field-r1cs.zst`; intermediate matrices and the generation report
+remain beside them for reproducibility.
+
+The preprocessing directory contains `class-0.key` and `class-1.key`. Its
+reviewed key pins must come from recomputation against the canonical legacy
+matrices. Prepare a separate pin file with exactly these three assignments,
+each followed by its 64-character lowercase hexadecimal digest:
+
+```text
+NOID_V2_RELEASE_BANK=<frozen-bank-digest>
+NOID_RETIREMENT_KEY_0_PIN=<authenticated-key-0-digest>
+NOID_RETIREMENT_KEY_1_PIN=<authenticated-key-1-digest>
+```
+
+The release script parses this file as data. It never executes it as shell
+code. The [v2 soundness tool](../../noid_soundness/docs/v2-retirement.md)
+evaluates the exact bank and keys separately from artifact generation.
+
 ## Build native deliverables
 
 ```sh
 ./scripts/build_release.sh \
-  --pack ../parano1d-artifacts/history-step-pack-v1
+  --pack ../parano1d-artifacts/history-step-pack-v1 \
+  --v2-pack PATH_TO_FROZEN_V2_PACK \
+  --v2-pins PATH_TO_REVIEWED_PIN_FILE \
+  --retirement-keys PATH_TO_AUTHENTICATED_KEYS
 ```
 
 The script:
 
-1. authenticates the pack and derives its pins;
-2. checks formatting and the complete workspace;
-3. embeds runtime metadata and both matrices into the node;
+1. checks the supplied artifact layouts and reads explicit release pins;
+2. embeds legacy material, authenticated v2 matrices and preprocessing keys;
+3. rejects an incompatible bank or activation schedule during the node build;
 4. builds Core, external miner and GUI;
-5. runs the native release tests;
-6. smoke-tests every executable;
-7. packages the Core archive and native GUI installer;
-8. verifies archive membership and writes SHA-256 sums.
+5. smoke-tests every executable;
+6. packages the Core archive and native GUI installer;
+7. verifies archive membership and writes SHA-256 sums.
+
+Source checks, tests and network qualification are separate pre-build steps.
+The script records the proof pins and selected legacy-history profile in
+`proof-pins.env` beside the build log.
 
 Find the output:
 
@@ -116,9 +163,15 @@ Find the output:
 cat target/release-builds/LAST_RELEASE
 ```
 
-Use `--output PATH` to choose a fresh output directory. `--skip-tests` is for a
-platform packaging job whose source revision has already passed the complete
-release gates; it should not be used for an independent release build.
+Use `--output PATH` to choose a fresh output directory.
+
+For a later release, after an authenticated retirement certificate for the
+selected fork origin is available over P2P, `--retired-history` omits legacy
+matrix bytes from the node. That build accepts a legacy pack containing only
+`v1/history-step.runtime` and its existing `pins.env`; neither old matrix file
+is required. It still embeds both new matrices and independently checks the
+certificate before accepting the old ancestry. The transition release keeps
+the old matrices and is built without this flag.
 
 ## Portable binaries
 
