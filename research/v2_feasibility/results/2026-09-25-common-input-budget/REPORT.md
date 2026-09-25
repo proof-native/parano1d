@@ -338,3 +338,60 @@ six admission workloads, exact page/input totals, both over-limit errors,
 resource counters, source identities and log hashes. Reproduce with
 `scripts/live_v2_capacity_scenario.py` in a fresh loopback-only namespace,
 using this bank and the stopped successful contract-lifecycle fixture.
+
+## Reorganization across the activation boundary
+
+A separate two-node network shared a real legacy prefix through H8. Branch A
+mined its own H9 predecessor, crossed v2 at H10, funded a counter at H11 and
+confirmed its first call at H12. Branch B independently mined another H9
+predecessor and continued to H13 with strictly greater cumulative work.
+The scenario compared work, rather than assuming that greater height wins.
+
+After reconnection, normal P2P synchronization replaced branch A's selected
+origin and rolled back the orphaned contract balance and successor. Its
+receipt failed with `receipt is not on the selected chain`, export failed
+because the call was no longer confirmed, and resubmitting the stale reviewed
+call was rejected. Retained public terms remained available. Both nodes agreed
+on every canonical block hash through H13. After restarting the reorganized
+node, it mined H14 successfully and both nodes again selected the exact same
+tip. Both processes shut down successfully.
+
+This functional run took 335.515 s; observed P2P convergence during the reorg
+took 1.786 s. It did not use the constrained receiver profile and is not a
+four-CPU reorg performance claim. [Reorg records](reorg-daemons.json) retain
+the old and new origin headers, cumulative work, rejected operations, restart
+times and source/binary/log hashes. Reproduce with
+`scripts/live_v2_boundary_reorg_scenario.py` and the pinned isolated bank in
+a fresh loopback-only namespace.
+
+## Shared receipt storage on the selected bank
+
+The capacity fixture continued from H83. At H84, another 63-call Small block
+advanced the existing counters from two to three. Each node exported all 63
+portable receipts, with matching hashes across nodes; the first and last were
+independently verified. H85 exercised the retained-window reader. After a
+receiver restart, all 63 exports were byte-identical and the first and last
+verified again. Four earlier retained receipts still exported and verified
+after their original call bodies had been pruned.
+
+| Receipt payload storage per node for H84 | Bytes |
+|---|---:|
+| 63 individual references and inclusion data | 110,754 |
+| One shared recursive proof | 914,004 |
+| Combined local payload | 1,024,758 |
+| Equivalent 63 separate portable receipts | 57,690,486 |
+
+Sharing reduced this block's local receipt payload by a factor of 56.30.
+These are file content sizes, excluding directory metadata and separately
+retained public terms. Every complete portable export was still 915,722 bytes;
+this storage change does not reduce export size or proof creation time.
+
+The receiver retained the enforced four-CPU, PCLMUL, 8-GiB/no-swap profile. Its
+highest sampled cgroup peak was 1,753,653,248 bytes (1.63 GiB), with zero memory-
+limit or OOM events across both process lifetimes. Startup took 12.527 s and
+restart 12.512 s. The 197.490 s scenario shut down successfully.
+[Receipt records](receipts-daemons.json) retain all export hashes, older
+receipt checks, local sizes, actual resource counters and source identities.
+Reproduce with `scripts/live_v2_shared_receipts_scenario.py`, using the stopped
+capacity fixture and its pruned contract-lifecycle ancestor in a new isolated
+network namespace.

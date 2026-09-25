@@ -41,7 +41,8 @@ def main():
     live.BASE = BASE
     unit = f"noid-v2-receipts-receiver-{os.getpid()}"
     b = contracts.Node("receiver", 26310, 26311, command_prefix=("systemd-run", "--user", "--scope", "--quiet",
-        f"--unit={unit}", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0", "taskset", "-c", "0,2,4,6"))
+        f"--unit={unit}", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0",
+        "-p", "CPUQuota=400%", "taskset", "-c", "0,2,4,6"))
     a = contracts.Node("producer", 26300, 26301, command_prefix=("taskset", "-c", "1,3,5,7,8,9,10,11"))
     report = {"status": "running", "source_tip": prior["final_tip"], "receipts": [],
               "source_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
@@ -69,7 +70,7 @@ def main():
         if path is None:
             return []
         ancestor = json.loads((Path(path) / "report.json").read_text())
-        live.require(ancestor["status"] == "passed" and ancestor.get("pruning"), "ancestor pruning qualification did not pass")
+        live.require(ancestor["status"] == "passed" and ancestor.get("pruning") == "passed", "ancestor pruning qualification did not pass")
         checks = []
         # Include a direct receipt and the offline receiver's descendant form.
         for record in (ancestor["calls"][0], ancestor["calls"][-1]):
@@ -77,8 +78,9 @@ def main():
             for node in (a, b):
                 encoded = rpc(node, "exportObjectReceipt", [record["opening_hex"], txid])
                 local = (node.data_dir / 'objects' / (txid + '.receipt')).read_bytes()
-                live.require(local[:8] in (b'O1OBJRC4', b'O1OBJRC5'), "expected an original complete local receipt")
-                live.require(local.hex() == encoded, "reading changed an old complete receipt")
+                live.require(local[:8] in (b'O1OBJRC4', b'O1OBJRC5', b'NOIDORF1'), "unknown retained receipt format")
+                if local[:8] != b'NOIDORF1':
+                    live.require(local.hex() == encoded, "reading changed an old complete receipt")
                 live.require(rpc(node, "verifyObjectReceipt", [encoded])["valid"], "old pruned receipt failed with new binary")
                 checks.append({"node": node.name, "txid": txid, "format": local[:8].decode(),
                                "bytes": len(local), "sha256": hashlib.sha256(local).hexdigest()})
@@ -86,6 +88,7 @@ def main():
 
     try:
         b.start("01-receiver")
+        report["receiver_enforcement"] = contracts.receiver_resources(unit)
         a.start("02-producer", mode="extminer", genesis=True, seeds=[b.seed])
         live.wait_value("copied full-capacity nodes converge", lambda: live.exact_tip(a, b), 600)
         live.require(a.info() == prior["final_tip"], "copied fixture tip differs")
@@ -103,10 +106,12 @@ def main():
             "claim_can_continue": True, "claim_can_close": True,
             "recovery_can_continue": False, "recovery_can_close": True,
             "unrestricted_payout_recipient": False}}
-        opening = rpc(a, "createObject", [definition])
+        opening = prior.get("counter_opening") or rpc(a, "createObject", [definition])
+        counter_state = int(opening["state"][0])
+        live.require(counter_state in (1, 2), "unexpected capacity-fixture counter state")
         rpc(b, "walletWatchObject", [opening["opening_hex"]])
         instances = rpc(a, "getObjectInstances", [opening["opening_hex"], 0, 64])["slots"]
-        live.require(len(instances) == 63, "source does not have 63 State1 counters")
+        live.require(len(instances) == 63, "source does not have 63 expected counters")
         checkpoint("authorize 63 independent counter updates")
         calls = []
         for slot in instances:
@@ -116,7 +121,11 @@ def main():
             preview = rpc(a, "previewObjectCall", [request])
             request.update(expected_txid=preview["txid"], expected_call_height=preview["call_height"],
                            expected_recovery=preview["recovery"])
-            calls.append(rpc(a, "walletCallObject", [request])["transaction"]["txid"])
+            submitted = rpc(a, "walletCallObject", [request])
+            live.require(submitted["successor"]["state"] == [str(counter_state + 1), "0"],
+                         "shared-receipt call did not increment the fixture counter")
+            calls.append(submitted["transaction"]["txid"])
+            report["counter_opening"] = submitted["successor"]
         for txid in calls:
             live.wait_value("producer retains reviewed counter call",
                 lambda txid=txid: rpc(a, "getMempoolEntry", [txid]) is not None, 120)
@@ -150,6 +159,7 @@ def main():
                 "separate_portable_receipts_bytes": portable_bytes})
         checkpoint("restart and export byte-identical receipts")
         mine()  # Exercises the retained-window reader on the new local format.
+        report["receiver_before_restart"] = contracts.receiver_resources(unit)
         b.stop()
         b.start("03-receiver-restart", seeds=[a.seed])
         live.wait_value("restarted receiver has the exact tip", lambda: live.exact_tip(a, b), 600)
@@ -161,7 +171,7 @@ def main():
         for txid in (calls[0], calls[-1]):
             encoded = rpc(b, "exportObjectReceipt", [opening["opening_hex"], txid])
             live.require(rpc(b, "verifyObjectReceipt", [encoded])["valid"], "restarted receipt failed verification")
-        report.update(status="passed", final_tip=a.info())
+        report.update(status="passed", final_tip=a.info(), receiver_final=contracts.receiver_resources(unit))
         checkpoint("complete")
     except Exception as error:
         report.update(status="failed", error=str(error))
