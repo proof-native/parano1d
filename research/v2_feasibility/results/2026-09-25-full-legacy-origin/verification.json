@@ -1,0 +1,38 @@
+{
+  "records": [
+    {
+      "origin_binding": "9eb210fa9c17e820e1aef15eb7b1975d7f5ec0fb5bc1aebeefa7217731344268",
+      "status": "verified",
+      "verification_without_legacy_rows": true,
+      "verify_ms": 1429
+    },
+    {
+      "class": 0,
+      "height": 17,
+      "status": "post_fork_terminal_verified",
+      "verification_without_legacy_rows": true,
+      "verify_including_new_matrix_setup_ms": 187917
+    },
+    {
+      "height": 17,
+      "legacy_transport_without_rows_rejected": true,
+      "missing_certificate_rejected": true,
+      "status": "protocol_origin_restart_verified",
+      "tampered_terminal_rejected": true,
+      "verification_without_legacy_rows": true
+    }
+  ],
+  "cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "rayon_threads": 4,
+  "cpu_backend": "pclmul",
+  "memory_max_bytes": 8589934592,
+  "swap_max_bytes": 0,
+  "peak_rss_kib": 568980,
+  "whole_process_seconds": 207.53183994299616,
+  "cold_new_matrix_authentication_included": true
+}

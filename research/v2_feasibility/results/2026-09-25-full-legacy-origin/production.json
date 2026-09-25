@@ -1,0 +1,158 @@
+{
+  "bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "complete": true,
+  "daemon_p2p_qualified": false,
+  "durable_reopen": true,
+  "memory": {
+    "process_peak_rss_kib": 5004084,
+    "rss_kib": 1528548
+  },
+  "mode": "fork",
+  "records": [
+    {
+      "admission_ms": 0.00024200000000000003,
+      "auth_ms": 0.0,
+      "calls": 0,
+      "class": 0,
+      "height": 10,
+      "label": "fork_empty",
+      "memory": {
+        "process_peak_rss_kib": 3706768,
+        "rss_kib": 2464360
+      },
+      "pages": 0,
+      "pow_ms": 1037.7181799999998,
+      "preparation_ms": 66562.884319,
+      "template_ms": 4.219822,
+      "terminal_bytes": 910484,
+      "verify_apply_ms": 435.158564
+    },
+    {
+      "admission_ms": 148.993489,
+      "auth_ms": 2213.036247,
+      "calls": 0,
+      "class": 0,
+      "height": 11,
+      "label": "fund_six_templates",
+      "memory": {
+        "process_peak_rss_kib": 4719136,
+        "rss_kib": 2553448
+      },
+      "pages": 6,
+      "pow_ms": 1250.1311070000002,
+      "preparation_ms": 15471.745544000001,
+      "template_ms": 12.999585,
+      "terminal_bytes": 913332,
+      "verify_apply_ms": 776.950314
+    },
+    {
+      "admission_ms": 181.194535,
+      "auth_ms": 2589.427893,
+      "calls": 6,
+      "class": 0,
+      "height": 12,
+      "label": "template_calls_and_payment",
+      "memory": {
+        "process_peak_rss_kib": 4780820,
+        "rss_kib": 2641828
+      },
+      "pages": 7,
+      "pow_ms": 1458.146646,
+      "preparation_ms": 15956.506222,
+      "template_ms": 8.673355,
+      "terminal_bytes": 915188,
+      "verify_apply_ms": 766.3861440000001
+    },
+    {
+      "admission_ms": 0.000156,
+      "auth_ms": 0.0,
+      "calls": 0,
+      "class": 0,
+      "height": 13,
+      "label": "between_due_heights",
+      "memory": {
+        "process_peak_rss_kib": 4870148,
+        "rss_kib": 2717048
+      },
+      "pages": 0,
+      "pow_ms": 1543.840341,
+      "preparation_ms": 15558.281498,
+      "template_ms": 4.267862,
+      "terminal_bytes": 916820,
+      "verify_apply_ms": 752.7882689999999
+    },
+    {
+      "admission_ms": 135.940454,
+      "auth_ms": 1928.013785,
+      "calls": 4,
+      "class": 0,
+      "height": 14,
+      "label": "template_calls_and_payment",
+      "memory": {
+        "process_peak_rss_kib": 4945504,
+        "rss_kib": 2680096
+      },
+      "pages": 5,
+      "pow_ms": 1815.373123,
+      "preparation_ms": 20408.464841,
+      "template_ms": 8.283671,
+      "terminal_bytes": 915028,
+      "verify_apply_ms": 958.069782
+    },
+    {
+      "admission_ms": 0.000296,
+      "auth_ms": 0.0,
+      "calls": 0,
+      "class": 0,
+      "height": 15,
+      "label": "between_due_heights",
+      "memory": {
+        "process_peak_rss_kib": 4945504,
+        "rss_kib": 2706924
+      },
+      "pages": 0,
+      "pow_ms": 292.793898,
+      "preparation_ms": 21701.423631,
+      "template_ms": 3.786446,
+      "terminal_bytes": 911316,
+      "verify_apply_ms": 887.0438670000001
+    },
+    {
+      "admission_ms": 135.83443400000002,
+      "auth_ms": 2623.494826,
+      "calls": 4,
+      "class": 0,
+      "height": 16,
+      "label": "template_calls_and_payment",
+      "memory": {
+        "process_peak_rss_kib": 4945504,
+        "rss_kib": 2775996
+      },
+      "pages": 5,
+      "pow_ms": 567.752759,
+      "preparation_ms": 17581.439341,
+      "template_ms": 8.679051,
+      "terminal_bytes": 914964,
+      "verify_apply_ms": 682.538795
+    },
+    {
+      "admission_ms": 0.00016299999999999998,
+      "auth_ms": 0.0,
+      "calls": 0,
+      "class": 0,
+      "height": 17,
+      "label": "after_recovery",
+      "memory": {
+        "process_peak_rss_kib": 5004084,
+        "rss_kib": 2768920
+      },
+      "pages": 0,
+      "pow_ms": 55.836149,
+      "preparation_ms": 15665.126186,
+      "template_ms": 2.433082,
+      "terminal_bytes": 915508,
+      "verify_apply_ms": 717.0873909999999
+    }
+  ],
+  "tip": 17
+}

@@ -1,0 +1,40 @@
+{
+  "certificate_bytes": 15093850,
+  "classes": [
+    {
+      "class": 0,
+      "preprocessing_ms": 112125,
+      "proof_bytes": 6478232,
+      "prove_verify_encode_ms": 315525
+    },
+    {
+      "class": 1,
+      "preprocessing_ms": 483038,
+      "proof_bytes": 7628536,
+      "prove_verify_encode_ms": 1474867
+    }
+  ],
+  "elapsed_ms": 2527927,
+  "legacy_bank": "30feb976380c4318b3d4b64c8163a265236bcd2a1066f10c1c5ef7da78bcc78c",
+  "legacy_runtime": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+  "origin_binding": "9eb210fa9c17e820e1aef15eb7b1975d7f5ec0fb5bc1aebeefa7217731344268",
+  "release_key_pins": [
+    "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+    "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+  ],
+  "retirement_request": "0d4cd5e8af5407e1d981e601297e3866649de2544ae7db792896d64f86271cb7",
+  "status": "passed",
+  "v2_bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+  "verification_without_legacy_rows": true,
+  "offline_producer": {
+    "host": "Intel Core i7-1365U, AVX2+VPCLMULQDQ",
+    "rayon_threads": 12,
+    "memory_max_bytes": 21474836480,
+    "swap_max_bytes": 0,
+    "peak_rss_kib": 20926196,
+    "elapsed_seconds": 2527.974482116988,
+    "workspace": "anonymous disk-backed PCS codeword",
+    "resource_allowance_note": "64 GiB is conservative planned allocation admission, not measured resident memory; cgroup pressure/reclamation occurred at the 20 GiB cap"
+  },
+  "certificate_sha256": "7417fddea917668aa2c83dfacc213f2808b0d7b16f4f079405da7ac972279a68"
+}

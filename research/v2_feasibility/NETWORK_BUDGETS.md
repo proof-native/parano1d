@@ -62,6 +62,10 @@ The first [retirement check](results/2026-09-25-fork-origin/REPORT.md) covers an
 old B25-only boundary. The [cold-sync scenario](results/2026-09-25-retired-cold-sync/REPORT.md)
 also exercises transport, offline restart and same-tip certificate recovery.
 It retains the same B25-only legacy-origin scope.
+The [both-class component run](results/2026-09-25-full-legacy-origin/REPORT.md)
+measured a 15,093,850-byte certificate and 1,429 ms certificate verification
+on four PCLMUL CPUs. Its full daemon transport and producer checks are separate
+from that component measurement.
 
 For 112 independent one-page payments, the body is 36,716 bytes. At 223 and 255
 such payments it would be 72,569 and 82,905 bytes. The measured proof sizes and

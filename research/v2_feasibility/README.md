@@ -17,6 +17,9 @@ of the authenticated certificate from disk in a fresh protocol context.
 The [cold P2P run](results/2026-09-25-retired-cold-sync/REPORT.md) additionally
 qualified an empty retired-history node, offline restart, failure with unusable
 local certificates and their authenticated replacement at an unchanged tip.
+The [both-class boundary run](results/2026-09-25-full-legacy-origin/REPORT.md)
+also verified a new certificate and v2 continuation when the last old block
+uses B255 and both old accumulated claims are live.
 The [wallet discovery run](results/2026-09-25-contract-discovery/REPORT.md)
 covers participant calls, reorganization rollback and a real GUI-submitted call.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
