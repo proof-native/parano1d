@@ -5,6 +5,9 @@ now contain actual m23/m24 proofs through all four class transitions, including
 63 calls in the small class and 26 calls in a filled 255-page large block.
 These are candidate limits; they have not been selected as release parameters.
 The two classes have independent page, input and call budgets.
+The [384-input alternative](results/2026-09-25-large-call-budget/REPORT.md)
+uses `63 504 63 384 40` and has proved 40 Large calls in a 255-page block;
+this trades input capacity for call capacity and leaves Small unchanged.
 
 ## Joint-bank runner
 

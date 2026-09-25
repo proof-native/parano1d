@@ -7,6 +7,9 @@ expanded integer core. All four class transitions and filled call envelopes
 have actual recursive proofs. The [full-node capacity run](results/2026-09-25-live-full-capacity/REPORT.md)
 also exercised 63 ordinary payments, 63 contract calls, manual B255 and a return
 to small blocks on a receiver constrained to four CPUs and 8 GiB.
+An [alternative Large envelope](results/2026-09-25-large-call-budget/REPORT.md)
+has now proved 40 calls in a full 255-page block by reducing its input budget
+to 384. It retains 63 Small pages and is not a selected release parameter.
 The earlier [112-page baseline](results/2026-09-24-tps/REPORT.md) used a different
 single-class core and does not establish capacity for this bank. The
 [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
