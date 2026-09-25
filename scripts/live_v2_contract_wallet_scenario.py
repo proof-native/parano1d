@@ -4,11 +4,14 @@
 Requires a passed, stopped shared-receipt fixture in NOID_V2_WALLET_SOURCE,
 a fresh NOID_V2_LIVE_DIR, and the noid_gui test binary in NOID_GUI_TEST_BINARY.
 Run explicitly in a loopback-only network namespace. No CI integration.
+NOID_V2_WALLET_RESUME_SOURCE permits only the stopped tx-index assertion
+checkpoint from this scenario, preserving its completed real mining work.
 """
 import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import subprocess
 import time
 
@@ -28,12 +31,30 @@ def main():
     gui_test = Path(os.environ["NOID_GUI_TEST_BINARY"]).resolve()
     prior = json.loads((source / "report.json").read_text())
     live.require(prior["status"] == "passed" and not prior.get("shutdown_errors"), "source did not pass and stop")
+    resume_path = os.environ.get("NOID_V2_WALLET_RESUME_SOURCE")
+    resume_source = Path(resume_path).resolve() if resume_path else None
+    resume = json.loads((resume_source / "report.json").read_text()) if resume_source else None
+    binary_hashes = {path.name: live.sha256(path) for path in (contracts.NODE, contracts.MINER, gui_test)}
+    if resume:
+        live.require(resume["status"] == "failed"
+                     and resume["error"] == "old transaction is still served"
+                     and not resume.get("shutdown_errors")
+                     and resume["blocks"][-1]["first"] == 89
+                     and resume["blocks"][-1]["last"] == 131
+                     and len(resume["gui_checks"]) == 8
+                     and resume["binary_sha256"] == binary_hashes,
+                     "resume requires the stopped tx-index assertion checkpoint with identical binaries")
     live.require(not BASE.exists(), "use a fresh output directory")
     BASE.mkdir(parents=True)
     for folder in ("logs", "files", "gui-cases"):
         (BASE / folder).mkdir()
-    for old, new in (("producer", "alice"), ("receiver", "bob")):
-        subprocess.run(["cp", "-a", "--reflink=auto", "--sparse=always", str(source / old), str(BASE / new)], check=True)
+    if resume:
+        for name in ("alice", "bob", "alice-gui", "bob-gui"):
+            subprocess.run(["cp", "-a", "--reflink=auto", "--sparse=always", str(resume_source / name), str(BASE / name)], check=True)
+        shutil.copytree(resume_source / "files", BASE / "files", dirs_exist_ok=True)
+    else:
+        for old, new in (("producer", "alice"), ("receiver", "bob")):
+            subprocess.run(["cp", "-a", "--reflink=auto", "--sparse=always", str(source / old), str(BASE / new)], check=True)
     key = BASE / "mining.key"
     with key.open("x") as file:
         file.write(secrets.token_hex(32) + "\n")
@@ -42,8 +63,14 @@ def main():
     alice = contracts.Node("alice", 26300, 26301)
     bob = contracts.Node("bob", 26310, 26311)
     report = {"status": "running", "source_tip": prior["final_tip"], "gui_checks": [], "blocks": [],
-              "binary_sha256": {path.name: live.sha256(path) for path in (contracts.NODE, contracts.MINER, gui_test)},
+              "binary_sha256": binary_hashes,
               "script_sha256": {Path(path).name: live.sha256(path) for path in (__file__, contracts.__file__, live.__file__)}}
+
+    if resume:
+        report.update(gui_checks=resume["gui_checks"], blocks=resume["blocks"],
+                      resumed_checkpoint={"report_sha256": live.sha256(resume_source / "report.json"),
+                          "status": resume["status"], "error": resume["error"],
+                          "binary_sha256": resume["binary_sha256"], "script_sha256": resume["script_sha256"]})
 
     def checkpoint(stage):
         report["stage"] = stage
@@ -97,52 +124,68 @@ def main():
 
     try:
         bob.start("01-bob-producer", mode="extminer", genesis=True)
-        alice.start("02-alice", seeds=[bob.seed])
-        converge()
-        payer = rpc(alice, "walletActiveAddress")["address"]
-        payee = rpc(bob, "walletActiveAddress")["address"]
-        live.require(payer != payee, "two different wallet authorities required")
-        height = alice.height()
-        definition = {"kind": "custom_program", "definition": {
-            "state": ["0", "0"], "program": [{"opcode": "add", "destination": "state0",
-                "left": "state0", "right": "one", "predicate": {"source": "terminal", "inverted": True}, "immediate": "0"}],
-            "claim_authority": payee, "recovery_authority": payer,
-            "claim_recipient": payee, "recovery_recipient": payer,
-            "deadline_height": height + 10, "max_fee_micronoid": 1000000,
-            "max_payout_micronoid": 1000000, "min_retained_micronoid": 0,
-            "claim_can_continue": True, "claim_can_close": True,
-            "recovery_can_continue": False, "recovery_can_close": True,
-            "unrestricted_payout_recipient": False}}
-        funded = gui(alice, "create_and_fund", definition=definition, name="Alice’s shared budget", amount=10000000)
-        original = funded["info"]
-        mine(txid=funded["txid"])
-        shared = BASE / "files" / "Общий контракт 東京.json"
-        live.require(gui(alice, "share", opening_hex=original["opening_hex"], path=str(shared))["with_receipt"], "funding receipt missing from shared terms")
-        gui(bob, "import", path=str(shared))
-        journal(bob, original, [funded["txid"]])
-        first = gui(bob, "call", opening_hex=original["opening_hex"], terminal=False,
-                    payout={"address": payee, "amount_micronoid": 1000000})
-        mine(txid=first["txid"])
-        state1 = first["successor"]
-        entries = journal(alice, original, [funded["txid"], first["txid"]])
-        other = next(op for op in entries if op["txid"] == first["txid"])
-        live.require(other["authority"] == payee and other["amount_micronoid"] == 1000000, "other-party facts differ")
+        if resume:
+            live.require(bob.height() == 131, "resumed producer tip differs")
+            checks = {item["label"]: item["result"] for item in resume["gui_checks"]}
+            funded = checks["01-alice-create_and_fund"]
+            original = funded["info"]
+            first = checks["05-bob-call"]
+            second = checks["07-bob-call"]
+            state2 = second["successor"]
+            second_height = 88
+            shared = BASE / "files" / "Общий контракт 東京.json"
+            update = BASE / "files" / "Updated contract.json"
+        else:
+            alice.start("02-alice", seeds=[bob.seed])
+            converge()
+            payer = rpc(alice, "walletActiveAddress")["address"]
+            payee = rpc(bob, "walletActiveAddress")["address"]
+            live.require(payer != payee, "two different wallet authorities required")
+            height = alice.height()
+            definition = {"kind": "custom_program", "definition": {
+                "state": ["0", "0"], "program": [{"opcode": "add", "destination": "state0",
+                    "left": "state0", "right": "one", "predicate": {"source": "terminal", "inverted": True}, "immediate": "0"}],
+                "claim_authority": payee, "recovery_authority": payer,
+                "claim_recipient": payee, "recovery_recipient": payer,
+                "deadline_height": height + 10, "max_fee_micronoid": 1000000,
+                "max_payout_micronoid": 1000000, "min_retained_micronoid": 0,
+                "claim_can_continue": True, "claim_can_close": True,
+                "recovery_can_continue": False, "recovery_can_close": True,
+                "unrestricted_payout_recipient": False}}
+            funded = gui(alice, "create_and_fund", definition=definition, name="Alice’s shared budget", amount=10000000)
+            original = funded["info"]
+            mine(txid=funded["txid"])
+            shared = BASE / "files" / "Общий контракт 東京.json"
+            live.require(gui(alice, "share", opening_hex=original["opening_hex"], path=str(shared))["with_receipt"], "funding receipt missing from shared terms")
+            gui(bob, "import", path=str(shared))
+            journal(bob, original, [funded["txid"]])
+            first = gui(bob, "call", opening_hex=original["opening_hex"], terminal=False,
+                        payout={"address": payee, "amount_micronoid": 1000000})
+            mine(txid=first["txid"])
+            state1 = first["successor"]
+            entries = journal(alice, original, [funded["txid"], first["txid"]])
+            other = next(op for op in entries if op["txid"] == first["txid"])
+            live.require(other["authority"] == payee and other["amount_micronoid"] == 1000000, "other-party facts differ")
 
-        checkpoint("Alice offline; Bob makes a second call")
-        alice.stop()
-        second = gui(bob, "call", opening_hex=state1["opening_hex"], terminal=False,
-                     payout={"address": payee, "amount_micronoid": 1000000})
-        mine(txid=second["txid"])
-        second_height = bob.height()
-        state2 = second["successor"]
-        live.require(state2["state"][0] == "2", "counter did not advance twice")
-        update = BASE / "files" / "Updated contract.json"
-        live.require(gui(bob, "share", opening_hex=state2["opening_hex"], path=str(update))["with_receipt"], "successor file has no call proof")
-        # Native local serving retention is 42 blocks. Advance past it without
-        # special pruning flags or deleting chain files by hand.
-        mine(43)
+            checkpoint("Alice offline; Bob makes a second call")
+            alice.stop()
+            second = gui(bob, "call", opening_hex=state1["opening_hex"], terminal=False,
+                         payout={"address": payee, "amount_micronoid": 1000000})
+            mine(txid=second["txid"])
+            second_height = bob.height()
+            state2 = second["successor"]
+            live.require(state2["state"][0] == "2", "counter did not advance twice")
+            update = BASE / "files" / "Updated contract.json"
+            live.require(gui(bob, "share", opening_hex=state2["opening_hex"], path=str(update))["with_receipt"], "successor file has no call proof")
+            # Native local serving retention is 42 blocks. Advance past it without
+            # special pruning flags or deleting chain files by hand.
+            mine(43)
         live.require(rpc(bob, "getBlockDetails", [second_height])["retained"] is None, "old call body is still retained")
-        live.require(rpc(bob, "getTx", [second["txid"]]) is None, "old transaction is still served")
+        live.require(rpc(bob, "getBlock", [second_height]) is None, "old raw block body is still served")
+        # getTx is an index pointer, not the transaction body or a receipt.
+        # Its continued presence does not allow a missed call to be recovered.
+        report["pruned_body_lookup"] = dict(height=second_height, retained=None, raw_block=None,
+            tx_index=rpc(bob, "getTx", [second["txid"]]))
         checkpoint("Alice returns after pruning and imports Bob’s verified update")
         alice.start("03-alice-after-pruning", seeds=[bob.seed])
         converge()
@@ -190,7 +233,7 @@ def main():
         check = rpc(alice, "verifyObjectReceipt", [recovered.read_bytes().hex()])
         live.require(check["valid"] and check["txid"] == second["txid"], "recovered proof did not verify")
         report.update(status="passed", final_tip=alice.info(), pruning="passed", gui_rendering_tested=False,
-                      ordinary_lookup_pruned=True, independent_wallets=True)
+                      ordinary_body_lookup_pruned=True, independent_wallets=True)
         checkpoint("complete")
     except Exception as error:
         report.update(status="failed", error=str(error))
