@@ -546,3 +546,46 @@ each recorded zero memory-limit or OOM events. The
 identities, actual enforced limits, exact tips, rejection messages, timings
 and log hashes. Reproduce with `scripts/live_v2_retired_sync_scenario.py`,
 the stopped GUI fixture and the certificate bound to its selected origin.
+
+## Retired-node production after both legacy classes
+
+A separate network continued the native H17 fixture using its certificate for
+both legacy classes. An ordinary transition node funded a counter at H19 and
+called it at H20. After 43 more real blocks, both peers agreed on H63 and the
+old call body was pruned. Its portable receipt still exported successfully.
+
+A fresh retired node obtained the 15,093,850-byte certificate over P2P and
+reached the exact H63 tip through snapshot bootstrap. Startup and convergence
+took 28.616 s. It then verified the old receipt and found the funded successor.
+That receiving phase peaked at 623,550,464 cgroup bytes. This fixture differs
+from the H89 GUI fixture above; its convergence timer stops before the
+additional State and receipt checks.
+
+After restarting in external-miner mode, the retired executable produced an
+empty Small block at H64. A separately authorized call reached it through the
+mempool, and its H65 block advanced the counter from one to two. The transition
+peer accepted both blocks and independently verified the new receipt.
+
+| Retired-node workload | Production and delivery | Cgroup peak bytes |
+|---|---:|---:|
+| Empty Small block, H64 | 81.614 s | 2,794,541,056 |
+| One-call Small block, H65 | 86.566 s | 3,348,955,136 |
+
+The node enforced four CPUs, PCLMUL, 8 GiB and no swap; its configured proof
+pool used three workers. The external nonce worker ran separately with two
+threads. Timings include template preparation, nonce work and peer acceptance.
+These constrained production samples exceed the 30-second target; the earlier
+AVX2 producer measurements have a different hardware and worker profile. The
+peak after H65 is cumulative over that producer process lifetime.
+
+No legacy matrix-cache files appeared. After all providers stopped, the
+retired node restarted at the exact H65 tip and verified both old and new
+receipts. Its offline startup took 10.510 s. All four recorded resource samples
+had zero memory-limit or OOM events, and every process stopped successfully.
+The complete scenario took 1,423.569 s, including the 43-block pruning interval.
+
+[Retired-production records](retired-mining-daemons.json) preserve both calls,
+all six receipt checks, accepted tips, actual resource limits, worker count,
+source identities and log hashes. Reproduce with
+`scripts/live_v2_retired_mining_scenario.py`, the stopped native H17 fixture
+and its exact two-class retirement certificate.

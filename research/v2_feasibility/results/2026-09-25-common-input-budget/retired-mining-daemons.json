@@ -1,0 +1,920 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source": {
+    "job": "mining",
+    "output": "/home/neo/rust/parano1d-artifacts/v2-common-live-retired-mining-20260925-a",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "source_head": "1b09f52838214ab5d5f54eede54b8c587c129632",
+    "script_sha256": "a3d9de8dd85ef66f52208edc200350d79c8feb6c0828873487e81278e16c93dd",
+    "transition_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "retired_sha256": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+    "certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+    "command": [
+      "unshare",
+      "--user",
+      "--map-root-user",
+      "--net",
+      "/usr/bin/python3",
+      "/home/neo/rust/paranoid/scripts/live_v2_retired_mining_scenario.py"
+    ]
+  },
+  "node_build_source": {
+    "source_head": "4b9ce461d363f14215c3b1a67f34cb69fea2100b",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "transition_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "transition": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-node-2250f0d9",
+    "live_origin_sha256": "687fced38bd3e853b73750d5c602dd31b0fe738b81701f63f038fa576e0ced90",
+    "live_origin": "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/producer/data/fork-origins/78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89.origin",
+    "full_origin_sha256": "8c5caf28ff8ee105b6591cfe51f3b72620d0b01dfe56b373ee3630979ad959cf",
+    "full_origin": "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2/legacy-fork-origin.bin",
+    "helper_sha256": "4d250c352040b7c91df3b6b770ee1496adbcf1f39def7e3f5d1488c281951753",
+    "retirement_key_pins": [
+      "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+      "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+    ],
+    "tool_sha256": "5631a9548d1205b0224a655f0b845dd9a75083a591c22c9debeb5a40283b8108",
+    "tool_archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+    "prior_rejected_attempt": "/home/neo/rust/paranoid/.git/v2-production-20260924/common-retirement-attempt-a-source.json",
+    "prior_rejection_reason": "Archived capacity benchmark lacked isolated-v2-fork-testnet; joint-produce rejected before creating output.",
+    "benchmark_sha256": "25b380951f0bc503ee5f98806a7a8267945686ae3530d98e17b8358dd29d1a9c",
+    "benchmark": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-production-25b38095",
+    "benchmark_features": "noid_chain/isolated-v2-fork-testnet",
+    "retired_sha256": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+    "retired": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-retired-f7726a66",
+    "live_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a/retired-v2-origin.bin",
+    "live_certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+    "full_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a/retired-v2-origin.bin",
+    "full_certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+    "production": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a",
+    "complete": true
+  },
+  "run_seconds": 1423.5686059420113,
+  "summary": {
+    "final_height": 65,
+    "retired_produced_heights": [
+      64,
+      65
+    ],
+    "pruning_extension_blocks": 43,
+    "receipt_checks": 6,
+    "retired_cold_sync_seconds": 28.616157477983506,
+    "producer_resource_scope": "Retired node proof construction and verification; external nonce worker runs separately with two threads.",
+    "resource_peaks": [
+      {
+        "label": "cold receiver and pruned receipt verification",
+        "peak_bytes": 623550464
+      },
+      {
+        "label": "retired empty block production",
+        "peak_bytes": 2794541056
+      },
+      {
+        "label": "retired contract block production",
+        "peak_bytes": 3348955136
+      },
+      {
+        "label": "offline producer restart",
+        "peak_bytes": 620699648
+      }
+    ],
+    "retired_proof_workers": 3
+  },
+  "startup": [
+    {
+      "label": "01-existing-peer",
+      "height": 17,
+      "seconds": 3.021
+    },
+    {
+      "label": "02-transition-producer",
+      "height": 17,
+      "seconds": 6.006
+    },
+    {
+      "label": "03-retired-cold-sync",
+      "height": 0,
+      "seconds": 12.012
+    },
+    {
+      "label": "04-retired-producer",
+      "height": 63,
+      "seconds": 11.51
+    },
+    {
+      "label": "05-retired-offline-restart",
+      "height": 65,
+      "seconds": 10.51
+    }
+  ],
+  "report": {
+    "status": "passed",
+    "source_height": 17,
+    "blocks": [
+      {
+        "producer": "producer",
+        "first": 18,
+        "last": 18,
+        "production_and_delivery_seconds": 24.146272186015267
+      },
+      {
+        "producer": "producer",
+        "first": 19,
+        "last": 19,
+        "production_and_delivery_seconds": 21.319774801988387
+      },
+      {
+        "producer": "producer",
+        "first": 20,
+        "last": 20,
+        "production_and_delivery_seconds": 28.589981658005854
+      },
+      {
+        "producer": "producer",
+        "first": 21,
+        "last": 63,
+        "production_and_delivery_seconds": 1101.1710153600143
+      },
+      {
+        "producer": "retired",
+        "first": 64,
+        "last": 64,
+        "production_and_delivery_seconds": 81.61362166600884
+      },
+      {
+        "producer": "retired",
+        "first": 65,
+        "last": 65,
+        "production_and_delivery_seconds": 86.56644204599434
+      }
+    ],
+    "checks": [
+      {
+        "node": "producer",
+        "height": 20,
+        "txid": "1fdd1d042b4a73415bffc1885790d0280d27480aaa56d041768a0bc11a0fae4e",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 63,
+        "txid": "1fdd1d042b4a73415bffc1885790d0280d27480aaa56d041768a0bc11a0fae4e",
+        "receipt_verified": true
+      },
+      {
+        "node": "producer",
+        "height": 65,
+        "txid": "d76b6452dceae8aed4c543ff8fb82a779834ca0801bbb9806a12bb8362744383",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "d76b6452dceae8aed4c543ff8fb82a779834ca0801bbb9806a12bb8362744383",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "1fdd1d042b4a73415bffc1885790d0280d27480aaa56d041768a0bc11a0fae4e",
+        "receipt_verified": true
+      },
+      {
+        "node": "retired",
+        "height": 65,
+        "txid": "d76b6452dceae8aed4c543ff8fb82a779834ca0801bbb9806a12bb8362744383",
+        "receipt_verified": true
+      }
+    ],
+    "source_head": "1b09f52838214ab5d5f54eede54b8c587c129632",
+    "script_sha256": {
+      "live_v2_retired_mining_scenario.py": "a3d9de8dd85ef66f52208edc200350d79c8feb6c0828873487e81278e16c93dd",
+      "live_v2_retired_sync_scenario.py": "776c8fcb9e740a23623bd658ed9ae3d26257b2c2f4e96972717fc8d97439b3f9",
+      "live_v2_contract_scenario.py": "2cd0171011deb6fe5af48455418a27009c98e3afcb6d23af049725d656916e5d",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "binary_sha256": {
+      "isolated-v2-common-node-2250f0d9": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+      "isolated-v2-common-retired-f7726a66": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+      "parano1d-miner": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68"
+    },
+    "certificate_bytes": 15093850,
+    "certificate_origin": "b7fdcbd39c1c4ddd157acd683ac3a95db49743df5c4b12c17d5f2f6019381755",
+    "certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+    "retired_node_cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "retired_backend": "pclmul",
+    "retired_memory_max": 8589934592,
+    "retired_swap_max": 0,
+    "external_nonce_worker_threads": 2,
+    "stage": "complete",
+    "opening": {
+      "abi_version": 3,
+      "state": [
+        "0",
+        "0"
+      ],
+      "address": "o1wmsvr3z0gktk4qqm2ts5s2gv8tdd4ygp2wq6lrjqd8n8dmx27ajqymmu6v",
+      "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000000000000000000040420f00000000000b",
+      "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+      "state_hex": "00000000000000000000000000000000",
+      "program": [
+        {
+          "opcode": "add",
+          "destination": "state0",
+          "left": "state0",
+          "right": "one",
+          "predicate": {
+            "source": "terminal",
+            "inverted": true
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        },
+        {
+          "opcode": "keep",
+          "destination": "state0",
+          "left": "state0",
+          "right": "state0",
+          "predicate": {
+            "source": "always",
+            "inverted": false
+          },
+          "immediate": "0"
+        }
+      ],
+      "claim_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+      "recovery_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+      "claim_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+      "recovery_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+      "deadline_height": 1000000,
+      "max_fee_micronoid": 1000000,
+      "max_payout_micronoid": 1000000,
+      "min_retained_micronoid": 0,
+      "claim_can_continue": true,
+      "claim_can_close": true,
+      "recovery_can_continue": false,
+      "recovery_can_close": true,
+      "unrestricted_payout_recipient": false
+    },
+    "first_call": {
+      "transaction": {
+        "txid": "1fdd1d042b4a73415bffc1885790d0280d27480aaa56d041768a0bc11a0fae4e",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 20,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "1",
+          "0"
+        ],
+        "address": "o1h5uatp8fujskqtc7manclf6rc2769xmj8tgka2fw7v9rawzltyks8cyrx5",
+        "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000001",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "recovery_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "claim_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "recovery_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "deadline_height": 1000000,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 519271
+    },
+    "first_call_height": 20,
+    "retired_cold_sync_seconds": 28.616157477983506,
+    "retired_resources": [
+      {
+        "label": "cold receiver and pruned receipt verification",
+        "height": 63,
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "500064256",
+        "memory.peak": "623550464",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 70628633\nuser_usec 70266717\nsystem_usec 361916\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 278\nnr_throttled 68\nthrottled_usec 29176\nnr_bursts 0\nburst_usec 0"
+      },
+      {
+        "label": "retired empty block production",
+        "height": 64,
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1057910784",
+        "memory.peak": "2794541056",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 233413300\nuser_usec 230130506\nsystem_usec 3282793\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 913\nnr_throttled 17\nthrottled_usec 17501\nnr_bursts 0\nburst_usec 0"
+      },
+      {
+        "label": "retired contract block production",
+        "height": 65,
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1025515520",
+        "memory.peak": "3348955136",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 459649737\nuser_usec 453547060\nsystem_usec 6102677\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1793\nnr_throttled 17\nthrottled_usec 17501\nnr_bursts 0\nburst_usec 0"
+      },
+      {
+        "label": "offline producer restart",
+        "height": 65,
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "447053824",
+        "memory.peak": "620699648",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 47596336\nuser_usec 47311454\nsystem_usec 284882\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 180\nnr_throttled 45\nthrottled_usec 21637\nnr_bursts 0\nburst_usec 0"
+      }
+    ],
+    "final_tip": {
+      "height": 65,
+      "best_hash": "ba014edde67af5e9a93724c74d49afb0b5233fd5b6825ec5444bcfcff2d941b4",
+      "difficulty_target": "000000000000000000000000000000ec65fff00e4691ffad7d8f06b4be2a0000",
+      "active_slot_count": 133,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1211230000"
+    },
+    "second_call": {
+      "transaction": {
+        "txid": "d76b6452dceae8aed4c543ff8fb82a779834ca0801bbb9806a12bb8362744383",
+        "amount_micronoid": 0,
+        "fee_micronoid": 5800,
+        "input_count": 1,
+        "output_count": 1
+      },
+      "call_height": 65,
+      "successor": {
+        "abi_version": 3,
+        "state": [
+          "2",
+          "0"
+        ],
+        "address": "o1sqwumvk4xva9quggw0xexvc3gwfy0m44sd7p27rt4648rvxl74pslpfzmp",
+        "opening_hex": "4e4f49444f424a33030002700a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d192f58337bb16ff1798226bb4bf6785e395e6414daa20d280d9635bf68c5bb7d19240420f0000000000000000000000000040420f00000000000b",
+        "code_id": "12dfaaac241488ab4be3189075d1f8de9196c9cd6059f020c2e7c1d2e8ef6167",
+        "state_hex": "00000000000000000000000000000002",
+        "program": [
+          {
+            "opcode": "add",
+            "destination": "state0",
+            "left": "state0",
+            "right": "one",
+            "predicate": {
+              "source": "terminal",
+              "inverted": true
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          },
+          {
+            "opcode": "keep",
+            "destination": "state0",
+            "left": "state0",
+            "right": "state0",
+            "predicate": {
+              "source": "always",
+              "inverted": false
+            },
+            "immediate": "0"
+          }
+        ],
+        "claim_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "recovery_authority": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "claim_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "recovery_recipient": "o17kpn0wcklutesgntkjlk0p0rjhnyznd2yrfgpktrt0mgckah6xfqx6nl4d",
+        "deadline_height": 1000000,
+        "max_fee_micronoid": 1000000,
+        "max_payout_micronoid": 1000000,
+        "min_retained_micronoid": 0,
+        "claim_can_continue": true,
+        "claim_can_close": true,
+        "recovery_can_continue": false,
+        "recovery_can_close": true,
+        "unrestricted_payout_recipient": false
+      },
+      "output_slot": 470224
+    },
+    "pruned_call_verified": true,
+    "retired_produced_heights": [
+      64,
+      65
+    ]
+  },
+  "report_sha256": "047c755aaa9bc98bdcb62a1742ef69139fe1e2aae735f1c5b61fdc06a5f08634",
+  "scenario_log_sha256": "9dc92ea75c32b10398a43a77a6943658808693933a02fa1fdb23ca7a1935ba9c",
+  "log_sha256": {
+    "01-existing-peer.log": "5b8f518c5c56cc13cffa00458eb4671d98e1ddfc7907cb479bf72991aba0dc5a",
+    "02-transition-producer.log": "ed7cd5cb413a551b14adfe0eb1141d22435a7dc61230d8a01e3cf5e44c965825",
+    "03-retired-cold-sync.log": "306ccd8df641167f83782ce42a8a6491f8774f3e0c3031bac6cd23d3b5917937",
+    "04-retired-producer.log": "1873e897875b151fd6893be0eba90b0ecffd4dab39dc7719f5aa568e565e0002",
+    "05-retired-offline-restart.log": "19457a9c8a1f6b9bf97a6c48ff0a869541e96c8eee2fd82de40616b956531891",
+    "external-producer-18.log": "915362a8079a30133b2855fa0c5901c84da23496bb4d8a1debf766d449e67bfb",
+    "external-producer-19.log": "698fbcc46a9c8c97a38b008c78d00266a6f4a9efb35b176298bfe1cecfc5e5c2",
+    "external-producer-20.log": "55a015446f11da833c0b48d17e609461db72793d8d94915af7368deb7523418a",
+    "external-producer-21.log": "e69574bf8ff62617f2ee00efc362db9795b3ab86d2eb946f8c60e514b1b01669",
+    "external-retired-64.log": "48cf1ceed6b0e53736d9bd5b6f2a1f8056babc3c6d3f7df712951a00510137e3",
+    "external-retired-65.log": "c332e0194fca48f3775f8c92f55250addf881f2d09d719ba21d35320350ed9e4"
+  }
+}

@@ -75,7 +75,8 @@ def main():
     unit = f'noid-v2-retired-producer-{os.getpid()}'
     c = Node('retired', 26320, 26321, binary=retired_binary, constrained=True,
         command_prefix=('systemd-run', '--user', '--scope', '--quiet', f'--unit={unit}',
-            '-p', 'MemoryMax=8G', '-p', 'MemorySwapMax=0', 'taskset', '-c', '0,2,4,6'))
+            '-p', 'MemoryMax=8G', '-p', 'MemorySwapMax=0',
+            '-p', 'CPUQuota=400%', 'taskset', '-c', '0,2,4,6'))
     source_height = resume['blocks'][-1]['last'] if resume else 17
     report = {'status': 'running', 'source_height': source_height, 'blocks': [], 'checks': [],
         'source_head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
@@ -99,10 +100,7 @@ def main():
         print(f'[stage] {stage}', flush=True)
 
     def resources(label):
-        group = subprocess.check_output(['systemctl', '--user', 'show', unit + '.scope', '-p', 'ControlGroup', '--value'], text=True).strip()
-        path = Path('/sys/fs/cgroup') / group.lstrip('/')
-        sample = {'label': label, 'height': c.height(), **{
-            name: (path / name).read_text().strip() for name in ('memory.current', 'memory.peak', 'memory.events', 'cpu.stat')}}
+        sample = {'label': label, 'height': c.height(), **contracts.receiver_resources(unit)}
         events = dict(line.split() for line in sample['memory.events'].splitlines())
         live.require(all(events.get(event) == '0' for event in ('max', 'oom', 'oom_kill')), 'retired node exceeded its envelope')
         report.setdefault('retired_resources', []).append(sample)
