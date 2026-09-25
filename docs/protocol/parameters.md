@@ -1,9 +1,48 @@
 # Consensus parameters
 
-This page groups the released v1.1 consensus constants. Values are integers
-unless stated otherwise. The v2 branch implements a
-[height-based issuance schedule](economics.md#v2-issuance); its new proof-class
-capacities are being qualified separately.
+This page records the scheduled v2 profile and the released v1.1 constants it
+replaces. Values are integers unless stated otherwise. Mainnet changes rules
+at block height, independently of the wall-clock date of that block.
+
+## Scheduled v2 profile
+
+| Parameter | From mainnet H210537 |
+|---|---:|
+| Target block interval | 30 seconds |
+| ASERT reference epoch | 6 blocks |
+| ASERT half-life | 180 seconds |
+| Default class | Small, `m=23` |
+| Optional server class | Large, `m=24`, enabled with `--v2-large-blocks` |
+| Small / Large page budget | 63 / 206 |
+| Live input budget, either class | 504 per block |
+| Contract-call budget, either class | 63 per block |
+| Contract ABI | 3: two persistent `u64` registers, two scratch registers, 16 instructions |
+| Initial gross subsidy | 16 NOID |
+| Subsidy step interval | 1,051,200 blocks from activation |
+| Permanent subsidy floor | 1 NOID |
+
+Page, input and call limits apply together. A call uses one page; the primary
+coinbase has its own position, and an additional mandatory system page uses
+part of the page budget. Ordinary transactions can use several pages. Thus
+Small fits 63 one-page payments or 63 calls; Large fits 206 one-page payments
+or 63 calls plus 143 one-page payments, subject to the same input budget.
+Large increases payment capacity and supports the same contract core.
+
+Every node verifies both classes. Large production is an explicit server
+option; the GUI has no control for it. The installed limits are available from
+`getContractProtocol`. See [contract interfaces](../reference/contracts.md),
+[class selection](../architecture/mining.md#scheduled-v2-profile) and the
+[nine-step height-based issuance schedule](economics.md#v2-issuance).
+
+Transaction epochs, finality, reorganization, body retention, State expansion
+and network wire bounds retain the block counts and limits listed below.
+The transaction wire codec still admits up to 1,020 inputs for legacy history;
+v2 admission additionally requires each transaction and complete block to fit
+the active class budget. The frozen matrices and qualification evidence are
+recorded in the [common-input report](../../research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md).
+
+The remaining tables describe **v1.1 before H210537**. The existing v1.1
+activation at H95125 and its proof matrices are unchanged.
 
 ## Time and finality
 

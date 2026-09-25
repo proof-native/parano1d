@@ -62,19 +62,33 @@ Proof preparation, nonce search and propagation share the same interval.
 The classes prove the same consensus relation. They are capacity choices, not
 different block-validity rules.
 
-### Scheduled v2 development branch
+### Scheduled v2 profile
 
-At the scheduled fork, the source switches to a jointly authenticated m23/m24
+At mainnet H210537, the source switches to a jointly authenticated m23/m24
 bank and a 30-second target. The default producer uses m23. A server operator
 can allow Large-class selection with `--v2-large-blocks`; the option applies to internal
 mining and external-worker templates. The graphical wallet has no such control.
 Every node verifies both classes. Pre-fork calibration remains as described above.
 
+| Class | Pages | Live inputs per block | Contract calls per block |
+|---|---:|---:|---:|
+| Small, `m=23` | 63 | 504 | 63 |
+| Large, `m=24` | 206 | 504 | 63 |
+
+Calls share the page budget with ordinary payments. Large therefore fits
+206 one-page payments or 63 calls plus 143 one-page payments, provided the
+total input count stays within 504. Both classes support the same programs;
+Large's additional pages increase ordinary payment capacity. The primary
+coinbase has its own position; an additional mandatory system page reduces
+the available page budget.
+
 Class selection respects each installed class's page, input and contract-call
 limits. The producer selects the larger class when its eligible transaction
 set yields more claimable fees; otherwise it keeps the smaller class. Read
-the actual limits from `getContractProtocol`; final v2 capacities remain
-under qualification.
+the actual limits from `getContractProtocol`. Enabling the flag permits Large;
+it does not force every template to use it. The
+[measurement report](../../research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md)
+records the frozen matrices and the scope of completed qualification runs.
 
 ## CPU scheduling
 

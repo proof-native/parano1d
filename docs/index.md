@@ -154,7 +154,7 @@ systems joined afterward.
 
 ## Soundness
 
-| Security statement | Current production result |
+| Security statement | Legacy B25/B255 result |
 |---|---:|
 | Target FRI security | **128 bits** |
 | Provable Block–Tiwari FS-FRI security | **127 bits** |
@@ -183,7 +183,7 @@ constructions and a scoped scalar lower bound. See the complete
 [response accounting](https://github.com/ignotusnemo/parano1d/blob/main/noid_soundness/docs/response-accounting.md)
 and the [security model](protocol/security-model.md).
 
-## Protocol profile
+## Mainnet profile before v2
 
 | Parameter | Value |
 |---|---:|
@@ -196,6 +196,30 @@ and the [security model](protocol/security-model.md).
 | Maximum outputs in one transaction | 256 |
 | Recent block and reorg suffix | 18 blocks |
 | State domain | `2^24` to `2^32` slots |
+
+## Scheduled v2 profile
+
+At mainnet **H210537**, the target becomes **30 seconds** and proof-native
+contracts become spendable through the GUI, CLI and RPC. The existing v1.1
+boundary at H95125 and all pre-v2 rules remain unchanged.
+
+| Class | Pages | Live inputs per block | Contract calls per block |
+|---|---:|---:|---:|
+| Default Small, `m=23` | 63 | 504 | 63 |
+| Optional Large, `m=24` | 206 | 504 | 63 |
+
+Calls use the same pages as payments. Large can carry 206 one-page payments
+or 63 calls plus 143 payments, within the common input limit. The primary
+coinbase is separate; an additional mandatory system page consumes part of
+the page budget. Large production requires the server flag `--v2-large-blocks`;
+every node verifies both classes. Both classes support the same programs.
+
+The [Contracts guide](reference/contracts.md) covers six templates, custom
+integer programs, public terms, calls and portable receipts. The
+[parameter reference](protocol/parameters.md#scheduled-v2-profile) records the
+combined limits and unchanged windows, while the
+[issuance schedule](protocol/economics.md#v2-issuance) specifies the annual
+height-based reductions independently of State size.
 
 ## Start
 

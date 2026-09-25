@@ -1,8 +1,28 @@
 # Protocol parameter reference
 
-This reference lists the released v1.1 profile. The v2 branch implements a
-[height-based issuance schedule](../protocol/economics.md#v2-issuance); its
-new proof-class capacities are being qualified separately.
+Mainnet switches to the following v2 profile at **H210537**. Activation follows
+block height; calendar dates are estimates.
+
+| Parameter | Scheduled v2 value |
+|---|---:|
+| Block target | 30 seconds |
+| ASERT half-life | 180 seconds |
+| Small `m=23` | 63 pages, 504 inputs, 63 calls |
+| Large `m=24` | 206 pages, 504 inputs, 63 calls |
+| Large production | Server opt-in: `--v2-large-blocks` |
+| Gross subsidy at activation | 16 NOID |
+| Issuance interval | 1,051,200 blocks from activation |
+| Issuance floor | 1 NOID |
+
+Inputs are a whole-block budget and calls share the page budget with payments.
+Both classes use the same contract interpreter. See the
+[scheduled consensus profile](../protocol/parameters.md#scheduled-v2-profile)
+for combined limits and unchanged windows, and the
+[height-based issuance schedule](../protocol/economics.md#v2-issuance) for all
+nine amounts. `getContractProtocol` reports the installed class limits.
+
+The sections below retain the **released v1.1 profile before H210537**, including
+its proof-system accounting and physical transaction wire bounds.
 
 ## Core
 

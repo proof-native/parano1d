@@ -20,6 +20,29 @@ Core archives (node operators and miners):
   parano1d-miner  external proof-of-work miner
   LICENSE/NOTICE  Apache-2.0 distribution terms and project notices
 
+Scheduled v2
+------------
+
+Mainnet changes rules automatically at block H210537. Before that height the
+existing v1/v1.1 rules apply; from it the target interval is 30 seconds and
+contract spending becomes available. The fork is selected by height, not by
+the computer's clock.
+
+The GUI Contracts tab provides six templates, a custom integer-program editor,
+funding, reviewed calls, public terms and receipt import/export. Keep backups
+of watched public terms and receipts alongside your wallet backup.
+
+Node operators can inspect availability and class limits with:
+
+  parano1d-cli contract protocol
+
+Default Small blocks have 63 pages, 504 inputs and up to 63 contract calls.
+Large blocks have 206 pages with the same input and call limits. Calls use
+the page budget shared with payments. A server operator can permit Large
+production by adding --v2-large-blocks to the node's internal or external
+mining invocation. The flag is optional; every node verifies both classes.
+There is no Large-class control in the GUI.
+
 Hardware check
 --------------
 

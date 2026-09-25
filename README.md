@@ -65,7 +65,7 @@ validation removes redundant execution.
 
 ## Soundness
 
-| Security statement | Current production result |
+| Security statement | Legacy B25/B255 result |
 |---|---:|
 | Target FRI security | **128 bits** |
 | Provable Block–Tiwari FS-FRI security | **127 bits** |
@@ -211,10 +211,29 @@ The proof system uses fixed physical pages with eight input and two output
 positions. `PagedSpend` joins up to 128 pages into one user transaction with
 one txid, one fee, one ZK capsule and one receipt.
 
-A single transaction may consume up to 1,020 UTXOs and create up to 256
-outputs. Continuation pages are internal proof geometry: they remain one
+A legacy transaction may consume up to 1,020 UTXOs and create up to 256
+outputs. From v2, transactions must also fit the shared 504-input block budget
+and the selected class's page budget. Continuation pages remain one
 indivisible transaction in the wallet, mempool, relay, block, receipt and reorg
 paths.
+
+### Proof-Native Contracts
+
+From v2, a funded State output can commit to a short integer program. Its
+authorized call spends that exact output and proves the permitted payment,
+successor counters or closing inside the block's recursive proof. Users can
+create programs without generating a separate circuit or matrix.
+
+The GUI Contracts tab offers refundable payments, timelocked vaults, allowance
+wallets, period budgets, recurring payments and gradual unlock, plus a custom
+program editor. The same operations are available through CLI and RPC. The
+core has two persistent integer counters, checked arithmetic, conditions and
+block-height access. Scheduled transfers require an authorized call.
+
+Current outputs remain in State. Wallets retain watched public terms and
+exportable receipts so that past call bodies can be pruned without losing
+their verification evidence. See the [contract guide](docs/reference/contracts.md)
+for the program bounds, review flow and recovery requirements.
 
 ### One Binary Proof Stack
 
@@ -232,9 +251,10 @@ low-degree sumcheck chain for every permutation. In a like-for-like
 protocol-verifier time by 14.80× and raw algebraic proof bytes by 51.67×.
 Batched sumchecks, zerocheck, lincheck and FRI-Binius close the GF(2) R1CS
 relation without a trusted setup. One joint `GF(2^256)` transcript binds the
-three Link and six Block recursive regions into the outer PCS batch. The two
-authenticated production matrices, B25 at `m=22` and B255 at `m=24`, are embedded
-in the official binary and can be regenerated from source. The Parano1d Lab
+three Link and six Block recursive regions into the outer PCS batch. The
+transition binary embeds the unchanged B25/B255 legacy matrices and the
+jointly authenticated v2 Small/Large bank, selected by height. Their construction
+is reproducible from source. The Parano1d Lab
 [FROST-GKR research article](https://lab.parano1d.org/research/frost-gkr-global-trace-protocol/)
 links the paper, reference implementation, comparison harness and complete
 measurement record.
@@ -256,11 +276,12 @@ an invalid `HistoryStep` acceptable.
 The miner proves the nonce-independent block first, then searches a fixed
 Poseidon2b header with a 128-bit nonce. ASERT targets the complete interval
 between accepted blocks, including proof preparation, nonce search and
-propagation, at a 20-second mean. Cumulative work selects the chain. An external
+propagation, at a 20-second mean before v2 and 30 seconds from its activation.
+Cumulative work selects the chain. An external
 miner receives an immutable, single-use template and returns only a nonce; it
 cannot alter the transactions or state root.
 
-## Mainnet Profile
+## Mainnet Before V2
 
 | Parameter | Value |
 |---|---:|
@@ -282,7 +303,32 @@ uses its first completed B25 preparation to estimate whether B255 fits the
 chosen in fee order. B255 holds up to 255 single-page transactions, giving a
 capacity of 12.75 TPS at the target interval.
 
-## Development Allocation
+## Scheduled V2 Profile
+
+Mainnet activates v2 at **H210537** with a **30-second target**. Existing v1 and
+v1.1 rules apply unchanged before that boundary; v1.1 remains at H95125.
+
+| Class | User pages | Live inputs per block | Contract calls per block |
+|---|---:|---:|---:|
+| Default Small, `m=23` | 63 | 504 | 63 |
+| Optional Large, `m=24` | 206 | 504 | 63 |
+
+Calls share the page budget with payments. Small fits 63 one-page payments or
+63 calls; Large fits 206 one-page payments or 63 calls plus 143 payments,
+within the same input budget. The primary coinbase has its own position;
+an additional mandatory system page consumes part of the page budget.
+
+Large production is enabled explicitly with `--v2-large-blocks` on a server.
+Every node verifies both classes, and both support the same contract core.
+The GUI has no Large-class control. At the target interval, ordinary one-page
+capacity ceilings are 2.1 and about 6.87 transactions per second. These are
+per-class capacity calculations, not measured sustained network throughput.
+
+The [parameter reference](docs/protocol/parameters.md#scheduled-v2-profile)
+records timing and unchanged windows. The [measurement report](research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md)
+records frozen matrix identities and completed qualification runs.
+
+## Legacy Development Allocation
 
 Parano1d has no premine. For blocks 1 through 4,730,400 — exactly three
 365-day target-time years — each block reward is divided by consensus:

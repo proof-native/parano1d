@@ -172,25 +172,37 @@ Wider kernels are selected at runtime when the host exposes them. The hardware
 check establishes that the production backend can run; it does not guarantee
 competitive mining performance.
 
-Every mining process begins with the B25 proof class. B255 is used only when
-measured complete preparation time supports the larger relation. Both classes
-prove the same consensus statement:
+Before v2, every mining process begins with the B25 proof class. B255 is used
+only when the first B25 preparation permits the larger relation under the
+legacy calibration rule. Both classes prove the same consensus statement:
 
 | Class | Relation | Effective page positions |
 |---|---|---:|
 | B25 | `m=22` | up to 25 |
 | B255 | `m=24` | up to 255 |
 
+At mainnet H210537, default production switches to Small `m=23`: 63 pages,
+504 live inputs and 63 contract calls per block. Large `m=24` adds page
+capacity to 206 while keeping the same input and call limits. Calls share
+the page budget with payments.
+
+A server operator can permit Large templates with `--v2-large-blocks`, for
+either internal mining or external workers. The GUI has no control for this
+flag. Permission does not force Large: the producer keeps Small unless the
+eligible larger selection yields more claimable fees. All nodes verify both
+classes. `parano1d-cli contract protocol` reports their installed limits.
+
 Proof construction and PoW are ordered all-core phases sharing one thread
 budget. They are not two competing all-core jobs. On a public host, leaving
 some CPU capacity outside `--cpu-threads` keeps the operating
 system and peer service responsive.
 
-The network targets a 20-second mean block interval. This is not a deadline:
+The network targets a 20-second mean block interval before v2 and 30 seconds
+from activation. This is not a deadline:
 individual blocks may arrive sooner or much later. Proof latency still matters
 because a candidate becomes stale when another miner advances the tip. Measure
-the complete B25 preparation path on the intended machine rather than judging
-it only by CPU model or advertised vCPU count.
+the complete preparation path for the intended class on the intended machine;
+CPU model and advertised vCPU count alone do not establish its speed.
 
 See [Hardware and capacity](../operate/hardware.md) and
 [Performance measurements](../reference/performance.md) for the production
@@ -200,11 +212,14 @@ floor and published reference timings.
 
 ASERT adjusts the Poseidon2b target against the complete interval between
 accepted blocks. Proof preparation, nonce search and propagation share that
-20-second mean target.
+height-selected mean target.
 The chain with the greatest cumulative valid work wins; an equal-work tie uses
 the canonical block-hash tie-break.
 
-The current reward follows the active State level and is displayed by:
+Before v2 the reward follows the active State level. From H210537 it follows
+the [fixed height schedule](../protocol/economics.md#v2-issuance), starting at
+16 NOID gross and advancing every 1,051,200 blocks. The mining RPC reports the
+next block's gross subsidy:
 
 ```sh
 parano1d-cli mining
