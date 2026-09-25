@@ -462,3 +462,51 @@ hashes and timing scopes. The executable was built with
 `noid_chain/isolated-v2-fork-testnet`, as required by `joint-produce`. This run
 uses the legacy matrices; qualification of certificates and binaries that omit
 them is a separate stage.
+
+## Certificates for retiring legacy matrices
+
+Two new certificates bind the exact legacy predecessors to this bank. The
+first uses the fresh daemon fixture's H9 origin, where only legacy B25 was
+active. The second uses the H9 origin of the native H10–H17 production run,
+where both legacy classes had accumulated obligations. For each live class,
+preparation recomputed its preprocessing key from the authenticated canonical
+legacy matrix and matched its independent release pin.
+
+| Legacy classes with live obligations | Certificate bytes | Offline preparation | Certificate verification operation |
+|---|---:|---:|---:|
+| B25 | 7,353,789 | 457.203 s | 0.924 s |
+| B25 and B255 | 15,093,850 | 2,522.807 s | 1.461 s |
+
+Preparation used 12 workers on the laptop. The two-class run peaked at
+20,924,676 KiB RSS. Its 20-GiB/no-swap cgroup reached its memory cap and
+reclaimed memory; the saved observations show no OOM or killed process.
+These are one-time certificate-generation requirements. This preparation was
+not an 8-GiB receiving-node workload or recurring block production.
+
+Both verification commands enforced four CPUs, PCLMUL, four Rayon workers,
+an 8-GiB memory cap and no swap. The table's verification operation excludes
+input loading and key initialization. The complete B25-only command took
+7.213 s and peaked at 95,387,648 cgroup bytes.
+
+The two-class verification command also authenticated the new matrices and
+verified the H17 terminal without a legacy-row source. It then exercised
+origin retention and disk restart, rejecting a missing certificate, old-format
+transport without rows, and a tampered terminal. That complete command took
+205.168 s, including 185.790 s for the first terminal verification and new
+matrix setup, and peaked at 628,113,408 cgroup bytes. Both verification scopes
+recorded zero memory-limit and OOM events. Receiving-daemon builds authenticate
+their embedded matrices during compilation; their cold synchronization is
+qualified separately from this standalone tool.
+
+For scale, the two compressed legacy matrix files total 17,105,552 bytes;
+the two preprocessing-key files total 608 bytes. A later node omits the old
+matrix bytes and retains the authenticated certificate together with the new
+matrices. These are individual artifact sizes, excluding database caches,
+filesystem metadata and executable code.
+
+The isolated `retired-history` executable built successfully, and the ordinary
+isolated executable was restored afterward. [Certificate records](retirement-certificates.json)
+retain both origin bindings, the precise bank and key pins, binary and file
+hashes, commands, timing scopes and resource counters. The certificate tool
+checks the ancestry against those inputs; a future mainnet origin certificate
+requires the actual selected predecessor and has not been created here.
