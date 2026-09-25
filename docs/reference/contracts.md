@@ -44,12 +44,41 @@ the active authority. A changed height, fee or reserved output requires a new
 review. The wallet keeps preceding terms alongside an unconfirmed candidate;
 submission alone is not confirmation.
 
+**Call fee limit** is a policy ceiling for each future call, not a creation
+charge. The default 1 NOID does not charge 1 NOID when saving a contract.
+Saving unfunded terms is free. Funding is a transaction with its own live fee
+quote, shown before confirmation; each call likewise has an actual quoted fee.
+
 Export and back up public terms. A wallet key alone cannot reconstruct an
 arbitrary program and its current counter values after history pruning. The
 node's wallet also retains watched openings and call receipts. Restoring by
 address reads those local saved files; it is not an archive lookup on peers.
-A verified receipt can recover its successor terms, whose current balance must
-then be checked in State.
+A verified receipt recovers the original terms and, for a continuing call, its
+successor. Current balances must then be checked in State.
+
+### Sharing and recovering operations
+
+Use **F7 → My contracts → Operations & receipts → Save receipt** for a specific
+operation. Use **Share contract** to send public terms with one matching receipt
+when available. Open either file through **F7 → Open file**, review it and choose
+**Add** or **Update my contract & open**. F4 **Receipts** is the separate ordinary
+payment receipt workflow.
+
+The journal includes calls the local node retained while watching the contract,
+including calls signed by another participant, and explicitly imported receipts.
+Import merges by transaction ID. Existing records and the recipient's local
+contract name remain; importing the same receipt again does not duplicate it.
+A closing receipt records that particular deposit's withdrawal. It does not
+remove other deposits or replace a newer live state with the old opening.
+
+This is a local record, not a global transaction archive. A shared contract file
+carries terms and at most one receipt; it does not synchronize two complete
+journals. Send additional receipts for additional missing operations. If a wallet
+was offline for an entire pruned call window, synchronization checks current
+State but cannot reconstruct an unknown successor's program counters. A fresh
+contract file or verified call receipt from a participant supplies those terms;
+the wallet then checks their live balances. Keep exported terms and proofs with
+the wallet backup.
 
 ## CLI
 
@@ -110,7 +139,8 @@ The contract methods are:
 - `getContractProtocol`, `createObject`, `getObjectStatus`, `getObjectInstances`;
 - `previewObjectCall`, `walletFundObject`, `walletCallObject`;
 - `walletWatchObject`, `walletGetObjectOpening`, `walletListObjectStates`;
-- `exportObjectReceipt`, `verifyObjectReceipt`.
+- `exportObjectReceipt`, `verifyObjectReceipt`;
+- `walletListObjectReceipts`, `walletImportObjectReceipt`.
 
 An instance query takes an inclusive slot cursor and returns its exact tip
 identity. Recheck that tip when combining pages. A call specifies the opening,
@@ -124,6 +154,28 @@ call. Verification uses the selected chain's canonical header, the pinned v2
 bank and an authenticated fork origin. A receipt proves the recorded call; it
 does not prove that its successor remains unspent. Watched calls are retained
 locally so exported evidence can survive body pruning.
+
+`verifyObjectReceipt(receipt_hex)` returns `valid`, inclusion `height`, `txid`,
+`terminal`, `authority`, `original`, optional `successor`, `input_micronoid`,
+`fee_micronoid`, `retained_micronoid` and optional `payout` (address and amount).
+The original opening is present even for a closing call.
+
+`walletImportObjectReceipt(receipt_hex, expected_opening_hex?)` performs the same
+verification, then retains the original opening, any successor and the receipt.
+If supplied, the expected opening must match the original or successor exactly.
+Wrong-contract and noncanonical evidence is rejected before retention.
+
+`walletListObjectReceipts(opening_hex, after_cursor, limit)` lists locally saved
+calls from the same immutable contract rules, across counter states and signing
+authorities. `limit` is 1–64; the initial exclusive cursor is `null`. Each entry
+has the verified public call fields above plus `block_hash` and `canonical`.
+The page returns `height`, `tip_hash`, `entries` and `next_cursor`, newest first.
+Recheck the tip when combining pages. Orphaned records can remain locally;
+`canonical: false` is not a confirmed operation. A compact index checks the body,
+opening and inclusion against accepted headers, without reading every recursive
+proof. Import and export still verify the complete receipt. The GUI displays a
+recent 256-operation window; the underlying retained proof files are not deleted
+when entries leave that window.
 
 The daemon stores a shared proof once when several watched calls use it.
 Receipt export reconstructs a complete portable receipt. For a backup of the

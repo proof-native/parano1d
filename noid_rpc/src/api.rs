@@ -84,6 +84,15 @@ pub trait ParanoidApi {
         limit: u32,
     ) -> RpcResult<crate::object_types::ObjectKnownStates>;
 
+    /// Locally retained calls by any authority under these immutable rules.
+    #[method(name = "walletListObjectReceipts")]
+    async fn wallet_list_object_receipts(
+        &self,
+        opening_hex: String,
+        after_cursor: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectActivityPage>;
+
     #[method(name = "exportObjectReceipt")]
     async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String>;
 
@@ -91,6 +100,14 @@ pub trait ParanoidApi {
     async fn verify_object_receipt(
         &self,
         receipt_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult>;
+
+    /// Verify and retain a received call, its original terms and successor.
+    #[method(name = "walletImportObjectReceipt")]
+    async fn wallet_import_object_receipt(
+        &self,
+        receipt_hex: String,
+        expected_opening_hex: Option<String>,
     ) -> RpcResult<crate::object_types::ObjectReceiptResult>;
 
     // =========================================================================

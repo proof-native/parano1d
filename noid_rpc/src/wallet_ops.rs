@@ -97,6 +97,19 @@ pub struct WalletObjectOpeningPage {
     pub next_root: Option<[u8; 32]>,
 }
 
+/// Compact retained call with its Merkle inclusion checked locally. No
+/// recursive terminal is loaded to enumerate these records.
+pub struct WalletObjectReceiptRecord {
+    pub opening: noid_tx::experimental_object::ObjectOpening,
+    pub page: noid_tx::TxPage,
+    pub header: noid_chain::BlockHeader,
+}
+
+pub struct WalletObjectReceiptPage {
+    pub receipts: Vec<WalletObjectReceiptRecord>,
+    pub next_cursor: Option<String>,
+}
+
 pub trait WalletOps: Send + Sync {
     /// Prove with the locally selected policy authority. No key material is
     /// accepted from RPC or returned by this boundary.
@@ -135,6 +148,14 @@ pub trait WalletOps: Send + Sync {
     }
     fn load_object_receipt(&self, _txid: [u8; 32]) -> Result<Vec<u8>, String> {
         Err("object receipt unavailable".into())
+    }
+    fn object_receipts(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+        _after: Option<&str>,
+        _limit: usize,
+    ) -> Result<WalletObjectReceiptPage, String> {
+        Err("object receipt catalog unavailable".into())
     }
 
     /// Overall wallet status (exists, address, balance).

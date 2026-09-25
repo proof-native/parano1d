@@ -380,7 +380,12 @@ pub struct VerifiedReceipt {
     pub height: u64,
     pub terminal: bool,
     pub authority: String,
+    pub original: Info,
     pub successor: Option<Info>,
+    pub input_micronoid: u64,
+    pub fee_micronoid: u64,
+    pub retained_micronoid: u64,
+    pub payout: Option<Payout>,
 }
 
 #[derive(Debug, Clone)]

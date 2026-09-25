@@ -84,6 +84,10 @@ pub struct Operation {
     pub kind: OperationKind,
     pub amount_micronoid: Option<u64>,
     pub fee_micronoid: Option<u64>,
+    #[serde(default)]
+    pub authority: Option<String>,
+    #[serde(default)]
+    pub recipient: Option<String>,
     pub call_height: Option<u64>,
     pub confirmation: Option<Confirmation>,
     // Reloading a local record never establishes current chain selection.
@@ -101,6 +105,8 @@ impl Operation {
             && !self.opening_hex.is_empty()
             && self.opening_hex.bytes().all(|b| b.is_ascii_hexdigit())
             && self.address.len() <= 128
+            && self.authority.as_ref().is_none_or(|v| v.len() <= 128)
+            && self.recipient.as_ref().is_none_or(|v| v.len() <= 128)
             && self
                 .confirmation
                 .as_ref()
@@ -153,4 +159,20 @@ pub struct OpenedFile {
     pub proof: Option<SharedProof>,
     pub verified_call: Option<VerifiedReceipt>,
     pub operation: Option<Operation>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RetainedCall {
+    #[serde(flatten)]
+    pub call: VerifiedReceipt,
+    pub block_hash: String,
+    pub canonical: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RetainedCalls {
+    pub height: u64,
+    pub tip_hash: String,
+    pub entries: Vec<RetainedCall>,
+    pub next_cursor: Option<String>,
 }

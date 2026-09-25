@@ -22,6 +22,12 @@
 #ifndef NoticeFile
   #error NoticeFile is required
 #endif
+#ifndef UserGuideFile
+  #error UserGuideFile is required
+#endif
+#ifndef ContractGuideFile
+  #error ContractGuideFile is required
+#endif
 
 [Setup]
 AppId={{8EAD67A1-91AB-497A-81A5-8A73CF4A6F31}
@@ -70,6 +76,8 @@ Source: "{#SourceDir}\parano1d-gui.exe"; DestDir: "{app}"; DestName: "Parano1d.e
 Source: "{#SourceDir}\parano1d.exe"; DestDir: "{app}"; DestName: "parano1d-node.exe"; Flags: ignoreversion
 Source: "{#LicenseFile}"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "{#NoticeFile}"; DestDir: "{app}"; DestName: "NOTICE.txt"; Flags: ignoreversion
+Source: "{#UserGuideFile}"; DestDir: "{app}"; DestName: "README.txt"; Flags: ignoreversion
+Source: "{#ContractGuideFile}"; DestDir: "{app}"; DestName: "CONTRACTS.md"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Parano1d"; Filename: "{app}\Parano1d.exe"; WorkingDir: "{app}"

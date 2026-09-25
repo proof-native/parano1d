@@ -58,7 +58,7 @@ pub(super) fn translate(language: Language, source: &str) -> Option<String> {
         "The active address cannot perform this action at the next block." => ("Активный адрес не может выполнить это действие в следующем блоке.", "当前地址无权在下一个区块执行此操作。"),
         "The contract rules do not allow this action at the next block." => ("Правила контракта запрещают это действие в следующем блоке.", "合约规则不允许在下一个区块执行此操作。"),
         "CONTRACT ADDRESS" => ("АДРЕС КОНТРАКТА", "合约地址"),
-        "Recent operations saved by this wallet. A receipt becomes available after confirmation." => ("Последние операции, сохранённые этим кошельком. Чек станет доступен после подтверждения.", "此钱包保存的近期操作。确认后即可获取凭证。"),
+        "Operations retained by this wallet, including other participants’ calls and imported receipts." => ("Операции, сохранённые этим кошельком: в том числе вызовы других участников и импортированные чеки.", "此钱包保留的操作，包括其他参与者的调用和导入的凭证。"),
         "No recorded operations for this contract yet." => ("Для этого контракта ещё нет сохранённых операций.", "此合约尚无保存的操作。"),
         "AMOUNT NOT INCLUDED IN RECEIPT" => ("СУММА НЕ УКАЗАНА В ЧЕКЕ", "凭证未包含金额"),
         "TRANSACTION ID" => ("ID ТРАНЗАКЦИИ", "交易 ID"),
@@ -76,6 +76,9 @@ pub(super) fn translate(language: Language, source: &str) -> Option<String> {
         "The receipt confirms a past operation. Available balances are checked separately." => ("Чек подтверждает прошлую операцию. Доступные остатки проверяются отдельно.", "凭证证明一笔历史操作。可用余额另行检查。"),
         "AVAILABLE IN THIS PAGE (NOID)" => ("ДОСТУПНО НА ЭТОЙ СТРАНИЦЕ (NOID)", "本页可用余额（NOID）"),
         "This state has no available balance. The file may describe a draft, a spent deposit or an older state." => ("В этом состоянии доступных средств нет. Файл может описывать контракт без пополнения, потраченный остаток или старое состояние.", "此状态没有可用余额。文件可能描述未充值的草稿、已花费的充值或旧状态。"),
+        "UPDATE MY CONTRACT & OPEN" => ("ОБНОВИТЬ МОЙ КОНТРАКТ И ОТКРЫТЬ", "更新我的合约并打开"),
+        "SIGNING ADDRESS" => ("АДРЕС ПОДПИСАНТА", "签名地址"),
+        "The call fee limit is a ceiling per call, not a creation charge. Saving unfunded terms is free; funding has a separate fee shown before confirmation." => ("Лимит комиссии ограничивает плату за каждый вызов. Сохранение условий без пополнения бесплатно; комиссия пополнения показывается отдельно перед подтверждением.", "调用手续费限额是每次调用的上限，并非创建费用。保存未入金的条款免费；入金手续费将在确认前单独显示。"),
         "ADD TO MY CONTRACTS & OPEN" => ("ДОБАВИТЬ В МОИ КОНТРАКТЫ И ОТКРЫТЬ", "添加到我的合约并打开"),
         "This receipt proves a closing call. That deposit was closed by the recorded operation." => ("Этот чек подтверждает закрытие. Указанная операция закрыла этот остаток контракта.", "此凭证证明一次关闭调用，所记录的操作已关闭该笔充值。"),
         "WAITING FOR A FILE" => ("ВЫБЕРИТЕ ФАЙЛ", "等待选择文件"),
@@ -107,7 +110,7 @@ pub(super) fn translate(language: Language, source: &str) -> Option<String> {
         "This file has no contract rules. Ask the sender to use Share contract." => ("В файле нет правил контракта. Попросите отправителя нажать «Передать контракт».", "此文件没有合约规则。请让发送方使用“分享合约”。"),
         "Contract terms exceed their size limit." => ("Условия контракта превышают допустимый размер.", "合约条款超出大小限制。"),
         "This receipt records a closed balance." => ("Этот чек подтверждает уже закрытый остаток.", "此凭证记录已关闭的余额。"),
-        "Contract added to My contracts. Balances were checked on this node." => ("Контракт добавлен в «Мои контракты». Остатки проверены вашим узлом.", "合约已添加到“我的合约”。余额已由此节点检查。"),
+        "Contract saved. Existing operations were kept; current balances were checked on this node." => ("Контракт сохранён. Прежние записи оставлены; текущие остатки проверены вашим узлом.", "合约已保存。现有操作记录已保留，当前余额已由此节点检查。"),
         "File saving cancelled." => ("Сохранение файла отменено.", "已取消保存文件。"),
         "Contract file saved with a verified operation receipt. Share it with the other participant." => ("Файл контракта сохранён вместе с проверенным чеком операции. Передайте его другому участнику.", "合约文件已保存，并包含已验证的操作凭证。可将其分享给另一方。"),
         "Contract rules saved. The recipient will check current balances when opening this file." => ("Правила контракта сохранены. При открытии файла получатель проверит текущие остатки.", "合约规则已保存。接收方打开文件时将检查当前余额。"),
@@ -242,8 +245,8 @@ pub(super) fn translate(language: Language, source: &str) -> Option<String> {
         "EXPIRY BLOCK" => ("БЛОК ИСТЕЧЕНИЯ СРОКА", "到期区块"),
         "UNLOCK BLOCK" => ("БЛОК РАЗБЛОКИРОВКИ", "解锁区块"),
         "RECOVERY BLOCK" => ("БЛОК ВОЗВРАТА", "恢复区块"),
-        "MAXIMUM CALL FEE (NOID)" => (
-            "МАКСИМАЛЬНАЯ КОМИССИЯ ВЫЗОВА (NOID)",
+        "CALL FEE LIMIT (NOID)" => (
+            "ЛИМИТ КОМИССИИ ВЫЗОВА (NOID)",
             "调用手续费上限（NOID）",
         ),
         "PER-CALL PAYMENT LIMIT (NOID)" => {

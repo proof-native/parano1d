@@ -370,7 +370,7 @@ fn create(app: &App, compact: bool) -> Element<'_, Message> {
                     ready
                 ),
                 field(
-                    "MAXIMUM CALL FEE (NOID)",
+                    "CALL FEE LIMIT (NOID)",
                     &state.max_fee,
                     Field::MaxFee,
                     ready
@@ -510,6 +510,7 @@ fn help_popup(kind: Kind) -> Element<'static, Message> {
         text(explanation).size(14),
         text(example).size(13).color(theme::MUTED),
         text("Creating and funding requires your confirmation. Later actions depend on the contract rules and the active wallet address.").size(13).color(theme::MUTED),
+        text("The call fee limit is a ceiling per call, not a creation charge. Saving unfunded terms is free; funding has a separate fee shown before confirmation.").size(13).color(theme::MUTED),
         text("Contract schedules use block heights. Each deposit has its own balance and counters.").size(13).color(theme::MUTED),
     ].spacing(18);
     if kind == Kind::Custom {
@@ -606,7 +607,7 @@ fn review(app: &App, compact: bool) -> Option<Element<'_, Message>> {
             .push(pair(
                 value("DEADLINE BLOCK", info.deadline_height),
                 value(
-                    "MAXIMUM CALL FEE (NOID)",
+                    "CALL FEE LIMIT (NOID)",
                     format_micronoid(info.max_fee_micronoid),
                 ),
                 compact,
@@ -1073,7 +1074,7 @@ fn policy_rules<'a>(
         pair(
             value("DEADLINE BLOCK", info.deadline_height),
             value(
-                "MAXIMUM CALL FEE (NOID)",
+                "CALL FEE LIMIT (NOID)",
                 format_micronoid(info.max_fee_micronoid)
             ),
             compact
@@ -1167,7 +1168,7 @@ fn activity(app: &App) -> Element<'_, Message> {
     let ready = !state.busy;
     let mut body = column![
         row![text("OPERATIONS & RECEIPTS").size(14).color(theme::CYAN), Space::new().width(Length::Fill), command("REFRESH", Action::Refresh, ready)].align_y(Alignment::Center),
-        text("Recent operations saved by this wallet. A receipt becomes available after confirmation.").size(12).color(theme::MUTED),
+        text("Operations retained by this wallet, including other participants’ calls and imported receipts.").size(12).color(theme::MUTED),
     ].spacing(10);
     if state.operations.is_empty() {
         body = body.push(
@@ -1237,6 +1238,12 @@ fn activity(app: &App) -> Element<'_, Message> {
             )
         ]
         .spacing(12);
+        if let Some(authority) = &operation.authority {
+            detail = detail.push(value("SIGNING ADDRESS", authority));
+        }
+        if let Some(recipient) = &operation.recipient {
+            detail = detail.push(value("PAYMENT RECIPIENT", recipient));
+        }
         if let Some(confirmation) = &operation.confirmation {
             detail = detail.push(value("INCLUSION BLOCK", confirmation.height));
         }
@@ -1305,7 +1312,15 @@ fn open_file(app: &App, compact: bool) -> Element<'_, Message> {
                 }
             }
             preview = preview.push(primary(
-                "ADD TO MY CONTRACTS & OPEN",
+                if state
+                    .library
+                    .iter()
+                    .any(|entry| entry.info.family_key() == info.family_key())
+                {
+                    "UPDATE MY CONTRACT & OPEN"
+                } else {
+                    "ADD TO MY CONTRACTS & OPEN"
+                },
                 Action::AcceptFile,
                 ready,
             ));

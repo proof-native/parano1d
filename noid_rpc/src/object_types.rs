@@ -247,11 +247,41 @@ pub struct ObjectCallResult {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectReceiptResult {
     pub valid: bool,
+    #[serde(flatten)]
+    pub call: ObjectCallDetails,
+}
+
+/// Public call facts authenticated by a verified receipt or by inclusion in
+/// an already accepted local canonical block. A balance is queried separately.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectCallDetails {
     pub height: u64,
     pub txid: String,
     pub terminal: bool,
     pub authority: String,
+    pub original: ObjectInfo,
     pub successor: Option<ObjectInfo>,
+    pub input_micronoid: u64,
+    pub fee_micronoid: u64,
+    pub retained_micronoid: u64,
+    pub payout: Option<ObjectPayout>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectActivityEntry {
+    #[serde(flatten)]
+    pub call: ObjectCallDetails,
+    pub block_hash: String,
+    pub canonical: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectActivityPage {
+    pub height: u64,
+    pub tip_hash: String,
+    pub entries: Vec<ObjectActivityEntry>,
+    /// Exclusive newest-first local receipt cursor, not a chain position.
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

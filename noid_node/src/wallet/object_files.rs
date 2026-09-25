@@ -12,7 +12,17 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+mod activity;
 mod related;
+
+pub(super) fn receipt_page(
+    key: &Path,
+    opening: &ObjectOpening,
+    after: Option<&str>,
+    limit: usize,
+) -> Result<noid_rpc::wallet_ops::WalletObjectReceiptPage, String> {
+    activity::page(key, opening, after, limit)
+}
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 // Local storage only: exported receipts keep their original self-contained
@@ -149,7 +159,8 @@ pub(super) fn save_receipt(key_path: &Path, txid: [u8; 32], bytes: &[u8]) -> Res
     write_atomic(
         &directory.join(format!("{}.receipt", hex::encode(txid))),
         &reference,
-    )
+    )?;
+    activity::remember(key_path, &receipt)
 }
 
 pub(super) fn load_receipt(key_path: &Path, txid: [u8; 32]) -> Result<Vec<u8>, String> {
@@ -257,12 +268,16 @@ pub(super) fn retain_from_block(
         }
         let opening = load_opening(key_path, root)?;
         let txid = group.spend.logical_txid.0;
-        if load_receipt(key_path, txid)
+        if let Some(receipt) = load_receipt(key_path, txid)
             .ok()
             .and_then(|bytes| ObjectTransitionReceipt::from_bytes(&bytes).ok())
-            .is_some_and(|receipt| receipt.header == block.header && receipt.opening == opening)
         {
-            continue;
+            if receipt.header == block.header && receipt.opening == opening {
+                // Heal an interrupted write between the durable receipt and its
+                // optional activity index even after migration has completed.
+                activity::remember(key_path, &receipt)?;
+                continue;
+            }
         }
         let Some(receipt) =
             noid_rpc::object_receipts::from_store(store, block, group_index, opening)?
@@ -347,6 +362,112 @@ mod tests {
                 .unwrap()
             })
             .collect()
+    }
+
+    #[test]
+    fn activity_migrates_old_receipts_paginates_and_browses_without_terminals() {
+        let temporary = tempfile::tempdir().unwrap();
+        let key = temporary.path().join("wallet.key");
+        let root = directory(&key).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        let receipts = receipt_fixtures();
+        // Simulate an existing wallet before the compact discovery index.
+        for receipt in &receipts {
+            std::fs::write(
+                root.join(format!("{}.receipt", hex::encode(receipt_id(receipt)))),
+                receipt.to_bytes().unwrap(),
+            )
+            .unwrap();
+        }
+        let first = receipt_page(&key, &receipts[0].opening, None, 1).unwrap();
+        assert_eq!(first.receipts.len(), 1);
+        assert!(first.next_cursor.is_some());
+        // Index has migrated. Listing still works with no receipt bodies at all;
+        // exporting a receipt continues to require the actual saved proof.
+        for receipt in &receipts {
+            std::fs::remove_file(
+                root.join(format!("{}.receipt", hex::encode(receipt_id(receipt)))),
+            )
+            .unwrap();
+        }
+        let second =
+            receipt_page(&key, &receipts[0].opening, first.next_cursor.as_deref(), 1).unwrap();
+        assert_eq!(second.receipts.len(), 1);
+        assert!(second.next_cursor.is_none());
+        let id = |record: &noid_rpc::wallet_ops::WalletObjectReceiptRecord| {
+            noid_tx::hash_paged_spend(std::slice::from_ref(&record.page)).unwrap()
+        };
+        assert_ne!(id(&first.receipts[0]), id(&second.receipts[0]));
+        // A different saved counter state belongs to the same immutable family.
+        let sibling = receipts[0].opening.successor(
+            noid_tx::experimental_object::integer_program::pack_state([1, 2]),
+        );
+        assert_eq!(
+            receipt_page(&key, &sibling, None, 64)
+                .unwrap()
+                .receipts
+                .len(),
+            2
+        );
+        let mut unrelated = sibling;
+        unrelated.deadline += 1;
+        assert!(receipt_page(&key, &unrelated, None, 64)
+            .unwrap()
+            .receipts
+            .is_empty());
+        assert!(receipt_page(&key, &receipts[0].opening, Some("../../outside"), 1).is_err());
+        assert!(receipt_page(&key, &receipts[0].opening, None, 65).is_err());
+        // Re-import heals missing artifacts and is idempotent.
+        for _ in 0..2 {
+            save_receipt(
+                &key,
+                receipt_id(&receipts[0]),
+                &receipts[0].to_bytes().unwrap(),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            receipt_page(&key, &receipts[0].opening, None, 64)
+                .unwrap()
+                .receipts
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn activity_rejects_metadata_not_bound_to_the_retained_header() {
+        let temporary = tempfile::tempdir().unwrap();
+        let key = temporary.path().join("wallet.key");
+        let receipt = receipt_fixtures().remove(0);
+        save_receipt(&key, receipt_id(&receipt), &receipt.to_bytes().unwrap()).unwrap();
+        receipt_page(&key, &receipt.opening, None, 64).unwrap();
+        let family = hex::encode(receipt.opening.successor(Default::default()).root().0);
+        let path = directory(&key)
+            .unwrap()
+            .join("activity-v1")
+            .join(family)
+            .join(format!(
+                "{:016x}-{}",
+                receipt.header.height,
+                hex::encode(receipt_id(&receipt))
+            ));
+        let mut record: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        record["path"][0][0] = serde_json::json!(255);
+        std::fs::write(&path, serde_json::to_vec(&record).unwrap()).unwrap();
+        assert!(receipt_page(&key, &receipt.opening, None, 64)
+            .err()
+            .unwrap()
+            .contains("inclusion mismatch"));
+        save_receipt(&key, receipt_id(&receipt), &receipt.to_bytes().unwrap()).unwrap();
+        assert_eq!(
+            receipt_page(&key, &receipt.opening, None, 64)
+                .unwrap()
+                .receipts
+                .len(),
+            1
+        );
     }
 
     fn receipt_id(receipt: &ObjectTransitionReceipt) -> [u8; 32] {

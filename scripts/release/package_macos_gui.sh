@@ -80,6 +80,8 @@ install -m 0755 "$BIN_DIR/parano1d-gui" "$MACOS/Parano1d"
 install -m 0755 "$BIN_DIR/parano1d" "$MACOS/parano1d-node"
 install -m 0644 "$RELEASE_ROOT_DIR/LICENSE" "$RESOURCES/LICENSE.txt"
 install -m 0644 "$RELEASE_ROOT_DIR/NOTICE" "$RESOURCES/NOTICE.txt"
+install -m 0644 "$SCRIPT_DIR/README.txt" "$RESOURCES/README.txt"
+install -m 0644 "$RELEASE_ROOT_DIR/docs/reference/contracts.md" "$RESOURCES/CONTRACTS.md"
 
 BUNDLE_VERSION=${VERSION%%[-+]*}
 sed \
@@ -146,6 +148,8 @@ MOUNTED=1
   --check-hardware >/dev/null
 [[ -s $TEMPORARY/mount/Parano1d.app/Contents/Resources/LICENSE.txt ]]
 [[ -s $TEMPORARY/mount/Parano1d.app/Contents/Resources/NOTICE.txt ]]
+[[ -s $TEMPORARY/mount/Parano1d.app/Contents/Resources/README.txt ]]
+[[ -s $TEMPORARY/mount/Parano1d.app/Contents/Resources/CONTRACTS.md ]]
 [[ -s $TEMPORARY/mount/Parano1d.app/Contents/MacOS/parano1d-node ]]
 [[ ! -e $TEMPORARY/mount/Parano1d.app/Contents/MacOS/parano1d-cli ]]
 [[ ! -e $TEMPORARY/mount/Parano1d.app/Contents/MacOS/parano1d-miner ]]

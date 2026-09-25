@@ -372,6 +372,88 @@ pub(super) async fn known_states(
     })
 }
 
+fn call_details(
+    opening: &ObjectOpening,
+    page: &noid_tx::TxPage,
+    height: u64,
+) -> RpcResult<ObjectCallDetails> {
+    let checked = opening
+        .check_call(page, height)
+        .map_err(|e| rpc_err(e.to_string()))?;
+    let paid = &page.body.outputs[usize::from(!checked.terminal)];
+    Ok(ObjectCallDetails {
+        height,
+        txid: hex::encode(
+            noid_tx::hash_paged_spend(std::slice::from_ref(page))
+                .map_err(|e| rpc_err(e.to_string()))?
+                .0,
+        ),
+        terminal: checked.terminal,
+        authority: checked.authority.to_bech32(),
+        original: describe(opening)?,
+        successor: if checked.terminal {
+            None
+        } else {
+            Some(describe(&opening.successor(checked.next))?)
+        },
+        input_micronoid: page.body.inputs[0].amount,
+        fee_micronoid: page.body.fee,
+        retained_micronoid: if checked.terminal {
+            0
+        } else {
+            page.body.outputs[0].amount
+        },
+        payout: (paid.amount != 0).then(|| ObjectPayout {
+            address: paid.owner.to_bech32(),
+            amount_micronoid: paid.amount,
+        }),
+    })
+}
+
+pub(super) async fn activity(
+    handler: &RpcHandler,
+    opening_hex: String,
+    after: Option<String>,
+    limit: u32,
+) -> RpcResult<ObjectActivityPage> {
+    if !(1..=64).contains(&limit) {
+        return Err(rpc_err("contract activity page must contain 1..64 calls"));
+    }
+    let opening = opening(&opening_hex)?;
+    let wallet = Arc::clone(&handler.wallet);
+    let page = tokio::task::spawn_blocking(move || {
+        wallet.object_receipts(&opening, after.as_deref(), limit as usize)
+    })
+    .await
+    .map_err(|e| rpc_err(e.to_string()))?
+    .map_err(rpc_err)?;
+    let chain = handler.chain.read().await;
+    let entries = page
+        .receipts
+        .into_iter()
+        .map(|record| {
+            // The small record binds its body and opening to this header's Merkle
+            // root. The node already verified the selected chain's block proof.
+            let canonical = chain
+                .store
+                .get_header(record.header.height)
+                .map_err(|e| rpc_err(e.to_string()))?
+                == Some(record.header);
+            Ok(ObjectActivityEntry {
+                call: call_details(&record.opening, &record.page, record.header.height)?,
+                block_hash: hex::encode(noid_chain::block_id(&record.header)),
+                canonical,
+            })
+        })
+        .collect::<RpcResult<_>>()?;
+    Ok(ObjectActivityPage {
+        height: chain.tip_height(),
+        tip_hash: hex::encode(noid_chain::block_id(chain.tip_header())),
+        entries,
+        next_cursor: page.next_cursor,
+    })
+}
+
 struct PreparedObjectCall {
     opening: ObjectOpening,
     page: noid_tx::TxPage,
@@ -735,25 +817,11 @@ pub(super) async fn verify_receipt(
                 .requested_origin(&receipt.terminal)?
                 .ok_or("receipt is not a scheduled v2 contract")?;
             let origin = runtime.verified_origin(&origin)?;
-            let checked = receipt.verify_v2(runtime.v2()?, &origin, &header)?;
+            receipt.verify_v2(runtime.v2()?, &origin, &header)?;
             Ok(ObjectReceiptResult {
                 valid: true,
-                height: header.height,
-                txid: hex::encode(
-                    noid_tx::hash_paged_spend(std::slice::from_ref(&receipt.page))
-                        .map_err(|e| e.to_string())?
-                        .0,
-                ),
-                terminal: checked.terminal,
-                authority: checked.authority.to_bech32(),
-                successor: if checked.terminal {
-                    None
-                } else {
-                    Some(
-                        describe(&receipt.opening.successor(checked.next))
-                            .map_err(|e| e.to_string())?,
-                    )
-                },
+                call: call_details(&receipt.opening, &receipt.page, header.height)
+                    .map_err(|e| e.to_string())?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -777,6 +845,61 @@ pub(super) async fn verify_receipt(
             "selected chain changed while verifying the receipt",
         ));
     }
+    Ok(verified)
+}
+
+pub(super) async fn import_receipt(
+    handler: &RpcHandler,
+    encoded: String,
+    expected_opening_hex: Option<String>,
+) -> RpcResult<ObjectReceiptResult> {
+    let verified = verify_receipt(handler, encoded.clone()).await?;
+    if let Some(expected) = expected_opening_hex {
+        let expected = opening(&expected)?;
+        let original = opening(&verified.call.original.opening_hex)?;
+        let next = verified
+            .call
+            .successor
+            .as_ref()
+            .map(|next| opening(&next.opening_hex))
+            .transpose()?;
+        if expected != original && next.as_ref() != Some(&expected) {
+            return Err(rpc_err(
+                "receipt does not establish the requested contract state",
+            ));
+        }
+    }
+    let bytes = decode_bounded_hex("object receipt", &encoded, MAX_RECEIPT_BYTES)?;
+    let receipt = ObjectTransitionReceipt::from_bytes(&bytes).map_err(rpc_err)?;
+    // Keep chain selection stable while installing public wallet artifacts.
+    let chain = handler.chain.read().await;
+    if chain
+        .store
+        .get_header(receipt.header.height)
+        .map_err(|e| rpc_err(e.to_string()))?
+        != Some(receipt.header)
+    {
+        return Err(rpc_err(
+            "selected chain changed while importing the receipt",
+        ));
+    }
+    handler
+        .wallet
+        .remember_object_opening(&receipt.opening)
+        .map_err(rpc_err)?;
+    if let Some(next) = &verified.call.successor {
+        handler
+            .wallet
+            .remember_object_opening(&opening(&next.opening_hex)?)
+            .map_err(rpc_err)?;
+    }
+    let txid = noid_tx::hash_paged_spend(std::slice::from_ref(&receipt.page))
+        .map_err(|e| rpc_err(e.to_string()))?
+        .0;
+    handler
+        .wallet
+        .remember_object_receipt(txid, &bytes)
+        .map_err(rpc_err)?;
     Ok(verified)
 }
 

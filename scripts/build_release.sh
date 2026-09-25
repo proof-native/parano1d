@@ -341,13 +341,15 @@ esac
 [[ -f $GUI_ARTIFACT && -s $GUI_ARTIFACT ]] || \
   release_die "GUI package is missing or empty: $GUI_ARTIFACT"
 cp -- "$USER_GUIDE_SOURCE" "$BIN_DIR/README.txt"
+cp -- "$RELEASE_ROOT_DIR/docs/reference/contracts.md" "$BIN_DIR/CONTRACTS.md"
 cp -- "$LICENSE_SOURCE" "$BIN_DIR/LICENSE"
 cp -- "$NOTICE_SOURCE" "$BIN_DIR/NOTICE"
-chmod 0644 "$BIN_DIR/README.txt" 2>/dev/null || true
+chmod 0644 "$BIN_DIR/README.txt" "$BIN_DIR/CONTRACTS.md" 2>/dev/null || true
 chmod 0644 "$BIN_DIR/LICENSE" "$BIN_DIR/NOTICE" 2>/dev/null || true
 
 archive_entries=(
   README.txt
+  CONTRACTS.md
   LICENSE
   NOTICE
   "parano1d$BINARY_SUFFIX"

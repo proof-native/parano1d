@@ -1781,11 +1781,26 @@ impl ParanoidApiServer for RpcHandler {
     async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String> {
         objects::export_receipt(self, opening_hex, txid).await
     }
+    async fn wallet_list_object_receipts(
+        &self,
+        opening_hex: String,
+        after_cursor: Option<String>,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectActivityPage> {
+        objects::activity(self, opening_hex, after_cursor, limit).await
+    }
     async fn verify_object_receipt(
         &self,
         receipt_hex: String,
     ) -> RpcResult<crate::object_types::ObjectReceiptResult> {
         objects::verify_receipt(self, receipt_hex).await
+    }
+    async fn wallet_import_object_receipt(
+        &self,
+        receipt_hex: String,
+        expected_opening_hex: Option<String>,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult> {
+        objects::import_receipt(self, receipt_hex, expected_opening_hex).await
     }
 
     // -----------------------------------------------------------------------

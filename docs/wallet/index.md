@@ -40,7 +40,8 @@ workflows:
   asks for confirmation; **Save without deposit** keeps the rules for later.
 - **My contracts**: open a saved contract, check the active address's permissions,
   select a deposit and review an action. **Operations & receipts** tracks recent
-  local operations and offers verified receipt export after confirmation.
+  saved operations, including other participants' retained calls and imported
+  receipts, and offers verified receipt export after confirmation.
   **Rules** shows the full spending policy and program.
 - **Open file**: preview a shared contract or a call receipt. The node checks its
   rules, any attached proof and current balances before you explicitly add it.
@@ -50,10 +51,23 @@ one is available. A receipt proves a past operation; current spendability is
 checked separately. Each deposit has its own balance and program counters.
 Creating identical rules does not give multiple deposits a shared budget.
 
+Open contract files and operation receipts through **F7 → Open file**. Import
+updates the existing contract by transaction ID, preserving your records and
+local name; repeating an import does not duplicate the operation. A contract
+file includes at most one receipt, not the sender's whole journal. Additional
+missing operations need their own receipts. F4 **Receipts** handles ordinary
+payments. If an offline wallet missed a call that peers have already pruned,
+request updated terms or a call receipt from a participant to recover the new
+counters and check their current balances.
+
+**Call fee limit** caps the fee of a future call. The default 1 NOID is not a
+creation charge: saving unfunded terms is free, and funding shows its own actual
+network fee before confirmation.
+
 The contract list and recent activity survive wallet restarts. The node retains
 watched contract openings and call receipts; export files when sharing them
 with another participant. Back up `wallet.contracts.json` and the
-`contract-activity/` directory with the wallet data. Public contract rules and
+`contract-activity/` and complete `objects/` directories with the wallet data. Public contract rules and
 saved proofs cannot be reconstructed from the master secret alone.
 
 ## The active address
