@@ -1,6 +1,6 @@
 # Shared input and contract limits
 
-The two-class candidate fits 63 user pages in m23 and 206 user pages
+The selected two-class bank fits 63 user pages in m23 and 206 user pages
 in m24, with the same limits of 504 live inputs and 63 contract calls in both
 classes. Both the isolated and mainnet-scheduled matrices have been frozen
 and checked. This preserves the standard class and makes the larger class a
@@ -614,3 +614,43 @@ honest public preprocessing, fixed-Poseidon2b and resource-price
 input identities, commands, exact output hashes and both wrong-bank controls.
 The previously published legacy B25/B255 table remains scoped to those
 legacy profiles.
+
+## Local native packages
+
+Source `7d80ef202edbcd20545028f735caaf39ee4abfc6` produced version 2.0.0
+server and GUI packages for native Linux x86_64. The build embeds the final
+mainnet bank `c2a6df73…`, retains the
+independently pinned legacy metadata and retirement keys, and authenticates
+the frozen input files. It does not regenerate matrices. The version change
+updated the twenty workspace packages without changing external dependencies.
+The executables use a portable x86-64 baseline with runtime arithmetic selection.
+
+| Build profile | Server archive bytes | GUI Debian package bytes | Node executable bytes |
+|---|---:|---:|---:|
+| Transition | 63,958,106 | 64,332,734 | 87,242,792 |
+| Later, legacy matrices omitted | 47,658,340 | 48,521,818 | 70,101,312 |
+
+Archive membership and every bundled file hash were checked. The GUI Debian
+package contains the same node bytes as its corresponding server bundle; its
+GUI release self-check passed. All four executables report version 2.0.0.
+Exact compressed matrix and key payloads were located in each node executable.
+The later profile omits both legacy matrix payloads while retaining both new
+matrices, metadata and pinned keys.
+
+Each packaged node then started with fresh data in a loopback-only network
+namespace, without peers or mining. Its RPC reported H210537, ABI3, the common
+504-input/63-call limits and the 63/206-page classes. At genesis, contract
+spending remained inactive and the legacy 20-second interval remained selected.
+Both nodes shut down successfully. These startup checks are separate from
+the full isolated-chain qualification above.
+
+The transition profile is the form used before the fork. The later profile
+requires an authenticated certificate for the network's actual fork origin;
+that future mainnet certificate cannot be generated before the predecessor
+exists. The isolated certificates used above are not mainnet certificates.
+
+[Package records](local-packages.json) contain exact source, commands, material
+and executable hashes, archive hashes, sizes and startup responses. The
+[build guide](../../../../docs/developers/build.md) describes reproducing native
+packages with the frozen inputs. These artifacts were produced locally;
+this run covers Linux x86_64, not the other supported host packagers.
