@@ -176,6 +176,43 @@ the command, source identity, terminal hashes, timing records and negative
 control. This executable predates the later wallet/mempool admission change;
 the admission suites and daemon workloads qualify that separate code path.
 
-A constrained receiver and real daemon qualification remain separate checks.
-Earlier daemon/receiver results used different banks and do not qualify this
-profile.
+## Verification with four CPUs and 8 GiB
+
+A separate process verified saved terminals with four Rayon threads, CPU
+affinity `0,2,4,6`, a four-CPU cgroup quota, an 8 GiB memory limit and no swap.
+It forced the PCLMUL backend instead of using this laptop's faster VPCLMUL.
+The driver checked the actual cgroup limits before starting and retained its
+final memory and CPU counters after the child exited.
+
+Each row below has three samples per cache condition. A cold check starts with
+an empty checked-claim cache after the matrices have been authenticated and
+loaded. A repeated check verifies the **same terminal** again in that context;
+it is not a measurement of the next distinct block in a running daemon.
+
+| Workload | Height | Cold median | Repeated-terminal median |
+|---|---:|---:|---:|
+| First v2 Small block | 10 | 1.647 s | 1.670 s |
+| Small: 63 calls | 30 | 5.740 s | 2.867 s |
+| Large: 63 calls + 143 payments | 32 | 7.699 s | 6.489 s |
+| Small: 63 calls immediately after Large | 33 | 5.851 s | 2.810 s |
+| Small: 504 inputs across 256 segments | 42 | 5.680 s | 2.827 s |
+| Large: 206 pages, 504 inputs across 256 segments | 53 | 7.502 s | 6.407 s |
+
+All 36 timed checks passed. Six independent native fixture replays matched
+the verified accumulators, and 1,468 malformed or altered terminal checks
+were rejected. The slowest individual timed check took 9.787 s. The cgroup
+peaked at 2,820,214,784 bytes (2.63 GiB), with no memory-limit or OOM events
+and no swap. Process peak RSS was 2,749,524 KiB. These peaks include fixture
+replay and negative controls as well as proof verification.
+
+Standalone setup took 767.574 s, including full matrix-file authentication
+and legacy-origin verification; it is excluded from the per-terminal samples.
+It is not an embedded-daemon startup measurement. The complete run took
+979.572 s. [Receiver records](receiver-4cpu8g.json) preserve all samples,
+enforced limits, final counters, source and executable identity, and the
+precise timing and memory scopes.
+
+This qualifies standalone proof verification under the stated local hardware
+profile. Full daemon workload, transaction admission, P2P delivery, sequential
+cache use and startup remain separate checks. Earlier daemon results used
+different banks and do not qualify this profile.

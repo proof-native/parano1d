@@ -1769,8 +1769,10 @@ fn validate_isolated_fork_test(cli: &Cli) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut cli = Cli::parse();
-    validate_isolated_fork_test(&cli)?;
     if cli.check_hardware {
+        // This standalone diagnostic never reads configuration or opens a
+        // node. Its clap conflicts forbid the paths required by the isolated
+        // startup guard, so finish it before validating a node invocation.
         let report = noid_core::cpu::ProductionHardwareReport::detect();
         print!("{report}");
         if report.ready() {
@@ -1779,6 +1781,7 @@ async fn main() -> anyhow::Result<()> {
         let _ = std::io::Write::flush(&mut std::io::stdout());
         std::process::exit(1);
     }
+    validate_isolated_fork_test(&cli)?;
     let production_hardware = noid_core::cpu::ensure_production_hardware()?;
 
     // Shorthand role flags override the default mode; clap already rejects
