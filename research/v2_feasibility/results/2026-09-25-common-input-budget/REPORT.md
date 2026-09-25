@@ -510,3 +510,39 @@ retain both origin bindings, the precise bank and key pins, binary and file
 hashes, commands, timing scopes and resource counters. The certificate tool
 checks the ancestry against those inputs; a future mainnet origin certificate
 requires the actual selected predecessor and has not been created here.
+
+## Cold synchronization and certificate recovery
+
+A stopped copy of the real H89 GUI fixture served its new B25-only origin
+certificate. Both receiving nodes started with empty data and used ordinary
+P2P snapshot bootstrap to reach the exact source tip. Each checked the active
+contract limits, the GUI call's successor State and its portable receipt, and
+retained the received certificate byte-for-byte.
+
+| Receiving executable | Startup, sync and State/receipt checks | Cgroup peak bytes |
+|---|---:|---:|
+| Transition, legacy matrices embedded | 33.453 s | 1,561,047,040 |
+| Retired, legacy matrices omitted | 35.131 s | 1,558,216,704 |
+
+Both receivers enforced four CPUs, PCLMUL, 8 GiB and no swap. This is a local
+fixture measurement, including startup and the checks above, rather than a
+prediction for a seed synchronizing over a public connection. Neither
+receiver copied a source database. The retired node materialized no legacy
+matrix-cache files.
+
+The retired node then restarted without a running provider and verified the
+same State and receipt from its retained certificate. Three separate restarts
+tested missing evidence, old-format evidence and a one-byte-corrupted
+certificate while no provider was available. Each receipt verification failed
+without changing the selected H89 tip. Reconnecting a provider recovered the
+authenticated certificate and restored receipt verification at that same tip;
+the logs confirmed recovery without a new block.
+
+All six positive observations and all three offline rejection/recovery cases
+passed. The six resource observations peaked at 1,579,155,456 bytes (1.47 GiB);
+each recorded zero memory-limit or OOM events. The
+209.488 s scenario shut down all nodes successfully.
+[Cold-sync records](retired-sync-daemons.json) retain the source and binary
+identities, actual enforced limits, exact tips, rejection messages, timings
+and log hashes. Reproduce with `scripts/live_v2_retired_sync_scenario.py`,
+the stopped GUI fixture and the certificate bound to its selected origin.

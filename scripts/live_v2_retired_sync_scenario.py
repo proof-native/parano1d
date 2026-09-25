@@ -71,7 +71,8 @@ def main():
         unit = f'noid-v2-sync-{name}-{os.getpid()}'
         return Node(name, p2p, port, binary=binary, constrained=True,
             command_prefix=('systemd-run', '--user', '--scope', '--quiet', f'--unit={unit}',
-                            '-p', 'MemoryMax=8G', '-p', 'MemorySwapMax=0', 'taskset', '-c', '0,2,4,6')), unit
+                            '-p', 'MemoryMax=8G', '-p', 'MemorySwapMax=0',
+                            '-p', 'CPUQuota=400%', 'taskset', '-c', '0,2,4,6')), unit
     b, normal_unit = constrained('receiver', 26310, 26311, transition)
     c, retired_unit = constrained('retired', 26320, 26321, retired_binary)
     report = {'status': 'running', 'source_tip': prior['final_tip'], 'checks': [],
@@ -89,9 +90,7 @@ def main():
         print(f'[stage] {stage}', flush=True)
 
     def resources(unit):
-        group = subprocess.check_output(['systemctl', '--user', 'show', unit + '.scope', '-p', 'ControlGroup', '--value'], text=True).strip()
-        path = Path('/sys/fs/cgroup') / group.lstrip('/')
-        return {name: (path / name).read_text().strip() for name in ('memory.current', 'memory.peak', 'memory.events', 'cpu.stat')}
+        return contracts.receiver_resources(unit)
 
     def check(node, unit, label):
         nonlocal portable_receipt

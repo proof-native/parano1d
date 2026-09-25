@@ -1,0 +1,362 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source": {
+    "job": "sync",
+    "output": "/home/neo/rust/parano1d-artifacts/v2-common-live-retired-sync-20260925-a",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "source_head": "a04c1252b0c94e6ca5ad7c5e993fae3f885ee824",
+    "script_sha256": "776c8fcb9e740a23623bd658ed9ae3d26257b2c2f4e96972717fc8d97439b3f9",
+    "transition_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "retired_sha256": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+    "certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+    "command": [
+      "unshare",
+      "--user",
+      "--map-root-user",
+      "--net",
+      "/usr/bin/python3",
+      "/home/neo/rust/paranoid/scripts/live_v2_retired_sync_scenario.py"
+    ]
+  },
+  "node_build_source": {
+    "source_head": "4b9ce461d363f14215c3b1a67f34cb69fea2100b",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "transition_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "transition": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-node-2250f0d9",
+    "live_origin_sha256": "687fced38bd3e853b73750d5c602dd31b0fe738b81701f63f038fa576e0ced90",
+    "live_origin": "/home/neo/rust/parano1d-artifacts/v2-common-live-gui-20260925-a/producer/data/fork-origins/78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89.origin",
+    "full_origin_sha256": "8c5caf28ff8ee105b6591cfe51f3b72620d0b01dfe56b373ee3630979ad959cf",
+    "full_origin": "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2/legacy-fork-origin.bin",
+    "helper_sha256": "4d250c352040b7c91df3b6b770ee1496adbcf1f39def7e3f5d1488c281951753",
+    "retirement_key_pins": [
+      "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+      "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+    ],
+    "tool_sha256": "5631a9548d1205b0224a655f0b845dd9a75083a591c22c9debeb5a40283b8108",
+    "tool_archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-retirement-5631a954",
+    "prior_rejected_attempt": "/home/neo/rust/paranoid/.git/v2-production-20260924/common-retirement-attempt-a-source.json",
+    "prior_rejection_reason": "Archived capacity benchmark lacked isolated-v2-fork-testnet; joint-produce rejected before creating output.",
+    "benchmark_sha256": "25b380951f0bc503ee5f98806a7a8267945686ae3530d98e17b8358dd29d1a9c",
+    "benchmark": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-production-25b38095",
+    "benchmark_features": "noid_chain/isolated-v2-fork-testnet",
+    "retired_sha256": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330",
+    "retired": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-retired-f7726a66",
+    "live_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-live-retirement-20260925-a/retired-v2-origin.bin",
+    "live_certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+    "full_certificate": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-retirement-20260925-a/retired-v2-origin.bin",
+    "full_certificate_sha256": "fea3c5578d467c1c319db17d29aa7b38197732b575891265322580a03ebf6b77",
+    "production": "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a",
+    "complete": true
+  },
+  "run_seconds": 209.4879363020009,
+  "summary": {
+    "final_height": 89,
+    "checks": 6,
+    "offline_rejections": 3,
+    "transition_startup_and_sync_seconds": 33.45347611498437,
+    "retired_startup_and_sync_seconds": 35.13100766201387,
+    "resource_peaks": [
+      {
+        "label": "transition cold sync",
+        "peak_bytes": 1561047040
+      },
+      {
+        "label": "retired cold sync",
+        "peak_bytes": 1558216704
+      },
+      {
+        "label": "retired offline restart",
+        "peak_bytes": 1579155456
+      },
+      {
+        "label": "same-tip missing recovery",
+        "peak_bytes": 1562550272
+      },
+      {
+        "label": "same-tip legacy-format recovery",
+        "peak_bytes": 1572642816
+      },
+      {
+        "label": "same-tip corrupted recovery",
+        "peak_bytes": 1573568512
+      }
+    ]
+  },
+  "startup": [
+    {
+      "label": "01-serving-source",
+      "height": 89,
+      "seconds": 3.025
+    },
+    {
+      "label": "02-cold-transition",
+      "height": 0,
+      "seconds": 10.008
+    },
+    {
+      "label": "03-cold-retired",
+      "height": 0,
+      "seconds": 11.014
+    },
+    {
+      "label": "04-retired-restart",
+      "height": 89,
+      "seconds": 11.511
+    },
+    {
+      "label": "05-retired-reject-missing",
+      "height": 89,
+      "seconds": 11.512
+    },
+    {
+      "label": "06-serving-missing",
+      "height": 89,
+      "seconds": 3.004
+    },
+    {
+      "label": "06-retired-recover-missing",
+      "height": 89,
+      "seconds": 11.512
+    },
+    {
+      "label": "05-retired-reject-legacy-format",
+      "height": 89,
+      "seconds": 11.511
+    },
+    {
+      "label": "06-serving-legacy-format",
+      "height": 89,
+      "seconds": 3.005
+    },
+    {
+      "label": "06-retired-recover-legacy-format",
+      "height": 89,
+      "seconds": 11.511
+    },
+    {
+      "label": "05-retired-reject-corrupted",
+      "height": 89,
+      "seconds": 11.51
+    },
+    {
+      "label": "06-serving-corrupted",
+      "height": 89,
+      "seconds": 3.004
+    },
+    {
+      "label": "06-retired-recover-corrupted",
+      "height": 89,
+      "seconds": 11.511
+    }
+  ],
+  "report": {
+    "status": "passed",
+    "source_tip": {
+      "height": 89,
+      "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 153,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1554732500"
+    },
+    "checks": [
+      {
+        "label": "transition cold sync",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1189785600",
+          "memory.peak": "1561047040",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 70354737\nuser_usec 69602718\nsystem_usec 752018\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 298\nnr_throttled 49\nthrottled_usec 26107\nnr_bursts 0\nburst_usec 0"
+        },
+        "startup_and_sync_seconds": 33.45347611498437
+      },
+      {
+        "label": "retired cold sync",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1185898496",
+          "memory.peak": "1558216704",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 72850272\nuser_usec 72128418\nsystem_usec 721854\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 314\nnr_throttled 56\nthrottled_usec 18505\nnr_bursts 0\nburst_usec 0"
+        },
+        "startup_and_sync_seconds": 35.13100766201387
+      },
+      {
+        "label": "retired offline restart",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1168408576",
+          "memory.peak": "1579155456",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 49290108\nuser_usec 48573179\nsystem_usec 716928\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 199\nnr_throttled 43\nthrottled_usec 15211\nnr_bursts 0\nburst_usec 0"
+        }
+      },
+      {
+        "label": "same-tip missing recovery",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1188884480",
+          "memory.peak": "1562550272",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 61038147\nuser_usec 60169558\nsystem_usec 868589\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 235\nnr_throttled 33\nthrottled_usec 35463\nnr_bursts 0\nburst_usec 0"
+        }
+      },
+      {
+        "label": "same-tip legacy-format recovery",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1167364096",
+          "memory.peak": "1572642816",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 63095519\nuser_usec 62316895\nsystem_usec 778623\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 241\nnr_throttled 35\nthrottled_usec 29573\nnr_bursts 0\nburst_usec 0"
+        }
+      },
+      {
+        "label": "same-tip corrupted recovery",
+        "height": 89,
+        "tip": {
+          "height": 89,
+          "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 153,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "1554732500"
+        },
+        "receipt_verified": true,
+        "resource": {
+          "memory.max": "8589934592",
+          "memory.swap.max": "0",
+          "cpu.max": "400000 100000",
+          "memory.current": "1168039936",
+          "memory.peak": "1573568512",
+          "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+          "cpu.stat": "usage_usec 62282850\nuser_usec 61500179\nsystem_usec 782671\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 243\nnr_throttled 31\nthrottled_usec 17570\nnr_bursts 0\nburst_usec 0"
+        }
+      }
+    ],
+    "source_head": "a04c1252b0c94e6ca5ad7c5e993fae3f885ee824",
+    "script_sha256": {
+      "live_v2_retired_sync_scenario.py": "776c8fcb9e740a23623bd658ed9ae3d26257b2c2f4e96972717fc8d97439b3f9",
+      "live_v2_contract_scenario.py": "2cd0171011deb6fe5af48455418a27009c98e3afcb6d23af049725d656916e5d",
+      "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+    },
+    "binary_sha256": {
+      "isolated-v2-common-node-2250f0d9": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+      "isolated-v2-common-retired-f7726a66": "f7726a665aa2c0bf89ad7de22e983eec288c8b29062532b731531c929c5b9330"
+    },
+    "certificate_sha256": "ad9a2fbad83e74e1c0167a89179bf0c9aa13335942fe92d38b7debf0e90e837a",
+    "certificate_bytes": 7353789,
+    "receiver_cpu_affinity": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "receiver_backend": "pclmul",
+    "receiver_memory_max": 8589934592,
+    "receiver_swap_max": 0,
+    "stage": "complete",
+    "offline_rejections": [
+      {
+        "label": "missing",
+        "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'fork origin 78470dcfd9e2470c43b3138e7fb8d982bc496b9988c8479f1f59c13b8341be89 requires its authenticated certificate'}"
+      },
+      {
+        "label": "legacy-format",
+        "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'v2 HistoryStep: Legacy(Bank(MatrixEvaluation(CanonicalHistoryStepClassId(0))))'}"
+      },
+      {
+        "label": "corrupted",
+        "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'v2 HistoryStep: Retirement(\"retirement matrix evaluation: sparse evaluation PCS opening: BaseFold(InitialMerkleFailed { query_index: 52 })\")'}"
+      }
+    ],
+    "final_tip": {
+      "height": 89,
+      "best_hash": "5feeb6170dad6c1abe9a770ff28590b20541278c358d52f4a34a660118890985",
+      "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+      "active_slot_count": 153,
+      "log_slots": 24,
+      "circulating_supply_micronoid": "1554732500"
+    },
+    "offline_provider_stopped": true
+  },
+  "report_sha256": "103fcb717d4e60322e39ba2489b70dc37b84c623a3f03289147a84b1a01e72dc",
+  "scenario_log_sha256": "9f82808c473031a9d1a7872314bddcda396787479a2e04399964a58b403f3e6a",
+  "log_sha256": {
+    "01-serving-source.log": "12ba811c0ae34d90e3e8c772e1650615ce3056d33698946e77130057f20936d8",
+    "02-cold-transition.log": "b29b7e02022d7935e390abb73c4a200bbb0382121e7f7afe2d6aed5b8632f099",
+    "03-cold-retired.log": "a155a213a8b5486317f33749624089aaddc1110140837c2c07ba900049bc3415",
+    "04-retired-restart.log": "3ebcd0a5c6714dfcfeeab704f502dbda546df9314f6b3bb81b5d615782f101b4",
+    "05-retired-reject-corrupted.log": "a37bffd41379e00c62be3c2f1a76241ef75dff6a5e0fbe9d016798358ecba528",
+    "05-retired-reject-legacy-format.log": "a12e3b70cecb4d58094be3b7f1137bb67b02a5f9eeb7de1f9fbac23b28399a57",
+    "05-retired-reject-missing.log": "4abe87da7ca51840560fcf2b93d2d169238fb3e147d7a7c54a1e03d8e7714be7",
+    "06-retired-recover-corrupted.log": "e8e4c764065baf2877ceccd353152ec19cc7bc28c816eb2ca76f1e38f1308bc4",
+    "06-retired-recover-legacy-format.log": "3fc1fa68f3ccf0e64ca2ab0167ce419aa2fb32ed93b2732e633e9e11c2478779",
+    "06-retired-recover-missing.log": "2882e5491d314d43f0f103713980ab7cb417ce5410c9ce2b3deaa16c4b1b6f62",
+    "06-serving-corrupted.log": "cfc203839c759fbe091661de1fdcac82070099d1e57ffea04b2c6c66d8cf7ca2",
+    "06-serving-legacy-format.log": "3b975da1112c2f9f410561fae466bc9a7d0473b53a3d2cea3ba90e294b6a1c63",
+    "06-serving-missing.log": "59fe4fcb2ac84780c9840ddbc56b6b59190d24f4d5048abed9169440dfb88487"
+  }
+}
