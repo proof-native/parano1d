@@ -154,6 +154,11 @@ systems joined afterward.
 
 ## Soundness
 
+The table below reports the legacy profiles. The finalized v2 banks and
+matrix-retirement proofs have separately recomputed
+[source-linked accounting](../research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md#accounting-for-the-final-banks)
+under the stated composition and cryptographic premises.
+
 | Security statement | Legacy B25/B255 result |
 |---|---:|
 | Target FRI security | **128 bits** |

@@ -589,3 +589,28 @@ all six receipt checks, accepted tips, actual resource limits, worker count,
 source identities and log hashes. Reproduce with
 `scripts/live_v2_retired_mining_scenario.py`, the stopped native H17 fixture
 and its exact two-class retirement certificate.
+
+## Accounting for the final banks
+
+The source-linked soundness calculator was rerun against the exact isolated
+and mainnet bank pins and the independently pinned retirement keys. It checked
+the final 63/206-page, 504-input, 63-call profiles, both matrix digests and all
+20 typed failure events. The inventory includes the legacy ancestry, new
+history proofs and both retirement reductions. Supplying a wrong bank pin
+was rejected for each profile.
+
+Both banks produced the same accounting bounds. The limiting resource event
+is `retirement.b25.query`; the descriptive base-two logarithm of its dominant
+half-success gate-depth work floor is `173.3897612554174`. The ideal bound at
+the Category 1 reference envelope is approximately `0.04937388373372754`.
+These descriptive decimals accompany exact rational bounds in the
+[isolated output](soundness-isolated.json) and [mainnet output](soundness-mainnet.json).
+The two legacy memory-reduction root envelopes are 167,772,160 and 671,088,640.
+
+This calculation uses the documented all-root composition, ideal compiler,
+honest public preprocessing, fixed-Poseidon2b and resource-price
+[premises](../../../../noid_soundness/docs/v2-retirement.md).
+[Accounting records](soundness-accounting.json) retain the executable and
+input identities, commands, exact output hashes and both wrong-bank controls.
+The previously published legacy B25/B255 table remains scoped to those
+legacy profiles.
