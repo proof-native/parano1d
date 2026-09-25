@@ -1,0 +1,441 @@
+{
+  "status": "passed",
+  "source_tip": 64,
+  "blocks": [
+    {
+      "height": 65,
+      "label": "full 63 ordinary payments",
+      "user_transactions": 63,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 28.291187747003278,
+      "receiver_before": {
+        "memory.current": "611229696",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 48288368\nuser_usec 47756254\nsystem_usec 532114\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "634208256",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 59962859\nuser_usec 59396515\nsystem_usec 566343\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 22777,
+      "nonce_to_commit_ms": 119,
+      "receiver_terminal_verification_ms": 2845,
+      "receiver_suffix_application_ms": 303
+    },
+    {
+      "height": 66,
+      "label": "full 63 persistent-counter calls with Large enabled",
+      "user_transactions": 63,
+      "contract_calls": 63,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.68617050300236,
+      "receiver_before": {
+        "memory.current": "624132096",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 65340558\nuser_usec 64698022\nsystem_usec 642536\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "699928576",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 78432550\nuser_usec 77725085\nsystem_usec 707464\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 20517,
+      "nonce_to_commit_ms": 898,
+      "receiver_terminal_verification_ms": 2731,
+      "receiver_suffix_application_ms": 2668
+    },
+    {
+      "height": 67,
+      "label": "prepare 255 ordinary inputs",
+      "user_transactions": 63,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 34.72903016599594,
+      "receiver_before": {
+        "memory.current": "685162496",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 104029702\nuser_usec 103231328\nsystem_usec 798373\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "706142208",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 115445433\nuser_usec 114610902\nsystem_usec 834530\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 27222,
+      "nonce_to_commit_ms": 70,
+      "receiver_terminal_verification_ms": 2775,
+      "receiver_suffix_application_ms": 491
+    },
+    {
+      "height": 68,
+      "label": "prepare 255 ordinary inputs",
+      "user_transactions": 63,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.585447745979764,
+      "receiver_before": {
+        "memory.current": "688410624",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 121308587\nuser_usec 120394837\nsystem_usec 913750\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "709021696",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 132735181\nuser_usec 131790504\nsystem_usec 944677\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 20296,
+      "nonce_to_commit_ms": 68,
+      "receiver_terminal_verification_ms": 2693,
+      "receiver_suffix_application_ms": 547
+    },
+    {
+      "height": 69,
+      "label": "prepare 255 ordinary inputs",
+      "user_transactions": 63,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 28.73383178599761,
+      "receiver_before": {
+        "memory.current": "691093504",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 138219158\nuser_usec 137200390\nsystem_usec 1018767\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "708890624",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 150001384\nuser_usec 148961702\nsystem_usec 1039681\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 23140,
+      "nonce_to_commit_ms": 71,
+      "receiver_terminal_verification_ms": 2788,
+      "receiver_suffix_application_ms": 539
+    },
+    {
+      "height": 70,
+      "label": "full 255 ordinary payments",
+      "user_transactions": 255,
+      "contract_calls": 0,
+      "class": "Large",
+      "production_and_delivery_seconds": 66.33659557701321,
+      "receiver_before": {
+        "memory.current": "712617984",
+        "memory.peak": "780091392",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 172495383\nuser_usec 171186188\nsystem_usec 1309194\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1523720192",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 196222784\nuser_usec 194425266\nsystem_usec 1797518\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 255,
+      "template_preparation_ms": 54645,
+      "nonce_to_commit_ms": 127,
+      "receiver_terminal_verification_ms": 6848,
+      "receiver_suffix_application_ms": 1441
+    },
+    {
+      "height": 71,
+      "label": "full Small immediately after Large",
+      "user_transactions": 63,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 37.39496418897761,
+      "receiver_before": {
+        "memory.current": "1489612800",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 201945477\nuser_usec 200067669\nsystem_usec 1877808\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1505116160",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 226612710\nuser_usec 224699965\nsystem_usec 1912744\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 63,
+      "template_preparation_ms": 28267,
+      "nonce_to_commit_ms": 68,
+      "receiver_terminal_verification_ms": 5851,
+      "receiver_suffix_application_ms": 753
+    },
+    {
+      "height": 72,
+      "label": "Small carried-Large tail 1/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.81496681299177,
+      "receiver_before": {
+        "memory.current": "1505116160",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 226612710\nuser_usec 224699965\nsystem_usec 1912744\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1494528000",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 237895607\nuser_usec 235956867\nsystem_usec 1938740\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 22829,
+      "nonce_to_commit_ms": 35,
+      "receiver_terminal_verification_ms": 2750,
+      "receiver_suffix_application_ms": 489
+    },
+    {
+      "height": 73,
+      "label": "Small carried-Large tail 2/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.060185450012796,
+      "receiver_before": {
+        "memory.current": "1494528000",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 237895607\nuser_usec 235956867\nsystem_usec 1938740\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1500737536",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 252154113\nuser_usec 250183479\nsystem_usec 1970634\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 22041,
+      "nonce_to_commit_ms": 19,
+      "receiver_terminal_verification_ms": 3335,
+      "receiver_suffix_application_ms": 544
+    },
+    {
+      "height": 74,
+      "label": "Small carried-Large tail 3/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 40.827997571002925,
+      "receiver_before": {
+        "memory.current": "1500479488",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 252154113\nuser_usec 250183479\nsystem_usec 1970634\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1502674944",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 263910217\nuser_usec 261900700\nsystem_usec 2009516\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 32580,
+      "nonce_to_commit_ms": 35,
+      "receiver_terminal_verification_ms": 2757,
+      "receiver_suffix_application_ms": 488
+    },
+    {
+      "height": 75,
+      "label": "Small carried-Large tail 4/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 25.891656078980304,
+      "receiver_before": {
+        "memory.current": "1502674944",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 263910217\nuser_usec 261900700\nsystem_usec 2009516\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1499439104",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 275298621\nuser_usec 273266140\nsystem_usec 2032481\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 20948,
+      "nonce_to_commit_ms": 20,
+      "receiver_terminal_verification_ms": 2733,
+      "receiver_suffix_application_ms": 493
+    },
+    {
+      "height": 76,
+      "label": "Small carried-Large tail 5/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 28.52021259101457,
+      "receiver_before": {
+        "memory.current": "1499439104",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 275298621\nuser_usec 273266140\nsystem_usec 2032481\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1507135488",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 290347331\nuser_usec 288286889\nsystem_usec 2060442\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 21354,
+      "nonce_to_commit_ms": 22,
+      "receiver_terminal_verification_ms": 3613,
+      "receiver_suffix_application_ms": 620
+    },
+    {
+      "height": 77,
+      "label": "Small carried-Large tail 6/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 33.413333178992616,
+      "receiver_before": {
+        "memory.current": "1506873344",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 290347331\nuser_usec 288286889\nsystem_usec 2060442\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1511956480",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 303962058\nuser_usec 301876630\nsystem_usec 2085427\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 27929,
+      "nonce_to_commit_ms": 19,
+      "receiver_terminal_verification_ms": 3301,
+      "receiver_suffix_application_ms": 523
+    },
+    {
+      "height": 78,
+      "label": "Small carried-Large tail 7/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 24.04461463500047,
+      "receiver_before": {
+        "memory.current": "1511956480",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 303962058\nuser_usec 301876630\nsystem_usec 2085427\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1509756928",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 315231143\nuser_usec 313121790\nsystem_usec 2109352\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 18716,
+      "nonce_to_commit_ms": 18,
+      "receiver_terminal_verification_ms": 2733,
+      "receiver_suffix_application_ms": 479
+    },
+    {
+      "height": 79,
+      "label": "Small carried-Large tail 8/8",
+      "user_transactions": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 23.857636542001273,
+      "receiver_before": {
+        "memory.current": "1509756928",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 315231143\nuser_usec 313121790\nsystem_usec 2109352\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "receiver_after": {
+        "memory.current": "1511817216",
+        "memory.peak": "1892683776",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 327067838\nuser_usec 324935509\nsystem_usec 2132328\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "user_pages": 0,
+      "template_preparation_ms": 18992,
+      "nonce_to_commit_ms": 17,
+      "receiver_terminal_verification_ms": 2878,
+      "receiver_suffix_application_ms": 523
+    }
+  ],
+  "source_head": "bc5bf211235b507e331d1bfe6324843d83e7f181",
+  "script_sha256": {
+    "live_v2_capacity_scenario.py": "cb0e7ba725140d090129c375c9284c0c7f366f4244143a4848e4f12b183ed4cd",
+    "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+    "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+  },
+  "receiver_cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "receiver_backend": "pclmul",
+  "receiver_memory_max": 8589934592,
+  "receiver_swap_max": 0,
+  "binary_sha256": {
+    "isolated_v2_node": "7eeae6522680fb6ed532c956190ac8fad156a3f409b5267be7f2dbf80b112241",
+    "parano1d-miner": "e32ebb3a618cc7066ef4e569db9d644ca6e5a4ebe96276895c2ae2ca3603b1c7"
+  },
+  "protocol": {
+    "tip_height": 64,
+    "activation_height": 10,
+    "active_at_next_block": true,
+    "runtime_available": true,
+    "next_block_time_seconds": 30,
+    "abi_version": 3,
+    "instructions": 16,
+    "persistent_registers": 2,
+    "classes": [
+      {
+        "class": "small",
+        "pages": 63,
+        "live_inputs": 504,
+        "contract_calls": 63
+      },
+      {
+        "class": "large",
+        "pages": 255,
+        "live_inputs": 1020,
+        "contract_calls": 26
+      }
+    ]
+  },
+  "stage": "complete",
+  "receiver_final": {
+    "memory.current": "1511817216",
+    "memory.peak": "1892683776",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "cpu.stat": "usage_usec 327067838\nuser_usec 324935509\nsystem_usec 2132328\nnice_usec 0\ncore_sched.force_idle_usec 0"
+  },
+  "final_tip": {
+    "height": 79,
+    "best_hash": "75b7539b19a0f15961531ec09f1ec105beb8dfa9654154f1a1f52dbfa4d2874a",
+    "difficulty_target": "000000000000000000000000000000000000000000000000000000c08a3e0000",
+    "active_slot_count": 665,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "1411535000"
+  },
+  "binary_source_base": "73bebb04",
+  "measurement_note": "One shared i7-1365U host; producer eight logical CPUs and six proof workers, receiver four logical CPUs/four workers forced PCLMUL, 8 GiB no swap; external PoW two threads. No overlapping build or proof benchmark. Preparation excludes authorization, PoW and delivery. Terminal verification excludes following suffix application and wallet retention."
+}
