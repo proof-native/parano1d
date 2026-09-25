@@ -151,5 +151,8 @@ terms or a verified receipt from a participant. The local index reads compact
 public terms without scanning full proof receipts and can be rebuilt from the
 saved openings.
 
-The matrix/call capacities remain candidate qualification parameters. Read them
-from the node instead of hardcoding the earlier research default of 16 calls.
+The scheduled bank's page limits are 63 for Small and 206 for Large. Both
+classes allow 504 inputs and up to 63 calls per block; calls share page space
+with ordinary payments. Applications should read `getContractProtocol` for
+the active height and installed limits. See the
+[scheduled profile](../protocol/parameters.md#scheduled-v2-profile).

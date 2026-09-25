@@ -49,11 +49,11 @@ fn permissions(label: &'static str, payment: bool, close: bool) -> Element<'stat
 pub fn view(app: &App, _compact: bool) -> Element<'_, Message> {
     let state = &app.contracts;
     let ready = !state.busy;
-    let active = ready
-        && state
-            .protocol
-            .as_ref()
-            .is_some_and(|p| p.available(app.snapshot.network.height));
+    let protocol_active = state
+        .protocol
+        .as_ref()
+        .is_some_and(|p| p.available(app.snapshot.network.height));
+    let active = ready && protocol_active;
     let mut body = column![
         text("CONTRACTS").size(18).color(theme::PROOF),
         text("Create spending rules, share their terms and keep proof of every call.").size(13),
@@ -217,7 +217,7 @@ pub fn view(app: &App, _compact: bool) -> Element<'_, Message> {
             .padding(10)
             .style(theme::surface),
     );
-    if !active {
+    if !protocol_active {
         body = body.push(
             text("Contracts become available automatically at the v2 activation block.")
                 .size(12)

@@ -395,3 +395,41 @@ receipt checks, local sizes, actual resource counters and source identities.
 Reproduce with `scripts/live_v2_shared_receipts_scenario.py`, using the stopped
 capacity fixture and its pruned contract-lifecycle ancestor in a new isolated
 network namespace.
+
+## Wallet discovery and a real GUI call
+
+A separate copy continued the H85 receipt fixture. One participant funded a
+watched counter at H86 and called it at H87; the other participant discovered
+the funded successor through its own wallet. Discovery used one-entry pages
+and a stable tip per query. Pending successor terms did not count as a balance.
+A strictly heavier branch retained the original funded counter at H88. After
+reorganization and restart, discovery again reported the original balance and
+the orphaned successor as unfunded; the orphaned receipt was rejected.
+All seven recorded discovery observations passed in a 149.060 s run.
+[Discovery records](discovery-daemons.json) retain the terms, selected tips,
+pagination observations, work comparison and exact source identities. This is
+discovery of locally retained public terms, not a global contract registry.
+
+The native GUI then opened that stopped H88 fixture in an isolated X11 display,
+using the real node without mock RPC. Starting from saved orphaned successor
+terms, the interface found and selected the restored funded predecessor. Its
+review showed inclusion at H89, a 0.005800 NOID fee, a 9.994200 NOID successor
+balance and counters `1, 0`. The GUI's confirm button authorized and submitted
+the call. A normal external miner included it at H89. Selecting the candidate
+balance then showed the funded successor. A separate read-only RPC check
+confirmed the transaction and independently verified its 914,634-byte receipt.
+Both public openings remained in the saved GUI library.
+
+This inspection also exposed a display-only issue: while a contract RPC was
+pending, the activation caption treated disabled controls as inactive rules.
+The caption now checks protocol activation independently of the busy flag;
+button authorization rules are unchanged. All 66 GUI tests passed. A rebuilt
+GUI was checked against the same real H89 node: the waiting message appeared
+without a false activation notice, and the terms loaded successfully. No new
+block was mined during that caption check.
+
+[GUI records](gui-daemons.json) distinguish the call-test binary from the later
+caption-only build, and retain the source patch identity, test results, receipt
+hash, selected State, and screenshot and log hashes. Both GUI/node runs stopped
+successfully. The original H89 fixture is preserved for cold synchronization
+and retirement-certificate qualification.
