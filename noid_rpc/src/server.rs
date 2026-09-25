@@ -474,16 +474,30 @@ fn fee_breakdown_info(
 
 fn mempool_tx_info(
     entry: noid_mempool::MempoolEntryMetadata,
-    v2: Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>,
+    v2: Option<(
+        noid_recursive::acceptance::history_step::v2::banked::Config,
+        u64,
+    )>,
 ) -> MempoolTxInfo {
     use noid_chain::consensus::paged_spend::BlockProofClass;
 
     let page_count = usize::from(entry.page_count);
-    let (minimum_proof_class, requires_b255_miner) = if let Some((small, height)) = v2 {
-        let system_pages = usize::from(noid_chain::consensus::development_allocation::development_payout_due_at_height(height));
+    let (minimum_proof_class, requires_b255_miner) = if let Some((bank, height)) = v2 {
+        use noid_recursive::acceptance::history_step::v2::banked::Class;
+        let small = bank.class(Class::Small);
+        let system_pages = usize::from(
+            noid_chain::consensus::development_allocation::development_payout_due_at_height(height),
+        );
         let requires_large = page_count > small.pages().saturating_sub(system_pages)
             || usize::from(entry.n_inputs) > small.max_live_inputs();
-        (format!("B{}", if requires_large { 255 } else { small.pages() }), requires_large)
+        let pages = bank
+            .class(if requires_large {
+                Class::Large
+            } else {
+                Class::Small
+            })
+            .pages();
+        (format!("B{pages}"), requires_large)
     } else {
         let proof_class = BlockProofClass::for_page_count(page_count)
             .expect("admitted PagedSpend always fits a consensus proof class");
@@ -1047,17 +1061,25 @@ impl RpcHandler {
         Ok(())
     }
 
-    async fn pending_v2_class(
+    async fn pending_v2_bank(
         &self,
-    ) -> RpcResult<Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>> {
+    ) -> RpcResult<
+        Option<(
+            noid_recursive::acceptance::history_step::v2::banked::Config,
+            u64,
+        )>,
+    > {
         let height = self.chain.read().await.tip_height().saturating_add(1);
         if !noid_chain::consensus::params::v2_active(height) {
             return Ok(None);
         }
-        let runtime = self.history_step_runtime.as_deref()
+        let runtime = self
+            .history_step_runtime
+            .as_deref()
             .ok_or_else(|| rpc_err("v2 history bank is unavailable"))?
-            .v2().map_err(rpc_err)?;
-        Ok(Some((runtime.bank().config().class(noid_recursive::acceptance::history_step::v2::banked::Class::Small), height)))
+            .v2()
+            .map_err(rpc_err)?;
+        Ok(Some((runtime.bank().config(), height)))
     }
 
     fn require_mining_network(&self) -> RpcResult<()> {
@@ -2549,7 +2571,7 @@ impl ParanoidApiServer for RpcHandler {
         let hash_bytes = decode_32_byte_hex("txhash", &txhash)?;
         let hash = noid_poseidon2b::primitives::TxBodyHash(hash_bytes);
         let found = self.mempool.get_entry_metadata(&hash).await;
-        let v2 = self.pending_v2_class().await?;
+        let v2 = self.pending_v2_bank().await?;
         Ok(found.map(|entry| mempool_tx_info(entry, v2)))
     }
 
@@ -3128,7 +3150,7 @@ impl ParanoidApiServer for RpcHandler {
 
     async fn get_mempool_info(&self) -> RpcResult<MempoolInfo> {
         let snapshot = self.mempool.metadata_snapshot().await;
-        let v2 = self.pending_v2_class().await?;
+        let v2 = self.pending_v2_bank().await?;
 
         let txs: Vec<MempoolTxInfo> = snapshot
             .entries
@@ -3431,8 +3453,10 @@ mod tests {
     #[test]
     fn mempool_v2_status_follows_pinned_limits_and_system_page_reservation() {
         use noid_chain::consensus::forks::ACTIVE_SCHEDULE;
-        use noid_recursive::acceptance::history_step::v2::V2Config;
-        let Some(at) = ACTIVE_SCHEDULE.v2() else { return; };
+        use noid_recursive::acceptance::history_step::v2::{banked::Config, V2Config};
+        let Some(at) = ACTIVE_SCHEDULE.v2() else {
+            return;
+        };
         let small = V2Config::with_limits(23, 63, 504, 63, ACTIVE_SCHEDULE).unwrap();
         let metadata = |pages, inputs| noid_mempool::MempoolEntryMetadata {
             tx_hash: noid_poseidon2b::primitives::TxBodyHash([1; 32]),
@@ -3444,17 +3468,29 @@ mod tests {
             admitted_height: at.height() - 1,
             has_authorization: true,
         };
-        for (pages, large) in [(1, false), (26, false), (63, false), (64, true)] {
-            let info = mempool_tx_info(metadata(pages, 1), Some((small, at.height())));
-            assert_eq!(info.requires_b255_miner, large);
-            assert_eq!(info.minimum_proof_class, if large { "B255" } else { "B63" });
+        for large_pages in [206, 211, 223, 255] {
+            let large = V2Config::with_limits(24, large_pages, 504, 63, ACTIVE_SCHEDULE).unwrap();
+            let bank = Config::new(small, large).unwrap();
+            for (pages, requires_large) in [(1, false), (26, false), (63, false), (64, true)] {
+                let info = mempool_tx_info(metadata(pages, 1), Some((bank, at.height())));
+                assert_eq!(info.requires_b255_miner, requires_large);
+                assert_eq!(
+                    info.minimum_proof_class,
+                    format!("B{}", if requires_large { large_pages } else { 63 })
+                );
+            }
+            let daily = at.height() + 86_400 / at.block_time() - 1;
+            assert!(mempool_tx_info(metadata(63, 1), Some((bank, daily))).requires_b255_miner);
+            assert!(!mempool_tx_info(metadata(62, 1), Some((bank, daily))).requires_b255_miner);
+            let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
+            let bank = Config::new(bounded, large).unwrap();
+            assert!(
+                !mempool_tx_info(metadata(48, 384), Some((bank, at.height()))).requires_b255_miner
+            );
+            assert!(
+                mempool_tx_info(metadata(49, 385), Some((bank, at.height()))).requires_b255_miner
+            );
         }
-        let daily = at.height() + 86_400 / at.block_time() - 1;
-        assert!(mempool_tx_info(metadata(63, 1), Some((small, daily))).requires_b255_miner);
-        assert!(!mempool_tx_info(metadata(62, 1), Some((small, daily))).requires_b255_miner);
-        let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
-        assert!(!mempool_tx_info(metadata(48, 384), Some((bounded, at.height()))).requires_b255_miner);
-        assert!(mempool_tx_info(metadata(49, 385), Some((bounded, at.height()))).requires_b255_miner);
     }
 
     #[test]

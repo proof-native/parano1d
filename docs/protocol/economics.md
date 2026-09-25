@@ -59,6 +59,12 @@ redirect or defer a due payout.
 
 ## V2 issuance
 
+Live State measures the data currently needed by the network. Spent slots can
+be reused, consolidation removes live outputs, and a contract can repeatedly
+update one object. Useful activity therefore need not increase State capacity.
+V2 uses block height as its monetary clock while occupancy continues to price
+the cost of adding persistent State.
+
 At the v2 activation height `H = 210,537`, the gross block subsidy becomes
 16 NOID. Each subsequent step begins exactly 1,051,200 blocks after the
 previous one, counted from `H`. This is one nominal 365-day year at the
@@ -80,6 +86,18 @@ These are exact integer amounts, not rounded results of a formula. The
 1 NOID floor continues indefinitely, so the schedule does not impose a fixed
 maximum supply. State expansion neither advances nor resets this clock.
 The authenticated block height selects the reward inside `HistoryStep`.
+
+The chosen transition spans eight nominal years: its two-year anchors halve
+exactly, `16 → 8 → 4 → 2 → 1`. Intermediate annual amounts approximate a
+geometric half-step. The eight-year horizon and 1 NOID tail are explicit design
+choices; the table, rather than a square-root calculation, defines consensus.
+
+At the target intervals, moving from 50 NOID per 20 seconds to 16 per
+30 seconds reduces the initial gross issuance rate by 78.67%. This is a
+substantial initial subsidy reduction; the smaller annual steps distribute
+subsequent reductions over time. The first two complete v2 intervals schedule
+28,697,760 NOID in gross subsidy. Fee burns reduce the resulting supply, so
+gross subsidy should not be presented as circulating-supply growth.
 
 Keeping Live State small still matters. Within each State capacity level,
 the [occupancy multiplier](#fees) increases the charge for adding net-new

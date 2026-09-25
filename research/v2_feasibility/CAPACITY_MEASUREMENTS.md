@@ -1,5 +1,11 @@
 # Scheduled recursive capacity measurements
 
+The [shared-limit candidate](results/2026-09-25-common-input-budget/REPORT.md)
+fits 63 Small pages and 206 Large pages, with 504 inputs and 63 calls in each
+class. Its complete isolated and mainnet-scheduled matrices have been frozen
+and checked under the annual height-based reward rule. Full block and receiver qualification of
+this bank is still required.
+
 The [joint-bank integer-core measurements](results/2026-09-24-banked-integer-core/REPORT.md)
 now contain actual m23/m24 proofs through all four class transitions, including
 63 calls in the small class and 26 calls in a filled 255-page large block.
@@ -21,8 +27,13 @@ RAYON_NUM_THREADS=12 target/release/noid_v2_capacity joint \
 ```
 
 The five numbers are small pages, small inputs, small calls, large inputs and
-large calls. The large class always has 255 user pages. `--freeze-only` stops
-after freezing and rechecking both matrices with the final common bank pins.
+large calls. Large defaults to 255 user pages. The shared-limit candidate uses
+`63 504 63 504 63 --large-pages=206`. With a 63-page Small class, the runner
+also accepts Large envelopes of 207, 209, 210, 211 and 223 pages for boundary
+measurements; accepted configuration syntax does not establish that a matrix
+fits. These options select
+distinct bank identities, not a witness-controlled block limit. `--freeze-only`
+stops after freezing and rechecking both matrices with the final common bank pins.
 The full run tests class switches, filled blocks and the subsequent small tail.
 Contract programs and two-lane recursion remain present in empty blocks.
 
@@ -44,6 +55,24 @@ Fresh claims are always checked; a cached exact carried claim only avoids a
 repeated scan of the other matrix. Independent native fixture replay and
 adversarial terminal checks follow the timed samples. This harness does not
 replace whole-node database, networking, pruning or retained-fork tests.
+
+The `joint-budgets` command continues an authenticated candidate fixture with
+maximum-input blocks distributed across all 256 State segments, including a
+full-page case where the limits permit it:
+
+```sh
+RAYON_NUM_THREADS=12 target/release/noid_v2_capacity joint-budgets \
+  /path/to/history-step-pack-v1 LEGACY_METADATA_PIN \
+  /path/to/verified-legacy-fixtures /path/to/candidate \
+  CANDIDATE_BANK_PIN /path/to/NEW-output SOURCE_TIP_HEIGHT
+```
+
+It checks native rejection and an unsatisfied witness under the unchanged
+matrix when a reduced input budget is exceeded. The output contains both the
+authenticated source fixtures and new proofs for independent verification.
+The [384-input measurements](results/2026-09-25-large-call-budget/REPORT.md#full-input-envelopes-across-state-segments)
+used the earlier reward relation; subsequent height-based emission requires a
+new bank and new qualification.
 
 ## Single-class runner and earlier baseline
 

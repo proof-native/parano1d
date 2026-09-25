@@ -595,7 +595,13 @@ mod tests {
             return;
         };
         let payout = at.height() + 86_400 / at.block_time() - 1;
-        for (m, pages, inputs, calls) in [(23, 63, 504, 63), (24, 255, 1020, 26)] {
+        for (m, pages, inputs, calls) in [
+            (23, 63, 504, 63),
+            (24, 206, 504, 63),
+            (24, 211, 384, 64),
+            (24, 223, 1020, 64),
+            (24, 255, 1020, 26),
+        ] {
             let config = V2Config::with_limits(m, pages, inputs, calls, ACTIVE_SCHEDULE).unwrap();
             for (height, reserved) in [
                 (at.height(), 0),

@@ -1348,7 +1348,7 @@ struct Cli {
     #[arg(long)]
     allow_custom_coinbase: bool,
 
-    /// Permit B255 production after v2. The default produces the small v2
+    /// Permit large-class production after v2. The default produces the small v2
     /// class; verification always supports both. Applies to internal mining
     /// and external PoW templates, with no change to pre-v2 calibration.
     #[arg(long)]

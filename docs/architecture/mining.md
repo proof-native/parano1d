@@ -66,14 +66,15 @@ different block-validity rules.
 
 At the scheduled fork, the source switches to a jointly authenticated m23/m24
 bank and a 30-second target. The default producer uses m23. A server operator
-can allow B255 selection with `--v2-large-blocks`; the option applies to internal
+can allow Large-class selection with `--v2-large-blocks`; the option applies to internal
 mining and external-worker templates. The graphical wallet has no such control.
 Every node verifies both classes. Pre-fork calibration remains as described above.
 
 Class selection respects each installed class's page, input and contract-call
-limits. Enabling B255 does not force every block to use it: the smaller class
-can retain more eligible contract calls. Read the actual limits from
-`getContractProtocol`; final v2 capacities remain under qualification.
+limits. The producer selects the larger class when its eligible transaction
+set yields more claimable fees; otherwise it keeps the smaller class. Read
+the actual limits from `getContractProtocol`; final v2 capacities remain
+under qualification.
 
 ## CPU scheduling
 

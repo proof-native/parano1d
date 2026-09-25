@@ -75,3 +75,36 @@ Matrix identities, every observation and the completion record are in
 [proving.json](proving.json). [source.json](source.json) records the saved
 executable hash, its earlier qualification provenance, command and run status.
 The H10 bank cannot be relabeled as a mainnet bank.
+
+## Full input envelopes across State segments
+
+A separate continuation authenticated the same bank and H37 terminal from the
+legacy origin, replayed the matching fixture State and then produced H38–H52.
+It funded outputs through valid transactions and exercised all 256 State
+segments. Each maximum-input case rebuilt the complete matrix, checked its
+unchanged digest and satisfied the witness before proving and verifying the
+terminal. No State entries were injected.
+
+| Height | Class | Pages | Inputs | Outputs | Input + assembly + proving | Verification | Terminal |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 43 | 0 | 63 | 504 | 126 | 18.521 s | 0.763 s | 908,980 B |
+| 46 | 1 | 96 | 384 | 192 | 49.110 s | 2.891 s | 982,132 B |
+| 48 | 1 | 48 | 384 | 96 | 50.700 s | 2.769 s | 980,884 B |
+| 51 | 1 | 255 | 384 | 510 | 56.224 s | 3.527 s | 982,996 B |
+
+The full Large case simultaneously uses all 255 pages and all 384 inputs,
+with 510 outputs. A 385-input body on valid pages was rejected by native
+admission; its complete R1CS witness was unsatisfied under the same matrix.
+Empty successors also passed. These are individual samples on the same
+12-thread host profile, not latency percentiles or four-CPU receiver results.
+
+The continuation took 1,825.148 seconds including fixture authentication,
+wallet authorizations, funding, audits and nonce search. Peak process RSS was
+9,734,840 KiB across both producers and the matrix audits; this is not a seed
+verification requirement. No compiler ran alongside the benchmark.
+
+[Raw observations](input-budgets.json) and [source identity](input-budget-source.json)
+retain the exact executable and source-file hashes. The [qualification patch](input-budget-source.patch)
+applies to the recorded base commit and reconstructs the four modified driver
+files. This bank and executable predate the subsequent height-only v2 emission
+revision; their measurements do not qualify the revised relation.

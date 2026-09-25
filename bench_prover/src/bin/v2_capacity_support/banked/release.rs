@@ -9,8 +9,8 @@ use super::*;
 use noid_miner::{history_step_artifacts as old_pack, v2_artifacts as pack};
 
 pub fn freeze_mainnet(args: &[String]) -> Result<()> {
-    if args.len() != 8 {
-        return Err("usage: noid_v2_capacity joint-freeze-mainnet LEGACY_PACK LEGACY_PIN NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS (mainnet build required)".into());
+    if !(8..=9).contains(&args.len()) {
+        return Err("usage: noid_v2_capacity joint-freeze-mainnet LEGACY_PACK LEGACY_PIN NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--large-pages=206|207|209|210|211|223|255] (mainnet build required)".into());
     }
     let schedule = noid_chain::consensus::forks::ACTIVE_SCHEDULE;
     if noid_chain::consensus::params::ISOLATED_V1_1_TESTNET
@@ -21,9 +21,14 @@ pub fn freeze_mainnet(args: &[String]) -> Result<()> {
         return Err("mainnet matrix freezing requires the source-pinned mainnet profile".into());
     }
     let number = |i: usize| args[i].parse::<usize>().map_err(err);
+    let (large_pages, freeze_only) = joint_options(&args[8..])?;
+    if freeze_only {
+        return Err("mainnet freezing does not accept --freeze-only".into());
+    }
     let config = joint::Config::new(
         v2::V2Config::with_limits(23, number(3)?, number(4)?, number(5)?, schedule).map_err(err)?,
-        v2::V2Config::with_limits(24, 255, number(6)?, number(7)?, schedule).map_err(err)?,
+        v2::V2Config::with_limits(24, large_pages, number(6)?, number(7)?, schedule)
+            .map_err(err)?,
     )
     .map_err(err)?;
     let legacy_pin = digest(&args[1])?;
@@ -40,19 +45,25 @@ pub fn freeze_mainnet(args: &[String]) -> Result<()> {
     .map_err(err)?;
     let output = Path::new(&args[2]);
     std::fs::create_dir(output).map_err(|e| format!("new output directory required: {e}"))?;
-    match config.class(Class::Small).pages() {
-        25 => freeze::<25>(config, legacy.bank().digest(), legacy_pin, output),
-        63 => freeze::<63>(config, legacy.bank().digest(), legacy_pin, output),
-        64 => freeze::<64>(config, legacy.bank().digest(), legacy_pin, output),
-        96 => freeze::<96>(config, legacy.bank().digest(), legacy_pin, output),
-        112 => freeze::<112>(config, legacy.bank().digest(), legacy_pin, output),
-        120 => freeze::<120>(config, legacy.bank().digest(), legacy_pin, output),
-        127 => freeze::<127>(config, legacy.bank().digest(), legacy_pin, output),
+    match (config.class(Class::Small).pages(), large_pages) {
+        (63, 206) => freeze::<63, 206>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 207) => freeze::<63, 207>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 209) => freeze::<63, 209>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 210) => freeze::<63, 210>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 211) => freeze::<63, 211>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 223) => freeze::<63, 223>(config, legacy.bank().digest(), legacy_pin, output),
+        (25, 255) => freeze::<25, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (63, 255) => freeze::<63, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (64, 255) => freeze::<64, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (96, 255) => freeze::<96, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (112, 255) => freeze::<112, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (120, 255) => freeze::<120, 255>(config, legacy.bank().digest(), legacy_pin, output),
+        (127, 255) => freeze::<127, 255>(config, legacy.bank().digest(), legacy_pin, output),
         _ => Err("unsupported joint mainnet capacity".into()),
     }
 }
 
-fn freeze<const SMALL: usize>(
+fn freeze<const SMALL: usize, const LARGE: usize>(
     config: joint::Config,
     legacy_bank: [u8; 32],
     legacy_pin: [u8; 32],
@@ -78,7 +89,7 @@ fn freeze<const SMALL: usize>(
         .map_err(err)?,
         v2::derive_direct_block_vk(
             config.class(Class::Large),
-            chain.input::<255>(
+            chain.input::<LARGE>(
                 &first,
                 &Batch::default(),
                 &ghost,
@@ -119,7 +130,7 @@ fn freeze<const SMALL: usize>(
                     freeze_class::<SMALL>(&runtime, &origin, &chain, &first, &ghost, class)?
                 }
                 Class::Large => {
-                    freeze_class::<255>(&runtime, &origin, &chain, &first, &ghost, class)?
+                    freeze_class::<LARGE>(&runtime, &origin, &chain, &first, &ghost, class)?
                 }
             };
             blocks[class.index()] = frozen.block_vk().clone();
@@ -164,7 +175,7 @@ fn freeze<const SMALL: usize>(
                     freeze_class::<SMALL>(&runtime, &origin, &chain, &block, &ghost, class)?
                 }
                 Class::Large => {
-                    freeze_class::<255>(&runtime, &origin, &chain, &block, &ghost, class)?
+                    freeze_class::<LARGE>(&runtime, &origin, &chain, &block, &ghost, class)?
                 }
             };
             if frozen.matrix().statement_digest() != digests[class.index()]

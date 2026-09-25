@@ -497,6 +497,11 @@ Fee rate uses weighted units:
 inputs + outputs + 4 × net_new_slots
 ```
 
+After v2, `minimum_proof_class` reflects the installed bank's actual page
+capacity. The existing `requires_b255_miner` field is retained for API
+compatibility and indicates that the spend needs the larger class; its name
+does not imply a 255-page v2 limit.
+
 ### Address validation
 
 ```text

@@ -25,7 +25,7 @@ pub(super) fn measure<const PAGES: usize>(run: &mut Run, chain: &mut Chain) -> R
     run.block::<PAGES>(chain, "boundary_empty_successor", Batch::default())
 }
 
-fn spread_sources(chain: &Chain) -> Vec<u32> {
+pub(super) fn spread_sources(chain: &Chain) -> Vec<u32> {
     let mut seen = BTreeSet::new();
     let mut first = Vec::new();
     let mut rest = Vec::new();
@@ -40,7 +40,12 @@ fn spread_sources(chain: &Chain) -> Vec<u32> {
     first
 }
 
-fn payment(batch: &mut Batch, chain: &mut Chain, sources: &[u32], outputs: usize) -> Result<()> {
+pub(super) fn payment(
+    batch: &mut Batch,
+    chain: &mut Chain,
+    sources: &[u32],
+    outputs: usize,
+) -> Result<()> {
     if sources.is_empty() || sources.len() > TX_INPUTS || !(1..=2).contains(&outputs) {
         return Err("boundary payment shape".into());
     }

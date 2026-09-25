@@ -12,7 +12,9 @@ use noid_recursive::acceptance::history_step::v2::banked as joint;
 use noid_recursive::HistoryStepMatrixLease;
 use std::sync::{Arc, Mutex};
 
+mod budgets;
 mod release;
+pub use budgets::measure_budgets;
 pub use release::freeze_mainnet;
 
 struct Source {
@@ -402,8 +404,8 @@ pub fn stage_saved(args: &[String]) -> Result<()> {
 }
 
 pub fn run(args: &[String]) -> Result<()> {
-    if !(9..=10).contains(&args.len()) || args.get(9).is_some_and(|s| s != "--freeze-only") {
-        return Err("usage: noid_v2_capacity joint PACK PIN LEGACY_FIXTURES NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--freeze-only]".into());
+    if args.len() < 9 {
+        return Err("usage: noid_v2_capacity joint PACK PIN LEGACY_FIXTURES NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--freeze-only] [--large-pages=206|207|209|210|211|223|255]".into());
     }
     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
         return Err("isolated-v1-1-testnet feature required".into());
@@ -414,10 +416,11 @@ pub fn run(args: &[String]) -> Result<()> {
     )
     .ok_or("schedule")?;
     let number = |i: usize| args[i].parse::<usize>().map_err(err);
+    let (large_pages, freeze_only) = joint_options(&args[9..])?;
     let small =
         v2::V2Config::with_limits(23, number(4)?, number(5)?, number(6)?, schedule).map_err(err)?;
-    let large =
-        v2::V2Config::with_limits(24, 255, number(7)?, number(8)?, schedule).map_err(err)?;
+    let large = v2::V2Config::with_limits(24, large_pages, number(7)?, number(8)?, schedule)
+        .map_err(err)?;
     let config = joint::Config::new(small, large).map_err(err)?;
     let output = PathBuf::from(&args[3]);
     std::fs::create_dir(&output).map_err(|e| format!("new output directory required: {e}"))?;
@@ -431,20 +434,48 @@ pub fn run(args: &[String]) -> Result<()> {
         output,
         config: small,
         samples: 1,
-        freeze_only: args.len() == 10,
+        freeze_only,
         transition_only: false,
         payments_only: false,
     };
-    match small.pages() {
-        25 => measure::<25>(settings, config),
-        63 => measure::<63>(settings, config),
-        64 => measure::<64>(settings, config),
-        96 => measure::<96>(settings, config),
-        112 => measure::<112>(settings, config),
-        120 => measure::<120>(settings, config),
-        127 => measure::<127>(settings, config),
+    match (small.pages(), large.pages()) {
+        (63, 206) => measure::<63, 206>(settings, config),
+        (63, 207) => measure::<63, 207>(settings, config),
+        (63, 209) => measure::<63, 209>(settings, config),
+        (63, 210) => measure::<63, 210>(settings, config),
+        (63, 211) => measure::<63, 211>(settings, config),
+        (63, 223) => measure::<63, 223>(settings, config),
+        (25, 255) => measure::<25, 255>(settings, config),
+        (63, 255) => measure::<63, 255>(settings, config),
+        (64, 255) => measure::<64, 255>(settings, config),
+        (96, 255) => measure::<96, 255>(settings, config),
+        (112, 255) => measure::<112, 255>(settings, config),
+        (120, 255) => measure::<120, 255>(settings, config),
+        (127, 255) => measure::<127, 255>(settings, config),
         _ => Err("unsupported joint probe capacity".into()),
     }
+}
+
+fn joint_options(options: &[String]) -> Result<(usize, bool)> {
+    let mut large_pages = None;
+    let mut freeze_only = false;
+    for option in options {
+        if option == "--freeze-only" && !freeze_only {
+            freeze_only = true;
+        } else if let Some(value) = option.strip_prefix("--large-pages=") {
+            if large_pages.is_some() {
+                return Err("duplicate large page limit".into());
+            }
+            let pages: usize = value.parse().map_err(err)?;
+            if !matches!(pages, 206 | 207 | 209 | 210 | 211 | 223 | 255) {
+                return Err("unsupported large page limit".into());
+            }
+            large_pages = Some(pages);
+        } else {
+            return Err(format!("unsupported joint option: {option}"));
+        }
+    }
+    Ok((large_pages.unwrap_or(255), freeze_only))
 }
 
 fn freeze_class<const PAGES: usize>(
@@ -471,7 +502,10 @@ fn freeze_class<const PAGES: usize>(
     Ok(frozen)
 }
 
-fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Result<()> {
+fn measure<const SMALL: usize, const LARGE: usize>(
+    settings: Settings,
+    config: joint::Config,
+) -> Result<()> {
     let legacy_runtime = proof::legacy_runtime(&settings.pack, settings.pin)?;
     let (mut chain, legacy_tip) = Chain::load(&settings, &legacy_runtime)?;
     let ghost = noid_recursive::prepare_history_step_ghost_authorization(
@@ -493,7 +527,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
         .map_err(err)?,
         v2::derive_direct_block_vk(
             config.class(Class::Large),
-            chain.input::<255>(
+            chain.input::<LARGE>(
                 &first,
                 &Batch::default(),
                 &ghost,
@@ -531,7 +565,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
                     freeze_class::<SMALL>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
                 }
                 Class::Large => {
-                    freeze_class::<255>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+                    freeze_class::<LARGE>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
                 }
             };
             blocks[class.index()] = frozen.block_vk().clone();
@@ -582,7 +616,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
                 freeze_class::<SMALL>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
             }
             Class::Large => {
-                freeze_class::<255>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+                freeze_class::<LARGE>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
             }
         };
         if frozen.matrix().statement_digest() != digests[class.index()]
@@ -672,10 +706,10 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
         let label = format!("joint_transition_{step}");
         match class {
             Class::Small => run.block::<SMALL>(&mut chain, class, &label, Batch::default())?,
-            Class::Large => run.block::<255>(&mut chain, class, &label, Batch::default())?,
+            Class::Large => run.block::<LARGE>(&mut chain, class, &label, Batch::default())?,
         }
     }
-    applications::<SMALL>(&mut run, &mut chain)?;
+    applications::<SMALL, LARGE>(&mut run, &mut chain)?;
     println!(
         "{}",
         json!({"complete":true,"mode":"joint-transition-and-applications","tip":chain.parent().height,"memory":memory()})
@@ -816,7 +850,10 @@ impl JointRun {
     }
 }
 
-fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Result<()> {
+fn applications<const SMALL: usize, const LARGE: usize>(
+    run: &mut JointRun,
+    chain: &mut Chain,
+) -> Result<()> {
     let config = run.runtime.bank().config();
     let calls = Class::ALL
         .into_iter()
@@ -825,8 +862,11 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
         .unwrap();
     let opening = integer_probe_opening();
     let mut ordinary = chain.ordinary_slots();
-    while ordinary.len() < 255 + calls {
-        let count = ordinary.len().min(SMALL).min(255 + calls - ordinary.len());
+    while ordinary.len() < LARGE + calls {
+        let count = ordinary
+            .len()
+            .min(SMALL)
+            .min(LARGE + calls - ordinary.len());
         if count == 0 {
             return Err("no funding notes".into());
         }
@@ -901,10 +941,10 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
             SMALL,
             config.class(Class::Small).contract_slots(),
         ),
-        (Class::Large, 255, 0),
+        (Class::Large, LARGE, 0),
         (
             Class::Large,
-            255,
+            LARGE,
             config.class(Class::Large).contract_slots(),
         ),
         (
@@ -950,7 +990,7 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
         );
         match class {
             Class::Small => run.block::<SMALL>(chain, class, &label, batch)?,
-            Class::Large => run.block::<255>(chain, class, &label, batch)?,
+            Class::Large => run.block::<LARGE>(chain, class, &label, batch)?,
         }
     }
     Ok(())

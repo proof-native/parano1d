@@ -107,7 +107,8 @@ the mainnet relation before the real predecessor block exists:
 cargo build --release --locked -p bench_prover --bin noid_v2_capacity
 target/release/noid_v2_capacity joint-freeze-mainnet \
   LEGACY_PACK LEGACY_METADATA_PIN NEW_OUTPUT \
-  SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS
+  SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS \
+  --large-pages=LARGE_PAGES
 ```
 
 This mode requires the normal mainnet build profile. It reassembles both

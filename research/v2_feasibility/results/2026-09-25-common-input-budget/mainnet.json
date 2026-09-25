@@ -1,0 +1,150 @@
+{
+  "manifest": {
+    "bank": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+    "block_seconds": 30,
+    "cpu_backend": "avx2+vpclmul",
+    "elapsed_ms": 485577.671359,
+    "entries": [
+      {
+        "calls": 63,
+        "class": 0,
+        "file": "pass1-class0.field-r1cs.zst",
+        "inputs": 504,
+        "m": 23,
+        "matrix": "2d91d1f21592a31ae49cbd4c48412d6dae156e00a2ad05fd8e7655ba2192147e",
+        "matrix_zstd_bytes": 10465911,
+        "pages": 63,
+        "rows": 6936668,
+        "terminal_bound": 1014132
+      },
+      {
+        "calls": 63,
+        "class": 1,
+        "file": "pass1-class1.field-r1cs.zst",
+        "inputs": 504,
+        "m": 24,
+        "matrix": "14722e591579b84fcd0d614b130b67d2ca6a6ad21f7b8a02587a9bea146d9efb",
+        "matrix_zstd_bytes": 21478342,
+        "pages": 206,
+        "rows": 16776698,
+        "terminal_bound": 1081396
+      }
+    ],
+    "hypothetical_boundary_variants": 2,
+    "legacy_metadata": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "memory": {
+      "process_peak_rss_kib": 3536648,
+      "rss_kib": 770092
+    },
+    "rayon_threads": 12,
+    "status": "source-scheduled matrix pack; no verified origin",
+    "terminal_produced": false,
+    "v1_1_height": 95125,
+    "v2_height": 210537,
+    "verified_origin_created": false
+  },
+  "source": {
+    "base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+    "binary_sha256": "fd6744ca7e187a7d6e75b56d41337450fb594f8c9718e3698ce29898d273ea98",
+    "command": [
+      "systemd-run",
+      "--user",
+      "--scope",
+      "--quiet",
+      "--unit=noid-v2-common-mainnet-freeze",
+      "-p",
+      "MemoryMax=20G",
+      "-p",
+      "MemorySwapMax=0",
+      "/usr/bin/time",
+      "-v",
+      "/home/neo/rust/paranoid/target/release/noid_v2_capacity",
+      "joint-freeze-mainnet",
+      "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+      "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+      "/home/neo/rust/parano1d-artifacts/v2-mainnet-p63-p206-i504-c63-20260925-a",
+      "63",
+      "504",
+      "63",
+      "504",
+      "63",
+      "--large-pages=206"
+    ],
+    "environment": {
+      "RAYON_NUM_THREADS": "12",
+      "RUST_MIN_STACK": "16777216",
+      "NOID_CPU_BACKEND": "automatic"
+    },
+    "modified_source_sha256": {
+      "bench_prover/src/bin/noid_v2_capacity.rs": "1bdf8571ec66693a06df881eb28d6662e964d1fa5e4ff6a240859d55634a0209",
+      "bench_prover/src/bin/v2_capacity_support/banked.rs": "2c27ab2271072872e2560c278bf1ecd7cb7d596eb1149ed65ae855efd6be68d9",
+      "bench_prover/src/bin/v2_capacity_support/banked/release.rs": "63c515f8920e3e3e71ce1d32516861617cf03277790a9a3623d10ec41d3aea02",
+      "bench_prover/src/bin/v2_capacity_support/boundaries.rs": "c4e7465639a165caa78db1faf0ad52431ca4591c68bf9ce872180d3550c7fc22",
+      "noid_miner/src/block_production.rs": "aedb51c3610b23ab630137ec9fac36e6a32c3cb67307c715da46e8692ef729a1",
+      "noid_miner/src/template.rs": "e65540acf5e3aa322c71ffeac5a7756454a042414c17d333fb300017ca0c15bb",
+      "noid_node/src/bin/noid_cli.rs": "2834be1f432eb4b93d3c86c8960c8196d7edf0c591bf788cdc27953a89255636",
+      "noid_node/src/main.rs": "1df6c7997bb09bd8dded0806933f660be813e0a236e69cf95e54f6b408df8851",
+      "noid_recursive/src/acceptance/history_step/v2/banked/config.rs": "c62e853b0283e0cc9d1ee39fccb771e1d6a7ca990c207a006b51b01907622e9d",
+      "noid_recursive/src/acceptance/history_step/v2/config.rs": "046f656162241476a14139c115089d7d5a802d5cd4a7c460c0c1cd500dfd21b2",
+      "noid_recursive/src/region_sidecar/block.rs": "2d670288193055b2e6b77386ced03eb7f1572f63516055269a309ac665206e64",
+      "noid_rpc/src/server.rs": "6dff837c9d9da43e7c0940e880dd8e5eb7af471389a3888c2037f1a03ba8ac37",
+      "noid_rpc/src/types.rs": "75d0eece27078163495ce24fd0c58c27b3ed09dee411b7bf2ee0d84028be7fd6",
+      "bench_prover/src/bin/v2_capacity_support/banked/budgets.rs": "ced4c95283b86d7dfedd7672285e2f513184972f0d137817dc6770d08e795367"
+    }
+  },
+  "checks": [
+    {
+      "name": "common-mainnet-recursive-config",
+      "exit_code": 0,
+      "seconds": 102.01413386999047
+    },
+    {
+      "name": "common-mainnet-registry",
+      "exit_code": 0,
+      "seconds": 14.582784464990254
+    },
+    {
+      "name": "common-mainnet-miner-budget",
+      "exit_code": 0,
+      "seconds": 47.01773885401781
+    },
+    {
+      "name": "common-mainnet-rpc-class",
+      "exit_code": 0,
+      "seconds": 89.60024809101014
+    },
+    {
+      "name": "common-mainnet-rpc-legacy",
+      "exit_code": 0,
+      "seconds": 0.2456965780002065
+    },
+    {
+      "name": "common-mainnet-capacity-build",
+      "exit_code": 0,
+      "seconds": 65.35592468100367
+    },
+    {
+      "name": "common-mainnet-freeze",
+      "exit_code": 0,
+      "seconds": 486.41231182499905
+    }
+  ],
+  "files": {
+    "v2-runtime-metadata.bin": {
+      "bytes": 2258540,
+      "sha256": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2"
+    },
+    "v2-small.field-r1cs.zst": {
+      "bytes": 10465911,
+      "sha256": "83abfdc69bffb154efce2452715773cfa4750a94e8f6238470cd82a01c6bf317"
+    },
+    "v2-large.field-r1cs.zst": {
+      "bytes": 21478342,
+      "sha256": "45ff8187894d976f56dcb7bd14b3bb6a6caef2752f93c8312234449956d21db5"
+    },
+    "joint.parts": {
+      "bytes": 2258464,
+      "sha256": "e882def69591376985bd29220a83155ac61e04227e6f3c53a749798bae52f2f5"
+    }
+  }
+}

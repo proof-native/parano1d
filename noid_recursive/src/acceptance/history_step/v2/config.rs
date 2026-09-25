@@ -188,7 +188,7 @@ mod tests {
             full.block_geometry().auth_tiles
         );
         assert_eq!(noid_tx::TX_INPUTS, 8);
-        for (pages, inputs) in [(96, 0), (96, 385), (96, 769), (63, 384)] {
+        for (pages, inputs) in [(96, 0), (96, 385), (96, 769), (63, 384), (63, 505)] {
             assert!(V2Config::with_input_budget(23, pages, inputs, schedule).is_err());
         }
         assert!(V2Config::new(23, usize::MAX, schedule).is_err());
@@ -198,8 +198,10 @@ mod tests {
     fn capacity_sweep_keeps_input_limits_and_distinct_bank_identities() {
         let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
         let mut identities = std::collections::HashSet::new();
-        for pages in [96, 112, 120, 127, 128, 192, 223, 255] {
-            for inputs in [256, 384] {
+        for pages in [
+            96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
+        ] {
+            for inputs in [256, 384, 504] {
                 let config = V2Config::with_input_budget(23, pages, inputs, schedule).unwrap();
                 let geometry = config.block_geometry();
                 assert_eq!(geometry.tier, pages);

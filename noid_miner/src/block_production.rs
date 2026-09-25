@@ -228,6 +228,12 @@ impl PreparedBlockAttempt {
             // parameters. The embedded bank supplies all actual class limits.
             let prepared = match config.pages() {
                 63 => prepare!(63),
+                206 => prepare!(206),
+                207 => prepare!(207),
+                209 => prepare!(209),
+                210 => prepare!(210),
+                211 => prepare!(211),
+                223 => prepare!(223),
                 255 => prepare!(255),
                 _ => return Err("v2 bank uses an unsupported producer page specialization".into()),
             };

@@ -151,7 +151,7 @@ pub(crate) const fn selected_zk_block_geometry(tier: usize) -> Option<SelectedZk
             tx_root_paths_per_block: 1,
             wallet_overflow_bases: [464, 474],
         },
-        63 | 64 | 96 | 112 | 120 | 127 | 128 | 192 | 223 => {
+        63 | 64 | 96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 => {
             let inputs = if tier * 8 > 1_020 { 1_020 } else { tier * 8 };
             return Some(candidate_block_geometry(tier, inputs));
         }
@@ -167,7 +167,11 @@ pub(crate) const fn selected_zk_block_geometry_with_inputs(
     tier: usize,
     inputs: usize,
 ) -> Option<SelectedZkBlockGeometry> {
-    if matches!(tier, 96 | 112 | 120 | 127 | 128 | 192 | 223 | 255) && matches!(inputs, 256 | 384) {
+    if matches!(
+        tier,
+        96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 | 255
+    ) && matches!(inputs, 256 | 384 | 504)
+    {
         return Some(candidate_block_geometry(tier, inputs));
     }
     match selected_zk_block_geometry(tier) {
@@ -177,18 +181,22 @@ pub(crate) const fn selected_zk_block_geometry_with_inputs(
 }
 
 pub(crate) fn object_block_geometries() -> impl Iterator<Item = SelectedZkBlockGeometry> {
-    [25, 63, 64, 96, 112, 120, 127, 128, 192, 223, 255]
+    [
+        25, 63, 64, 96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
+    ]
+    .into_iter()
+    .filter_map(selected_zk_block_geometry)
+    .chain(
+        [
+            96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
+        ]
         .into_iter()
-        .filter_map(selected_zk_block_geometry)
-        .chain(
-            [96, 112, 120, 127, 128, 192, 223, 255]
+        .flat_map(|tier| {
+            [256, 384, 504]
                 .into_iter()
-                .flat_map(|tier| {
-                    [256, 384].into_iter().filter_map(move |inputs| {
-                        selected_zk_block_geometry_with_inputs(tier, inputs)
-                    })
-                }),
-        )
+                .filter_map(move |inputs| selected_zk_block_geometry_with_inputs(tier, inputs))
+        }),
+    )
 }
 
 const fn candidate_block_geometry(tier: usize, inputs: usize) -> SelectedZkBlockGeometry {

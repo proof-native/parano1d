@@ -19,6 +19,9 @@ fn run() -> Result<()> {
     if args.first().is_some_and(|s| s == "joint-verify") {
         return banked::verify_saved(&args[1..]);
     }
+    if args.first().is_some_and(|s| s == "joint-budgets") {
+        return banked::measure_budgets(&args[1..]);
+    }
     if args.first().is_some_and(|s| s == "joint-stage") {
         return banked::stage_saved(&args[1..]);
     }

@@ -1130,7 +1130,12 @@ async fn cmd_mempool_tx(ctx: &Ctx<'_>, txhash: &str) -> anyhow::Result<()> {
     );
     if result["requires_b255_miner"].as_bool().unwrap_or(false) {
         println!();
-        warn_msg("Waiting for inclusion: this atomic PagedSpend requires a B255-qualified miner.");
+        let class = result["minimum_proof_class"]
+            .as_str()
+            .unwrap_or("the large proof class");
+        warn_msg(&format!(
+            "Waiting for inclusion: this atomic PagedSpend requires a miner supporting {class}."
+        ));
     }
     Ok(())
 }
@@ -1231,7 +1236,7 @@ async fn cmd_mempool(ctx: &Ctx<'_>) -> anyhow::Result<()> {
         .any(|tx| tx["requires_b255_miner"].as_bool().unwrap_or(false))
     {
         println!();
-        warn_msg("B255 entries are atomic and wait for a B255-qualified miner.");
+        warn_msg("Large-class entries are atomic and wait for a miner supporting their displayed proof class.");
     }
 
     Ok(())

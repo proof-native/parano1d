@@ -41,7 +41,7 @@ impl Config {
         if small.outer_m() != 23
             || large.outer_m() != 24
             || small.pages() >= large.pages()
-            || large.pages() != 255
+            || !matches!(large.pages(), 206 | 207 | 209 | 210 | 211 | 223 | 255)
             || small.schedule() != large.schedule()
         {
             return Err(V2Error::Runtime);
@@ -154,5 +154,22 @@ mod tests {
         assert!(Config::new(V2Config::new(24, 63, schedule).unwrap(), large).is_err());
         assert!(Config::new(small, V2Config::new(24, 96, schedule).unwrap()).is_err());
         assert!(Config::new(small, V2Config::new(24, 255, later).unwrap()).is_err());
+    }
+
+    #[test]
+    fn large_page_tradeoffs_are_pinned_separately_from_legacy_classes() {
+        use noid_chain::consensus::forks::{ForkSchedule, V2Activation};
+        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+        let small = V2Config::with_limits(23, 63, 504, 63, schedule).unwrap();
+        let mut identities = std::collections::HashSet::new();
+        for pages in [206, 207, 209, 210, 211, 223, 255] {
+            let large = V2Config::with_limits(24, pages, 504, 63, schedule).unwrap();
+            let config = Config::new(small, large).unwrap();
+            assert_eq!(config.for_pages(pages).unwrap(), Class::Large);
+            assert_eq!(config.for_pages(63).unwrap(), Class::Small);
+            assert_eq!(config.class(Class::Large).contract_slots(), 63);
+            assert_eq!(config.class(Class::Large).max_live_inputs(), 504);
+            assert!(identities.insert(config.identity_bytes()));
+        }
     }
 }

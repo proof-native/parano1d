@@ -694,7 +694,9 @@ pub struct MempoolTxInfo {
     pub page_count: usize,
     /// Smallest block proof class capable of including the complete intent.
     pub minimum_proof_class: String,
-    /// True while this pending intent requires a B255-qualified producer.
+    /// True while this intent requires the large proof class. The legacy
+    /// field name is retained for API compatibility; from v2, the actual
+    /// pinned page capacity is reported by `minimum_proof_class`.
     pub requires_b255_miner: bool,
     /// Chain height at admission.
     pub admitted_height: u64,

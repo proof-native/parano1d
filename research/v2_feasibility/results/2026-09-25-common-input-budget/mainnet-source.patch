@@ -1,0 +1,1003 @@
+diff --git a/bench_prover/src/bin/noid_v2_capacity.rs b/bench_prover/src/bin/noid_v2_capacity.rs
+index 3559d9cc..aa2153b7 100644
+--- a/bench_prover/src/bin/noid_v2_capacity.rs
++++ b/bench_prover/src/bin/noid_v2_capacity.rs
+@@ -19,6 +19,9 @@ fn run() -> Result<()> {
+     if args.first().is_some_and(|s| s == "joint-verify") {
+         return banked::verify_saved(&args[1..]);
+     }
++    if args.first().is_some_and(|s| s == "joint-budgets") {
++        return banked::measure_budgets(&args[1..]);
++    }
+     if args.first().is_some_and(|s| s == "joint-stage") {
+         return banked::stage_saved(&args[1..]);
+     }
+diff --git a/bench_prover/src/bin/v2_capacity_support/banked.rs b/bench_prover/src/bin/v2_capacity_support/banked.rs
+index 6d985d3c..d59d5052 100644
+--- a/bench_prover/src/bin/v2_capacity_support/banked.rs
++++ b/bench_prover/src/bin/v2_capacity_support/banked.rs
+@@ -12,7 +12,9 @@ use noid_recursive::acceptance::history_step::v2::banked as joint;
+ use noid_recursive::HistoryStepMatrixLease;
+ use std::sync::{Arc, Mutex};
+ 
++mod budgets;
+ mod release;
++pub use budgets::measure_budgets;
+ pub use release::freeze_mainnet;
+ 
+ struct Source {
+@@ -402,8 +404,8 @@ pub fn stage_saved(args: &[String]) -> Result<()> {
+ }
+ 
+ pub fn run(args: &[String]) -> Result<()> {
+-    if !(9..=10).contains(&args.len()) || args.get(9).is_some_and(|s| s != "--freeze-only") {
+-        return Err("usage: noid_v2_capacity joint PACK PIN LEGACY_FIXTURES NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--freeze-only]".into());
++    if args.len() < 9 {
++        return Err("usage: noid_v2_capacity joint PACK PIN LEGACY_FIXTURES NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--freeze-only] [--large-pages=206|207|209|210|211|223|255]".into());
+     }
+     if noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
+         return Err("isolated-v1-1-testnet feature required".into());
+@@ -414,10 +416,11 @@ pub fn run(args: &[String]) -> Result<()> {
+     )
+     .ok_or("schedule")?;
+     let number = |i: usize| args[i].parse::<usize>().map_err(err);
++    let (large_pages, freeze_only) = joint_options(&args[9..])?;
+     let small =
+         v2::V2Config::with_limits(23, number(4)?, number(5)?, number(6)?, schedule).map_err(err)?;
+-    let large =
+-        v2::V2Config::with_limits(24, 255, number(7)?, number(8)?, schedule).map_err(err)?;
++    let large = v2::V2Config::with_limits(24, large_pages, number(7)?, number(8)?, schedule)
++        .map_err(err)?;
+     let config = joint::Config::new(small, large).map_err(err)?;
+     let output = PathBuf::from(&args[3]);
+     std::fs::create_dir(&output).map_err(|e| format!("new output directory required: {e}"))?;
+@@ -431,22 +434,50 @@ pub fn run(args: &[String]) -> Result<()> {
+         output,
+         config: small,
+         samples: 1,
+-        freeze_only: args.len() == 10,
++        freeze_only,
+         transition_only: false,
+         payments_only: false,
+     };
+-    match small.pages() {
+-        25 => measure::<25>(settings, config),
+-        63 => measure::<63>(settings, config),
+-        64 => measure::<64>(settings, config),
+-        96 => measure::<96>(settings, config),
+-        112 => measure::<112>(settings, config),
+-        120 => measure::<120>(settings, config),
+-        127 => measure::<127>(settings, config),
++    match (small.pages(), large.pages()) {
++        (63, 206) => measure::<63, 206>(settings, config),
++        (63, 207) => measure::<63, 207>(settings, config),
++        (63, 209) => measure::<63, 209>(settings, config),
++        (63, 210) => measure::<63, 210>(settings, config),
++        (63, 211) => measure::<63, 211>(settings, config),
++        (63, 223) => measure::<63, 223>(settings, config),
++        (25, 255) => measure::<25, 255>(settings, config),
++        (63, 255) => measure::<63, 255>(settings, config),
++        (64, 255) => measure::<64, 255>(settings, config),
++        (96, 255) => measure::<96, 255>(settings, config),
++        (112, 255) => measure::<112, 255>(settings, config),
++        (120, 255) => measure::<120, 255>(settings, config),
++        (127, 255) => measure::<127, 255>(settings, config),
+         _ => Err("unsupported joint probe capacity".into()),
+     }
+ }
+ 
++fn joint_options(options: &[String]) -> Result<(usize, bool)> {
++    let mut large_pages = None;
++    let mut freeze_only = false;
++    for option in options {
++        if option == "--freeze-only" && !freeze_only {
++            freeze_only = true;
++        } else if let Some(value) = option.strip_prefix("--large-pages=") {
++            if large_pages.is_some() {
++                return Err("duplicate large page limit".into());
++            }
++            let pages: usize = value.parse().map_err(err)?;
++            if !matches!(pages, 206 | 207 | 209 | 210 | 211 | 223 | 255) {
++                return Err("unsupported large page limit".into());
++            }
++            large_pages = Some(pages);
++        } else {
++            return Err(format!("unsupported joint option: {option}"));
++        }
++    }
++    Ok((large_pages.unwrap_or(255), freeze_only))
++}
++
+ fn freeze_class<const PAGES: usize>(
+     runtime: &joint::Runtime,
+     origin: &joint::Origin,
+@@ -471,7 +502,10 @@ fn freeze_class<const PAGES: usize>(
+     Ok(frozen)
+ }
+ 
+-fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Result<()> {
++fn measure<const SMALL: usize, const LARGE: usize>(
++    settings: Settings,
++    config: joint::Config,
++) -> Result<()> {
+     let legacy_runtime = proof::legacy_runtime(&settings.pack, settings.pin)?;
+     let (mut chain, legacy_tip) = Chain::load(&settings, &legacy_runtime)?;
+     let ghost = noid_recursive::prepare_history_step_ghost_authorization(
+@@ -493,7 +527,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
+         .map_err(err)?,
+         v2::derive_direct_block_vk(
+             config.class(Class::Large),
+-            chain.input::<255>(
++            chain.input::<LARGE>(
+                 &first,
+                 &Batch::default(),
+                 &ghost,
+@@ -531,7 +565,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
+                     freeze_class::<SMALL>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+                 }
+                 Class::Large => {
+-                    freeze_class::<255>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
++                    freeze_class::<LARGE>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+                 }
+             };
+             blocks[class.index()] = frozen.block_vk().clone();
+@@ -582,7 +616,7 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
+                 freeze_class::<SMALL>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+             }
+             Class::Large => {
+-                freeze_class::<255>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
++                freeze_class::<LARGE>(&runtime, origin.origin(), &chain, &first, &ghost, class)?
+             }
+         };
+         if frozen.matrix().statement_digest() != digests[class.index()]
+@@ -672,10 +706,10 @@ fn measure<const SMALL: usize>(settings: Settings, config: joint::Config) -> Res
+         let label = format!("joint_transition_{step}");
+         match class {
+             Class::Small => run.block::<SMALL>(&mut chain, class, &label, Batch::default())?,
+-            Class::Large => run.block::<255>(&mut chain, class, &label, Batch::default())?,
++            Class::Large => run.block::<LARGE>(&mut chain, class, &label, Batch::default())?,
+         }
+     }
+-    applications::<SMALL>(&mut run, &mut chain)?;
++    applications::<SMALL, LARGE>(&mut run, &mut chain)?;
+     println!(
+         "{}",
+         json!({"complete":true,"mode":"joint-transition-and-applications","tip":chain.parent().height,"memory":memory()})
+@@ -816,7 +850,10 @@ impl JointRun {
+     }
+ }
+ 
+-fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Result<()> {
++fn applications<const SMALL: usize, const LARGE: usize>(
++    run: &mut JointRun,
++    chain: &mut Chain,
++) -> Result<()> {
+     let config = run.runtime.bank().config();
+     let calls = Class::ALL
+         .into_iter()
+@@ -825,8 +862,11 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
+         .unwrap();
+     let opening = integer_probe_opening();
+     let mut ordinary = chain.ordinary_slots();
+-    while ordinary.len() < 255 + calls {
+-        let count = ordinary.len().min(SMALL).min(255 + calls - ordinary.len());
++    while ordinary.len() < LARGE + calls {
++        let count = ordinary
++            .len()
++            .min(SMALL)
++            .min(LARGE + calls - ordinary.len());
+         if count == 0 {
+             return Err("no funding notes".into());
+         }
+@@ -901,10 +941,10 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
+             SMALL,
+             config.class(Class::Small).contract_slots(),
+         ),
+-        (Class::Large, 255, 0),
++        (Class::Large, LARGE, 0),
+         (
+             Class::Large,
+-            255,
++            LARGE,
+             config.class(Class::Large).contract_slots(),
+         ),
+         (
+@@ -950,7 +990,7 @@ fn applications<const SMALL: usize>(run: &mut JointRun, chain: &mut Chain) -> Re
+         );
+         match class {
+             Class::Small => run.block::<SMALL>(chain, class, &label, batch)?,
+-            Class::Large => run.block::<255>(chain, class, &label, batch)?,
++            Class::Large => run.block::<LARGE>(chain, class, &label, batch)?,
+         }
+     }
+     Ok(())
+diff --git a/bench_prover/src/bin/v2_capacity_support/banked/release.rs b/bench_prover/src/bin/v2_capacity_support/banked/release.rs
+index 9b53ab18..051c5553 100644
+--- a/bench_prover/src/bin/v2_capacity_support/banked/release.rs
++++ b/bench_prover/src/bin/v2_capacity_support/banked/release.rs
+@@ -9,8 +9,8 @@ use super::*;
+ use noid_miner::{history_step_artifacts as old_pack, v2_artifacts as pack};
+ 
+ pub fn freeze_mainnet(args: &[String]) -> Result<()> {
+-    if args.len() != 8 {
+-        return Err("usage: noid_v2_capacity joint-freeze-mainnet LEGACY_PACK LEGACY_PIN NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS (mainnet build required)".into());
++    if !(8..=9).contains(&args.len()) {
++        return Err("usage: noid_v2_capacity joint-freeze-mainnet LEGACY_PACK LEGACY_PIN NEW_OUTPUT SMALL_PAGES SMALL_INPUTS SMALL_CALLS LARGE_INPUTS LARGE_CALLS [--large-pages=206|207|209|210|211|223|255] (mainnet build required)".into());
+     }
+     let schedule = noid_chain::consensus::forks::ACTIVE_SCHEDULE;
+     if noid_chain::consensus::params::ISOLATED_V1_1_TESTNET
+@@ -21,9 +21,14 @@ pub fn freeze_mainnet(args: &[String]) -> Result<()> {
+         return Err("mainnet matrix freezing requires the source-pinned mainnet profile".into());
+     }
+     let number = |i: usize| args[i].parse::<usize>().map_err(err);
++    let (large_pages, freeze_only) = joint_options(&args[8..])?;
++    if freeze_only {
++        return Err("mainnet freezing does not accept --freeze-only".into());
++    }
+     let config = joint::Config::new(
+         v2::V2Config::with_limits(23, number(3)?, number(4)?, number(5)?, schedule).map_err(err)?,
+-        v2::V2Config::with_limits(24, 255, number(6)?, number(7)?, schedule).map_err(err)?,
++        v2::V2Config::with_limits(24, large_pages, number(6)?, number(7)?, schedule)
++            .map_err(err)?,
+     )
+     .map_err(err)?;
+     let legacy_pin = digest(&args[1])?;
+@@ -40,19 +45,25 @@ pub fn freeze_mainnet(args: &[String]) -> Result<()> {
+     .map_err(err)?;
+     let output = Path::new(&args[2]);
+     std::fs::create_dir(output).map_err(|e| format!("new output directory required: {e}"))?;
+-    match config.class(Class::Small).pages() {
+-        25 => freeze::<25>(config, legacy.bank().digest(), legacy_pin, output),
+-        63 => freeze::<63>(config, legacy.bank().digest(), legacy_pin, output),
+-        64 => freeze::<64>(config, legacy.bank().digest(), legacy_pin, output),
+-        96 => freeze::<96>(config, legacy.bank().digest(), legacy_pin, output),
+-        112 => freeze::<112>(config, legacy.bank().digest(), legacy_pin, output),
+-        120 => freeze::<120>(config, legacy.bank().digest(), legacy_pin, output),
+-        127 => freeze::<127>(config, legacy.bank().digest(), legacy_pin, output),
++    match (config.class(Class::Small).pages(), large_pages) {
++        (63, 206) => freeze::<63, 206>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 207) => freeze::<63, 207>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 209) => freeze::<63, 209>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 210) => freeze::<63, 210>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 211) => freeze::<63, 211>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 223) => freeze::<63, 223>(config, legacy.bank().digest(), legacy_pin, output),
++        (25, 255) => freeze::<25, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (63, 255) => freeze::<63, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (64, 255) => freeze::<64, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (96, 255) => freeze::<96, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (112, 255) => freeze::<112, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (120, 255) => freeze::<120, 255>(config, legacy.bank().digest(), legacy_pin, output),
++        (127, 255) => freeze::<127, 255>(config, legacy.bank().digest(), legacy_pin, output),
+         _ => Err("unsupported joint mainnet capacity".into()),
+     }
+ }
+ 
+-fn freeze<const SMALL: usize>(
++fn freeze<const SMALL: usize, const LARGE: usize>(
+     config: joint::Config,
+     legacy_bank: [u8; 32],
+     legacy_pin: [u8; 32],
+@@ -78,7 +89,7 @@ fn freeze<const SMALL: usize>(
+         .map_err(err)?,
+         v2::derive_direct_block_vk(
+             config.class(Class::Large),
+-            chain.input::<255>(
++            chain.input::<LARGE>(
+                 &first,
+                 &Batch::default(),
+                 &ghost,
+@@ -119,7 +130,7 @@ fn freeze<const SMALL: usize>(
+                     freeze_class::<SMALL>(&runtime, &origin, &chain, &first, &ghost, class)?
+                 }
+                 Class::Large => {
+-                    freeze_class::<255>(&runtime, &origin, &chain, &first, &ghost, class)?
++                    freeze_class::<LARGE>(&runtime, &origin, &chain, &first, &ghost, class)?
+                 }
+             };
+             blocks[class.index()] = frozen.block_vk().clone();
+@@ -164,7 +175,7 @@ fn freeze<const SMALL: usize>(
+                     freeze_class::<SMALL>(&runtime, &origin, &chain, &block, &ghost, class)?
+                 }
+                 Class::Large => {
+-                    freeze_class::<255>(&runtime, &origin, &chain, &block, &ghost, class)?
++                    freeze_class::<LARGE>(&runtime, &origin, &chain, &block, &ghost, class)?
+                 }
+             };
+             if frozen.matrix().statement_digest() != digests[class.index()]
+diff --git a/bench_prover/src/bin/v2_capacity_support/boundaries.rs b/bench_prover/src/bin/v2_capacity_support/boundaries.rs
+index 28320b10..9f91ca80 100644
+--- a/bench_prover/src/bin/v2_capacity_support/boundaries.rs
++++ b/bench_prover/src/bin/v2_capacity_support/boundaries.rs
+@@ -25,7 +25,7 @@ pub(super) fn measure<const PAGES: usize>(run: &mut Run, chain: &mut Chain) -> R
+     run.block::<PAGES>(chain, "boundary_empty_successor", Batch::default())
+ }
+ 
+-fn spread_sources(chain: &Chain) -> Vec<u32> {
++pub(super) fn spread_sources(chain: &Chain) -> Vec<u32> {
+     let mut seen = BTreeSet::new();
+     let mut first = Vec::new();
+     let mut rest = Vec::new();
+@@ -40,7 +40,12 @@ fn spread_sources(chain: &Chain) -> Vec<u32> {
+     first
+ }
+ 
+-fn payment(batch: &mut Batch, chain: &mut Chain, sources: &[u32], outputs: usize) -> Result<()> {
++pub(super) fn payment(
++    batch: &mut Batch,
++    chain: &mut Chain,
++    sources: &[u32],
++    outputs: usize,
++) -> Result<()> {
+     if sources.is_empty() || sources.len() > TX_INPUTS || !(1..=2).contains(&outputs) {
+         return Err("boundary payment shape".into());
+     }
+diff --git a/noid_miner/src/block_production.rs b/noid_miner/src/block_production.rs
+index 659bfadb..b9b315f1 100644
+--- a/noid_miner/src/block_production.rs
++++ b/noid_miner/src/block_production.rs
+@@ -228,6 +228,12 @@ impl PreparedBlockAttempt {
+             // parameters. The embedded bank supplies all actual class limits.
+             let prepared = match config.pages() {
+                 63 => prepare!(63),
++                206 => prepare!(206),
++                207 => prepare!(207),
++                209 => prepare!(209),
++                210 => prepare!(210),
++                211 => prepare!(211),
++                223 => prepare!(223),
+                 255 => prepare!(255),
+                 _ => return Err("v2 bank uses an unsupported producer page specialization".into()),
+             };
+diff --git a/noid_miner/src/template.rs b/noid_miner/src/template.rs
+index bd98b9f7..53e5242b 100644
+--- a/noid_miner/src/template.rs
++++ b/noid_miner/src/template.rs
+@@ -595,7 +595,13 @@ mod tests {
+             return;
+         };
+         let payout = at.height() + 86_400 / at.block_time() - 1;
+-        for (m, pages, inputs, calls) in [(23, 63, 504, 63), (24, 255, 1020, 26)] {
++        for (m, pages, inputs, calls) in [
++            (23, 63, 504, 63),
++            (24, 206, 504, 63),
++            (24, 211, 384, 64),
++            (24, 223, 1020, 64),
++            (24, 255, 1020, 26),
++        ] {
+             let config = V2Config::with_limits(m, pages, inputs, calls, ACTIVE_SCHEDULE).unwrap();
+             for (height, reserved) in [
+                 (at.height(), 0),
+diff --git a/noid_node/src/bin/noid_cli.rs b/noid_node/src/bin/noid_cli.rs
+index 46025244..100f1552 100644
+--- a/noid_node/src/bin/noid_cli.rs
++++ b/noid_node/src/bin/noid_cli.rs
+@@ -1130,7 +1130,12 @@ async fn cmd_mempool_tx(ctx: &Ctx<'_>, txhash: &str) -> anyhow::Result<()> {
+     );
+     if result["requires_b255_miner"].as_bool().unwrap_or(false) {
+         println!();
+-        warn_msg("Waiting for inclusion: this atomic PagedSpend requires a B255-qualified miner.");
++        let class = result["minimum_proof_class"]
++            .as_str()
++            .unwrap_or("the large proof class");
++        warn_msg(&format!(
++            "Waiting for inclusion: this atomic PagedSpend requires a miner supporting {class}."
++        ));
+     }
+     Ok(())
+ }
+@@ -1231,7 +1236,7 @@ async fn cmd_mempool(ctx: &Ctx<'_>) -> anyhow::Result<()> {
+         .any(|tx| tx["requires_b255_miner"].as_bool().unwrap_or(false))
+     {
+         println!();
+-        warn_msg("B255 entries are atomic and wait for a B255-qualified miner.");
++        warn_msg("Large-class entries are atomic and wait for a miner supporting their displayed proof class.");
+     }
+ 
+     Ok(())
+diff --git a/noid_node/src/main.rs b/noid_node/src/main.rs
+index aea4a767..4be88c8a 100644
+--- a/noid_node/src/main.rs
++++ b/noid_node/src/main.rs
+@@ -1348,7 +1348,7 @@ struct Cli {
+     #[arg(long)]
+     allow_custom_coinbase: bool,
+ 
+-    /// Permit B255 production after v2. The default produces the small v2
++    /// Permit large-class production after v2. The default produces the small v2
+     /// class; verification always supports both. Applies to internal mining
+     /// and external PoW templates, with no change to pre-v2 calibration.
+     #[arg(long)]
+diff --git a/noid_recursive/src/acceptance/history_step/v2/banked/config.rs b/noid_recursive/src/acceptance/history_step/v2/banked/config.rs
+index 64368f7c..8a633c69 100644
+--- a/noid_recursive/src/acceptance/history_step/v2/banked/config.rs
++++ b/noid_recursive/src/acceptance/history_step/v2/banked/config.rs
+@@ -41,7 +41,7 @@ impl Config {
+         if small.outer_m() != 23
+             || large.outer_m() != 24
+             || small.pages() >= large.pages()
+-            || large.pages() != 255
++            || !matches!(large.pages(), 206 | 207 | 209 | 210 | 211 | 223 | 255)
+             || small.schedule() != large.schedule()
+         {
+             return Err(V2Error::Runtime);
+@@ -155,4 +155,21 @@ mod tests {
+         assert!(Config::new(small, V2Config::new(24, 96, schedule).unwrap()).is_err());
+         assert!(Config::new(small, V2Config::new(24, 255, later).unwrap()).is_err());
+     }
++
++    #[test]
++    fn large_page_tradeoffs_are_pinned_separately_from_legacy_classes() {
++        use noid_chain::consensus::forks::{ForkSchedule, V2Activation};
++        let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
++        let small = V2Config::with_limits(23, 63, 504, 63, schedule).unwrap();
++        let mut identities = std::collections::HashSet::new();
++        for pages in [206, 207, 209, 210, 211, 223, 255] {
++            let large = V2Config::with_limits(24, pages, 504, 63, schedule).unwrap();
++            let config = Config::new(small, large).unwrap();
++            assert_eq!(config.for_pages(pages).unwrap(), Class::Large);
++            assert_eq!(config.for_pages(63).unwrap(), Class::Small);
++            assert_eq!(config.class(Class::Large).contract_slots(), 63);
++            assert_eq!(config.class(Class::Large).max_live_inputs(), 504);
++            assert!(identities.insert(config.identity_bytes()));
++        }
++    }
+ }
+diff --git a/noid_recursive/src/acceptance/history_step/v2/config.rs b/noid_recursive/src/acceptance/history_step/v2/config.rs
+index b385d056..c0b9f417 100644
+--- a/noid_recursive/src/acceptance/history_step/v2/config.rs
++++ b/noid_recursive/src/acceptance/history_step/v2/config.rs
+@@ -188,7 +188,7 @@ mod tests {
+             full.block_geometry().auth_tiles
+         );
+         assert_eq!(noid_tx::TX_INPUTS, 8);
+-        for (pages, inputs) in [(96, 0), (96, 385), (96, 769), (63, 384)] {
++        for (pages, inputs) in [(96, 0), (96, 385), (96, 769), (63, 384), (63, 505)] {
+             assert!(V2Config::with_input_budget(23, pages, inputs, schedule).is_err());
+         }
+         assert!(V2Config::new(23, usize::MAX, schedule).is_err());
+@@ -198,8 +198,10 @@ mod tests {
+     fn capacity_sweep_keeps_input_limits_and_distinct_bank_identities() {
+         let schedule = ForkSchedule::new(Some(5), V2Activation::new(10, 30)).unwrap();
+         let mut identities = std::collections::HashSet::new();
+-        for pages in [96, 112, 120, 127, 128, 192, 223, 255] {
+-            for inputs in [256, 384] {
++        for pages in [
++            96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
++        ] {
++            for inputs in [256, 384, 504] {
+                 let config = V2Config::with_input_budget(23, pages, inputs, schedule).unwrap();
+                 let geometry = config.block_geometry();
+                 assert_eq!(geometry.tier, pages);
+diff --git a/noid_recursive/src/region_sidecar/block.rs b/noid_recursive/src/region_sidecar/block.rs
+index ee13372d..fef59f46 100644
+--- a/noid_recursive/src/region_sidecar/block.rs
++++ b/noid_recursive/src/region_sidecar/block.rs
+@@ -151,7 +151,7 @@ pub(crate) const fn selected_zk_block_geometry(tier: usize) -> Option<SelectedZk
+             tx_root_paths_per_block: 1,
+             wallet_overflow_bases: [464, 474],
+         },
+-        63 | 64 | 96 | 112 | 120 | 127 | 128 | 192 | 223 => {
++        63 | 64 | 96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 => {
+             let inputs = if tier * 8 > 1_020 { 1_020 } else { tier * 8 };
+             return Some(candidate_block_geometry(tier, inputs));
+         }
+@@ -167,7 +167,11 @@ pub(crate) const fn selected_zk_block_geometry_with_inputs(
+     tier: usize,
+     inputs: usize,
+ ) -> Option<SelectedZkBlockGeometry> {
+-    if matches!(tier, 96 | 112 | 120 | 127 | 128 | 192 | 223 | 255) && matches!(inputs, 256 | 384) {
++    if matches!(
++        tier,
++        96 | 112 | 120 | 127 | 128 | 192 | 206 | 207 | 209 | 210 | 211 | 223 | 255
++    ) && matches!(inputs, 256 | 384 | 504)
++    {
+         return Some(candidate_block_geometry(tier, inputs));
+     }
+     match selected_zk_block_geometry(tier) {
+@@ -177,18 +181,22 @@ pub(crate) const fn selected_zk_block_geometry_with_inputs(
+ }
+ 
+ pub(crate) fn object_block_geometries() -> impl Iterator<Item = SelectedZkBlockGeometry> {
+-    [25, 63, 64, 96, 112, 120, 127, 128, 192, 223, 255]
++    [
++        25, 63, 64, 96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
++    ]
++    .into_iter()
++    .filter_map(selected_zk_block_geometry)
++    .chain(
++        [
++            96, 112, 120, 127, 128, 192, 206, 207, 209, 210, 211, 223, 255,
++        ]
+         .into_iter()
+-        .filter_map(selected_zk_block_geometry)
+-        .chain(
+-            [96, 112, 120, 127, 128, 192, 223, 255]
++        .flat_map(|tier| {
++            [256, 384, 504]
+                 .into_iter()
+-                .flat_map(|tier| {
+-                    [256, 384].into_iter().filter_map(move |inputs| {
+-                        selected_zk_block_geometry_with_inputs(tier, inputs)
+-                    })
+-                }),
+-        )
++                .filter_map(move |inputs| selected_zk_block_geometry_with_inputs(tier, inputs))
++        }),
++    )
+ }
+ 
+ const fn candidate_block_geometry(tier: usize, inputs: usize) -> SelectedZkBlockGeometry {
+diff --git a/noid_rpc/src/server.rs b/noid_rpc/src/server.rs
+index ac787714..b8b82469 100644
+--- a/noid_rpc/src/server.rs
++++ b/noid_rpc/src/server.rs
+@@ -474,16 +474,30 @@ fn fee_breakdown_info(
+ 
+ fn mempool_tx_info(
+     entry: noid_mempool::MempoolEntryMetadata,
+-    v2: Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>,
++    v2: Option<(
++        noid_recursive::acceptance::history_step::v2::banked::Config,
++        u64,
++    )>,
+ ) -> MempoolTxInfo {
+     use noid_chain::consensus::paged_spend::BlockProofClass;
+ 
+     let page_count = usize::from(entry.page_count);
+-    let (minimum_proof_class, requires_b255_miner) = if let Some((small, height)) = v2 {
+-        let system_pages = usize::from(noid_chain::consensus::development_allocation::development_payout_due_at_height(height));
++    let (minimum_proof_class, requires_b255_miner) = if let Some((bank, height)) = v2 {
++        use noid_recursive::acceptance::history_step::v2::banked::Class;
++        let small = bank.class(Class::Small);
++        let system_pages = usize::from(
++            noid_chain::consensus::development_allocation::development_payout_due_at_height(height),
++        );
+         let requires_large = page_count > small.pages().saturating_sub(system_pages)
+             || usize::from(entry.n_inputs) > small.max_live_inputs();
+-        (format!("B{}", if requires_large { 255 } else { small.pages() }), requires_large)
++        let pages = bank
++            .class(if requires_large {
++                Class::Large
++            } else {
++                Class::Small
++            })
++            .pages();
++        (format!("B{pages}"), requires_large)
+     } else {
+         let proof_class = BlockProofClass::for_page_count(page_count)
+             .expect("admitted PagedSpend always fits a consensus proof class");
+@@ -1047,17 +1061,25 @@ impl RpcHandler {
+         Ok(())
+     }
+ 
+-    async fn pending_v2_class(
++    async fn pending_v2_bank(
+         &self,
+-    ) -> RpcResult<Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>> {
++    ) -> RpcResult<
++        Option<(
++            noid_recursive::acceptance::history_step::v2::banked::Config,
++            u64,
++        )>,
++    > {
+         let height = self.chain.read().await.tip_height().saturating_add(1);
+         if !noid_chain::consensus::params::v2_active(height) {
+             return Ok(None);
+         }
+-        let runtime = self.history_step_runtime.as_deref()
++        let runtime = self
++            .history_step_runtime
++            .as_deref()
+             .ok_or_else(|| rpc_err("v2 history bank is unavailable"))?
+-            .v2().map_err(rpc_err)?;
+-        Ok(Some((runtime.bank().config().class(noid_recursive::acceptance::history_step::v2::banked::Class::Small), height)))
++            .v2()
++            .map_err(rpc_err)?;
++        Ok(Some((runtime.bank().config(), height)))
+     }
+ 
+     fn require_mining_network(&self) -> RpcResult<()> {
+@@ -2549,7 +2571,7 @@ impl ParanoidApiServer for RpcHandler {
+         let hash_bytes = decode_32_byte_hex("txhash", &txhash)?;
+         let hash = noid_poseidon2b::primitives::TxBodyHash(hash_bytes);
+         let found = self.mempool.get_entry_metadata(&hash).await;
+-        let v2 = self.pending_v2_class().await?;
++        let v2 = self.pending_v2_bank().await?;
+         Ok(found.map(|entry| mempool_tx_info(entry, v2)))
+     }
+ 
+@@ -3128,7 +3150,7 @@ impl ParanoidApiServer for RpcHandler {
+ 
+     async fn get_mempool_info(&self) -> RpcResult<MempoolInfo> {
+         let snapshot = self.mempool.metadata_snapshot().await;
+-        let v2 = self.pending_v2_class().await?;
++        let v2 = self.pending_v2_bank().await?;
+ 
+         let txs: Vec<MempoolTxInfo> = snapshot
+             .entries
+@@ -3431,8 +3453,10 @@ mod tests {
+     #[test]
+     fn mempool_v2_status_follows_pinned_limits_and_system_page_reservation() {
+         use noid_chain::consensus::forks::ACTIVE_SCHEDULE;
+-        use noid_recursive::acceptance::history_step::v2::V2Config;
+-        let Some(at) = ACTIVE_SCHEDULE.v2() else { return; };
++        use noid_recursive::acceptance::history_step::v2::{banked::Config, V2Config};
++        let Some(at) = ACTIVE_SCHEDULE.v2() else {
++            return;
++        };
+         let small = V2Config::with_limits(23, 63, 504, 63, ACTIVE_SCHEDULE).unwrap();
+         let metadata = |pages, inputs| noid_mempool::MempoolEntryMetadata {
+             tx_hash: noid_poseidon2b::primitives::TxBodyHash([1; 32]),
+@@ -3444,17 +3468,29 @@ mod tests {
+             admitted_height: at.height() - 1,
+             has_authorization: true,
+         };
+-        for (pages, large) in [(1, false), (26, false), (63, false), (64, true)] {
+-            let info = mempool_tx_info(metadata(pages, 1), Some((small, at.height())));
+-            assert_eq!(info.requires_b255_miner, large);
+-            assert_eq!(info.minimum_proof_class, if large { "B255" } else { "B63" });
++        for large_pages in [206, 211, 223, 255] {
++            let large = V2Config::with_limits(24, large_pages, 504, 63, ACTIVE_SCHEDULE).unwrap();
++            let bank = Config::new(small, large).unwrap();
++            for (pages, requires_large) in [(1, false), (26, false), (63, false), (64, true)] {
++                let info = mempool_tx_info(metadata(pages, 1), Some((bank, at.height())));
++                assert_eq!(info.requires_b255_miner, requires_large);
++                assert_eq!(
++                    info.minimum_proof_class,
++                    format!("B{}", if requires_large { large_pages } else { 63 })
++                );
++            }
++            let daily = at.height() + 86_400 / at.block_time() - 1;
++            assert!(mempool_tx_info(metadata(63, 1), Some((bank, daily))).requires_b255_miner);
++            assert!(!mempool_tx_info(metadata(62, 1), Some((bank, daily))).requires_b255_miner);
++            let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
++            let bank = Config::new(bounded, large).unwrap();
++            assert!(
++                !mempool_tx_info(metadata(48, 384), Some((bank, at.height()))).requires_b255_miner
++            );
++            assert!(
++                mempool_tx_info(metadata(49, 385), Some((bank, at.height()))).requires_b255_miner
++            );
+         }
+-        let daily = at.height() + 86_400 / at.block_time() - 1;
+-        assert!(mempool_tx_info(metadata(63, 1), Some((small, daily))).requires_b255_miner);
+-        assert!(!mempool_tx_info(metadata(62, 1), Some((small, daily))).requires_b255_miner);
+-        let bounded = V2Config::with_limits(23, 96, 384, 63, ACTIVE_SCHEDULE).unwrap();
+-        assert!(!mempool_tx_info(metadata(48, 384), Some((bounded, at.height()))).requires_b255_miner);
+-        assert!(mempool_tx_info(metadata(49, 385), Some((bounded, at.height()))).requires_b255_miner);
+     }
+ 
+     #[test]
+diff --git a/noid_rpc/src/types.rs b/noid_rpc/src/types.rs
+index 90cfe8fa..5bbd9881 100644
+--- a/noid_rpc/src/types.rs
++++ b/noid_rpc/src/types.rs
+@@ -694,7 +694,9 @@ pub struct MempoolTxInfo {
+     pub page_count: usize,
+     /// Smallest block proof class capable of including the complete intent.
+     pub minimum_proof_class: String,
+-    /// True while this pending intent requires a B255-qualified producer.
++    /// True while this intent requires the large proof class. The legacy
++    /// field name is retained for API compatibility; from v2, the actual
++    /// pinned page capacity is reported by `minimum_proof_class`.
+     pub requires_b255_miner: bool,
+     /// Chain height at admission.
+     pub admitted_height: u64,
+diff --git a/bench_prover/src/bin/v2_capacity_support/banked/budgets.rs b/bench_prover/src/bin/v2_capacity_support/banked/budgets.rs
+new file mode 100644
+index 00000000..aa926903
+--- /dev/null
++++ b/bench_prover/src/bin/v2_capacity_support/banked/budgets.rs
+@@ -0,0 +1,312 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright (C) 2026 Paranoid Zero.
++
++//! Spend the full input envelope across State segments under an existing bank.
++//! A replayed fixture supplies State; its accumulator must match a terminal
++//! verified from the authenticated legacy origin before new blocks are built.
++
++use super::super::boundaries::{payment, spread_sources};
++use super::*;
++
++pub fn measure_budgets(args: &[String]) -> Result<()> {
++    if args.len() != 7 || noid_chain::consensus::params::V1_1_ACTIVATION_HEIGHT != Some(5) {
++        return Err("usage: noid_v2_capacity joint-budgets PACK PIN LEGACY_FIXTURES CANDIDATE BANK_PIN NEW_OUTPUT TIP (isolated-v1-1-testnet required)".into());
++    }
++    let started = Instant::now();
++    let candidate = PathBuf::from(&args[3]);
++    let output = PathBuf::from(&args[5]);
++    if output.exists() {
++        return Err("new budget measurement directory required".into());
++    }
++    let tip: u64 = args[6].parse().map_err(err)?;
++    let (parts, bank, paths) = read_candidate(&candidate, digest(&args[4])?)?;
++    let config = bank.config();
++    if config.activation_height() != 10 || !(10..=10_000).contains(&tip) {
++        return Err("isolated H10 bank and bounded post-fork tip required".into());
++    }
++    let settings = Settings {
++        pack: PathBuf::from(&args[0]),
++        pin: digest(&args[1])?,
++        fixtures: PathBuf::from(&args[2]),
++        output: output.clone(),
++        config: config.class(Class::Small),
++        samples: 1,
++        freeze_only: false,
++        transition_only: false,
++        payments_only: false,
++    };
++    let legacy = proof::legacy_runtime(&settings.pack, settings.pin)?;
++    let (legacy_chain, legacy_tip) = Chain::load(&settings, &legacy)?;
++    let origin = joint::VerifiedOrigin::from_legacy(
++        &legacy,
++        &legacy_tip,
++        legacy_chain.parent(),
++        &legacy_chain.epoch(),
++        &bank,
++    )
++    .map_err(err)?;
++    drop(legacy_tip);
++    drop(legacy_chain);
++    drop(legacy);
++    let runtime = joint::Runtime::new(
++        bank.clone(),
++        parts,
++        Box::new(Source {
++            paths: paths.clone(),
++            config,
++            digests: Class::ALL.map(|class| bank.matrix_digest(class)),
++            cache: Mutex::new([None, None]),
++        }),
++    )
++    .map_err(err)?;
++    for class in Class::ALL {
++        runtime.prepare_matrix_cache(class).map_err(err)?;
++    }
++    let mut chain =
++        Chain::replay_for_receiver(&settings.fixtures, &candidate, settings.config, tip)?;
++    let terminal = joint::decode_terminal(
++        &runtime,
++        &proof::bounded(
++            &candidate.join(format!("h{tip:06}.terminal")),
++            2 * 1024 * 1024,
++        )?,
++    )
++    .map_err(err)?;
++    let epoch_height = (tip - 1) / noid_chain::consensus::params::TX_EPOCH_BLOCKS
++        * noid_chain::consensus::params::TX_EPOCH_BLOCKS;
++    let epoch = if epoch_height == 0 {
++        noid_chain::consensus::genesis_header()
++    } else {
++        let directory = if epoch_height < config.activation_height() {
++            &settings.fixtures
++        } else {
++            &candidate
++        };
++        Block::from_bytes(&proof::bounded(
++            &directory.join(format!("h{epoch_height:06}.block")),
++            16 * 1024 * 1024,
++        )?)
++        .map_err(err)?
++        .header
++    };
++    let accepted = joint::verify_terminal(&runtime, &origin, &terminal, chain.parent(), &epoch)
++        .map_err(err)?;
++    if accepted.accumulator() != &chain.accumulator {
++        return Err("budget fixture replay differs from its verified accumulator".into());
++    }
++    // Retain a self-contained fixture for the existing independent receiver.
++    std::fs::create_dir(&output).map_err(err)?;
++    for name in ["joint.parts", "joint.pins.json"] {
++        std::fs::copy(candidate.join(name), output.join(name)).map_err(err)?;
++    }
++    for path in paths {
++        std::fs::copy(
++            &path,
++            output.join(path.file_name().ok_or("matrix filename")?),
++        )
++        .map_err(err)?;
++    }
++    for height in config.activation_height()..=tip {
++        for extension in ["block", "terminal"] {
++            let name = format!("h{height:06}.{extension}");
++            std::fs::copy(candidate.join(&name), output.join(name)).map_err(err)?;
++        }
++    }
++    let ghost = noid_recursive::prepare_history_step_ghost_authorization(
++        noid_gkr::ghost_tx::prove_selected_ghost_authorization().map_err(err)?,
++    )
++    .map_err(err)?;
++    println!(
++        "{}",
++        json!({"phase":"joint_budget_setup", "bank":hex::encode(bank.digest()),
++        "source_tip":tip,"ms":elapsed(started),"memory":memory()})
++    );
++    let mut run = JointRun {
++        runtime,
++        origin,
++        previous: Some(terminal),
++        ghost,
++        output,
++        audited_transitions: [false; 5],
++        audited_full_calls: [false; 2],
++    };
++    chain.distribute_outputs();
++    match config.class(Class::Small).pages() {
++        25 => class_budget::<25>(&mut run, &mut chain, Class::Small)?,
++        63 => class_budget::<63>(&mut run, &mut chain, Class::Small)?,
++        64 => class_budget::<64>(&mut run, &mut chain, Class::Small)?,
++        96 => class_budget::<96>(&mut run, &mut chain, Class::Small)?,
++        112 => class_budget::<112>(&mut run, &mut chain, Class::Small)?,
++        120 => class_budget::<120>(&mut run, &mut chain, Class::Small)?,
++        127 => class_budget::<127>(&mut run, &mut chain, Class::Small)?,
++        _ => return Err("unsupported small budget capacity".into()),
++    }
++    match config.class(Class::Large).pages() {
++        206 => class_budget::<206>(&mut run, &mut chain, Class::Large)?,
++        207 => class_budget::<207>(&mut run, &mut chain, Class::Large)?,
++        209 => class_budget::<209>(&mut run, &mut chain, Class::Large)?,
++        210 => class_budget::<210>(&mut run, &mut chain, Class::Large)?,
++        211 => class_budget::<211>(&mut run, &mut chain, Class::Large)?,
++        223 => class_budget::<223>(&mut run, &mut chain, Class::Large)?,
++        255 => class_budget::<255>(&mut run, &mut chain, Class::Large)?,
++        _ => return Err("unsupported large budget capacity".into()),
++    }
++    println!(
++        "{}",
++        json!({"complete":true,"mode":"joint-input-budgets",
++        "tip":chain.parent().height,"memory":memory()})
++    );
++    Ok(())
++}
++
++fn class_budget<const PAGES: usize>(
++    run: &mut JointRun,
++    chain: &mut Chain,
++    class: Class,
++) -> Result<()> {
++    let config = run.runtime.bank().config().class(class);
++    let limit = config.max_live_inputs();
++    let original_limit = noid_chain::consensus::params::block_class_spend_capacity(PAGES);
++    let mut negative_checked = false;
++    for inputs_per_page in [4, 8, 0] {
++        let full_pages = inputs_per_page == 0;
++        if full_pages
++            && (limit < PAGES || [4, 8].iter().any(|width| limit.div_ceil(*width) == PAGES))
++        {
++            continue;
++        }
++        if !full_pages && limit.div_ceil(inputs_per_page) > PAGES {
++            continue;
++        }
++        fund::<PAGES>(
++            run,
++            chain,
++            class,
++            limit + usize::from(limit < original_limit),
++        )?;
++        let sources = spread_sources(chain);
++        if !negative_checked && limit < original_limit {
++            reject_over_budget::<PAGES>(run, chain, class, &sources[..limit + 1])?;
++            negative_checked = true;
++        }
++        let segments = sources[..limit]
++            .iter()
++            .map(|slot| slot >> 16)
++            .collect::<BTreeSet<_>>()
++            .len();
++        if segments != limit.min(256) {
++            return Err("full input case did not span the expected State segments".into());
++        }
++        let mut batch = Batch::default();
++        let mut consumed = 0;
++        while consumed < limit {
++            let width = if full_pages {
++                (limit - consumed - (PAGES - batch.pages.len() - 1)).min(TX_INPUTS)
++            } else {
++                inputs_per_page.min(limit - consumed)
++            };
++            payment(&mut batch, chain, &sources[consumed..consumed + width], 2)?;
++            consumed += width;
++        }
++        let layout = if full_pages {
++            "full_pages".to_owned()
++        } else {
++            format!("per_page_{inputs_per_page}")
++        };
++        let height = chain.parent().height + 1;
++        let pages = batch.pages.len();
++        // Also rebuild and check the exact frozen relation for this maximum
++        // input witness, even when this class transition has been seen before.
++        run.audited_transitions = [false; 5];
++        run.block::<PAGES>(
++            chain,
++            class,
++            &format!("joint_class_{}_inputs_{limit}_{layout}", class.wire_id()),
++            batch,
++        )?;
++        println!(
++            "{}",
++            json!({"phase":"joint_input_boundary", "height":height,
++            "class":class.wire_id(),"inputs":limit,"layout":layout,
++            "pages":pages,"outputs":2*pages,"input_segments":segments})
++        );
++    }
++    run.block::<PAGES>(
++        chain,
++        class,
++        "joint_budget_empty_successor",
++        Batch::default(),
++    )
++}
++
++fn fund<const PAGES: usize>(
++    run: &mut JointRun,
++    chain: &mut Chain,
++    class: Class,
++    target: usize,
++) -> Result<()> {
++    loop {
++        let sources = chain.ordinary_slots();
++        let segments = sources
++            .iter()
++            .map(|slot| slot >> 16)
++            .collect::<BTreeSet<_>>()
++            .len();
++        if sources.len() >= target && segments >= target.min(256) {
++            return Ok(());
++        }
++        let count = sources.len().min(PAGES).min(if sources.len() < target {
++            target - sources.len()
++        } else {
++            PAGES
++        });
++        if count == 0 {
++            return Err("joint budget funding exhausted".into());
++        }
++        let mut batch = Batch::default();
++        for source in &sources[..count] {
++            payment(&mut batch, chain, &[*source], 2)?;
++        }
++        run.block::<PAGES>(chain, class, "joint_budget_funding", batch)?;
++    }
++}
++
++fn reject_over_budget<const PAGES: usize>(
++    run: &JointRun,
++    chain: &mut Chain,
++    class: Class,
++    sources: &[u32],
++) -> Result<()> {
++    let config = run.runtime.bank().config().class(class);
++    let mut batch = Batch::default();
++    for sources in sources.chunks(TX_INPUTS) {
++        payment(&mut batch, chain, sources, 1)?;
++    }
++    let (block, state) = chain.build(&batch.pages, config.schedule())?;
++    drop(state);
++    match chain.input::<PAGES>(&block, &batch, &run.ghost, config) {
++        Err(error) if error.contains("BlockInputLimit") => (),
++        _ => return Err("over-budget inputs escaped native candidate validation".into()),
++    }
++    batch.prove_authorizations(block.header.height)?;
++    let wider = v2::V2Config::new(config.outer_m(), PAGES, config.schedule()).map_err(err)?;
++    let frozen = joint::assemble_frozen(
++        &run.runtime,
++        run.origin.origin(),
++        run.previous.as_ref(),
++        chain.input::<PAGES>(&block, &batch, &run.ghost, wider)?,
++    )
++    .map_err(err)?;
++    if frozen.matrix().statement_digest() != run.runtime.bank().matrix_digest(class)
++        || frozen.matrix().satisfies(frozen.witness())
++    {
++        return Err("joint input overflow failed its frozen-matrix negative control".into());
++    }
++    println!(
++        "{}",
++        json!({"phase":"joint_input_budget_adversarial_check",
++        "class":class.wire_id(),"inputs":sources.len(),"native_rejected":true,
++        "same_matrix":true,"r1cs_satisfied":false})
++    );
++    Ok(())
++}
