@@ -1902,11 +1902,8 @@ fn persist_owner_only_atomically(path: &Path, bytes: &[u8], label: &str) -> Resu
     }
     drop(file);
 
-    #[cfg(target_os = "windows")]
-    if path.exists() {
-        std::fs::remove_file(path)
-            .map_err(|error| format!("replace {label} {}: {error}", path.display()))?;
-    }
+    // std::fs::rename replaces an existing file on Windows as well as Unix.
+    // Keep the preceding copy intact until that replacement succeeds.
     if let Err(error) = std::fs::rename(&temporary, path) {
         let _ = std::fs::remove_file(&temporary);
         return Err(format!("install {label} {}: {error}", path.display()));

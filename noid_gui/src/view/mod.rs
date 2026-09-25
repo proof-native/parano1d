@@ -881,15 +881,15 @@ fn command_bar(app: &App) -> Element<'static, Message> {
         ),
         command(
             "F7",
-            navigation_label("Settings"),
-            Message::Navigate(Section::Settings),
-            app.section == Section::Settings,
+            navigation_label("Contracts"),
+            Message::Navigate(Section::Contracts),
+            app.section == Section::Contracts,
         ),
         command(
             "F8",
-            navigation_label("Contracts"),
-            Message::Navigate(Section::Contracts),
-            app.section == Section::Contracts
+            navigation_label("Settings"),
+            Message::Navigate(Section::Settings),
+            app.section == Section::Settings,
         ),
         command("F10", navigation_label("Quit"), Message::Exit, false),
     ]

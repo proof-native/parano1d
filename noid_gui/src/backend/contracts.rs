@@ -3,9 +3,10 @@
 
 use super::*;
 use crate::contracts::{
-    Info, Instances, KnownStates, LibraryEntry, Outcome, Preview, Request, LIBRARY_LIMIT,
-    TERMS_LIMIT,
+    Creation, Info, Instances, KnownStates, LibraryEntry, Operation, OperationKind, Outcome,
+    Preview, Request, Source, LIBRARY_LIMIT, TERMS_LIMIT,
 };
+mod workflow;
 const RECEIPT_LIMIT: usize = 2 * 1024 * 1024;
 
 async fn read_file(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
@@ -41,11 +42,11 @@ impl Backend {
             .map_err(contract_error)
     }
 
-    async fn contract_instances(&self, info: Info, cursor: u32) -> Result<Outcome, String> {
+    async fn contract_instances(&self, mut info: Info, cursor: u32) -> Result<Outcome, String> {
         if !info.has_program_details() {
             return Err("The node did not provide the contract program. Update the node and reload the terms before funding.".into());
         }
-        let instances: Instances = self
+        let mut instances: Instances = self
             .contract_rpc("getObjectInstances", json!([info.opening_hex, cursor, 32]))
             .await?;
         let mut known = self.contract_library().await?;
@@ -60,27 +61,98 @@ impl Backend {
                     .contract_rpc("getObjectInstances", json!([entry.info.opening_hex, 0, 1]))
                     .await?;
                 if !old.slots.is_empty() {
-                    // Another deposit still uses these terms. Preserve it as a
-                    // separate saved balance when following this successor.
+                    // Another deposit still uses these terms. The funded states
+                    // query keeps it available when following this successor.
                     entry.candidate = None;
                     self.save_contract_library(&known).await?;
                 }
             }
         }
-        let library = self
-            .remember_contract(&info, None, !instances.slots.is_empty())
-            .await?;
-        let states = self
+        let states: KnownStates = self
             .contract_rpc(
                 "walletListObjectStates",
                 json!([info.opening_hex, null, 32]),
             )
             .await?;
-        Ok(Outcome::Loaded(info, instances, library, states))
+        if cursor == 0 && instances.slots.is_empty() {
+            if let Some(live) = states
+                .states
+                .iter()
+                .find(|state| state.has_balance && state.object.family_key() == info.family_key())
+            {
+                info = live.object.clone();
+                instances = self
+                    .contract_rpc("getObjectInstances", json!([info.opening_hex, 0, 32]))
+                    .await?;
+            }
+        }
+        let library = self
+            .remember_contract(&info, None, !instances.slots.is_empty())
+            .await?;
+        let activity = self.contract_activity(&info).await?;
+        Ok(Outcome::WithActivity(
+            Box::new(Outcome::Loaded(info, instances, library, states)),
+            activity,
+        ))
     }
 
     pub async fn contract_operation(&self, request: Request) -> Result<Outcome, String> {
         match request {
+            Request::OpenFile(path) => self.open_contract_file(path).await,
+            Request::AcceptFile(file) => self.accept_contract_file(file).await,
+            Request::Poll(info) => self
+                .contract_instances(info, 0)
+                .await
+                .map(|outcome| Outcome::Refreshed(Box::new(outcome))),
+            Request::SaveOperationReceipt(info, operation) => {
+                self.save_operation_receipt(&info, &operation).await
+            }
+            Request::PrepareFunding {
+                info,
+                amount,
+                fee,
+                sender,
+                creation,
+            } => {
+                self.prepare_contract_funding(info, amount, fee, sender, creation)
+                    .await
+            }
+            Request::CreateAndFund {
+                definition,
+                creation,
+                amount,
+                fee,
+                sender,
+            } => {
+                let info = self
+                    .contract_rpc("createObject", json!([definition]))
+                    .await?;
+                self.prepare_contract_funding(info, amount, fee, sender, Some(creation))
+                    .await
+            }
+            Request::SaveDraft {
+                definition,
+                creation,
+            } => {
+                let info: Info = self
+                    .contract_rpc("createObject", json!([definition]))
+                    .await?;
+                let info: Info = self
+                    .contract_rpc("walletWatchObject", json!([info.opening_hex]))
+                    .await?;
+                self.remember_contract_metadata(
+                    &info,
+                    &creation.name,
+                    Some(creation.kind),
+                    Source::Created,
+                )
+                .await?;
+                let loaded = self.contract_instances(info, 0).await?;
+                Ok(Outcome::WithNotice(
+                    Box::new(loaded),
+                    "Saved without a deposit. Open My contracts to fund it later.".into(),
+                ))
+            }
             Request::Home => Ok(Outcome::Home(
                 self.contract_rpc("getContractProtocol", json!([])).await?,
                 self.contract_library().await?,
@@ -105,7 +177,8 @@ impl Backend {
                 if index >= library.len() {
                     return Err("Saved contract list changed. Reload it.".into());
                 }
-                library.remove(index);
+                let family = library[index].info.family_key();
+                library.retain(|entry| entry.info.family_key() != family);
                 self.save_contract_library(&library).await?;
                 Ok(Outcome::Library(library))
             }
@@ -119,43 +192,6 @@ impl Backend {
                     preview,
                 })
             }
-            Request::Create(definition) => {
-                let info: Info = self
-                    .contract_rpc("createObject", json!([definition]))
-                    .await?;
-                let info = self
-                    .contract_rpc("walletWatchObject", json!([info.opening_hex]))
-                    .await?;
-                self.contract_instances(info, 0).await
-            }
-            Request::Import => {
-                let Some(file) = rfd::AsyncFileDialog::new()
-                    .add_filter("Contract terms", &["json"])
-                    .pick_file()
-                    .await
-                else {
-                    return Ok(Outcome::Cancelled);
-                };
-                let value: Value =
-                    serde_json::from_slice(&read_file(file.path(), TERMS_LIMIT).await?)
-                        .map_err(|e| e.to_string())?;
-                let opening = value["opening_hex"]
-                    .as_str()
-                    .or_else(|| value["successor"]["opening_hex"].as_str())
-                    .ok_or("This file has no current contract terms.")?;
-                // Ignore all file-supplied labels and authority descriptions.
-                // The node decodes the opening and returns its actual policy.
-                let info = self
-                    .contract_rpc("walletWatchObject", json!([opening]))
-                    .await?;
-                self.contract_instances(info, 0).await
-            }
-            Request::Restore(address) => {
-                let info = self
-                    .contract_rpc("walletGetObjectOpening", json!([address]))
-                    .await?;
-                self.contract_instances(info, 0).await
-            }
             Request::Refresh(info, cursor) => self.contract_instances(info, cursor).await,
             Request::Related(info, cursor) => {
                 let states: KnownStates = self
@@ -166,32 +202,28 @@ impl Backend {
                     .await?;
                 Ok(Outcome::Related(states))
             }
-            Request::Save(info) => {
-                let Some(file) = rfd::AsyncFileDialog::new()
-                    .set_file_name("contract.json")
-                    .add_filter("Contract terms", &["json"])
-                    .save_file()
-                    .await
-                else {
-                    return Ok(Outcome::Cancelled);
-                };
-                file.write(&serde_json::to_vec_pretty(&info).map_err(|e| e.to_string())?)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                Ok(Outcome::Notice(
-                    "Public contract terms saved. Share this file with the other participant."
-                        .into(),
-                ))
-            }
+            Request::Save(info) => self.share_contract(&info).await,
             Request::Fund {
                 info,
                 amount,
                 fee,
                 sender,
+                creation,
             } => {
                 let active: Value = self.contract_rpc("walletActiveAddress", json!([])).await?;
                 if active["address"] != sender {
                     return Err("Active address changed. Review the transaction again.".into());
+                }
+                if let Some(creation) = creation {
+                    self.remember_contract_metadata(
+                        &info,
+                        &creation.name,
+                        Some(creation.kind),
+                        Source::Created,
+                    )
+                    .await?;
+                } else {
+                    self.remember_contract(&info, None, false).await?;
                 }
                 let result: Value = self
                     .contract_rpc(
@@ -199,10 +231,38 @@ impl Backend {
                         json!([info.opening_hex, amount, fee, sender]),
                     )
                     .await?;
-                Ok(Outcome::Submitted {
-                    txid: txid(&result)?,
+                let txid = txid(&result)?;
+                let recorded = self
+                    .remember_operation(
+                        &info,
+                        Operation {
+                            txid: txid.clone(),
+                            opening_hex: info.opening_hex.clone(),
+                            address: info.address.clone(),
+                            kind: OperationKind::Funding,
+                            amount_micronoid: Some(amount),
+                            fee_micronoid: Some(fee),
+                            call_height: None,
+                            confirmation: None,
+                            canonical: false,
+                            receipt_available: false,
+                        },
+                    )
+                    .await;
+                let outcome = Outcome::Submitted {
+                    txid: txid.clone(),
                     old_opening: None,
                     successor: None,
+                };
+                Ok(if let Err(error) = recorded {
+                    Outcome::WithNotice(
+                        Box::new(outcome),
+                        format!(
+                            "Submitted: {txid}. Local operation record could not be saved: {error}"
+                        ),
+                    )
+                } else {
+                    outcome
                 })
             }
             Request::Call {
@@ -231,6 +291,30 @@ impl Backend {
                 {
                     return Err("Contract authority or deadline branch changed. Review the transaction again.".into());
                 }
+                self.remember_operation(
+                    &info,
+                    Operation {
+                        txid: preview.txid.clone(),
+                        opening_hex: info.opening_hex.clone(),
+                        address: info.address.clone(),
+                        kind: if preview.terminal {
+                            OperationKind::Withdrawal
+                        } else if preview.payout.is_some() {
+                            OperationKind::Payment
+                        } else {
+                            OperationKind::Update
+                        },
+                        amount_micronoid: Some(
+                            preview.payout.as_ref().map_or(0, |p| p.amount_micronoid),
+                        ),
+                        fee_micronoid: Some(preview.fee_micronoid),
+                        call_height: Some(preview.call_height),
+                        confirmation: None,
+                        canonical: false,
+                        receipt_available: false,
+                    },
+                )
+                .await?;
                 let result: Value = self
                     .contract_rpc("walletCallObject", json!([payload]))
                     .await?;
@@ -247,63 +331,6 @@ impl Backend {
                     old_opening: Some(info.opening_hex),
                     successor,
                 })
-            }
-            Request::ExportReceipt { opening, txid } => {
-                let encoded: String = self
-                    .contract_rpc("exportObjectReceipt", json!([opening, txid]))
-                    .await?;
-                let checked: Value = self
-                    .contract_rpc("verifyObjectReceipt", json!([encoded]))
-                    .await?;
-                if checked["valid"] != true || checked["txid"] != txid {
-                    return Err("Receipt verification did not match the requested call.".into());
-                }
-                let bytes = hex::decode(&encoded).map_err(|e| e.to_string())?;
-                if bytes.len() > RECEIPT_LIMIT {
-                    return Err("Receipt exceeds its file limit.".into());
-                }
-                let Some(file) = rfd::AsyncFileDialog::new()
-                    .set_file_name(format!("{txid}.receipt"))
-                    .add_filter("Contract receipt", &["receipt"])
-                    .save_file()
-                    .await
-                else {
-                    return Ok(Outcome::Cancelled);
-                };
-                file.write(&bytes).await.map_err(|e| e.to_string())?;
-                Ok(Outcome::Notice(format!(
-                    "Verified receipt saved for transaction {txid}."
-                )))
-            }
-            Request::VerifyReceipt => {
-                let Some(file) = rfd::AsyncFileDialog::new()
-                    .add_filter("Contract receipt", &["receipt"])
-                    .pick_file()
-                    .await
-                else {
-                    return Ok(Outcome::Cancelled);
-                };
-                let bytes = read_file(file.path(), RECEIPT_LIMIT).await?;
-                let checked: Value = self
-                    .contract_rpc("verifyObjectReceipt", json!([hex::encode(bytes)]))
-                    .await?;
-                if checked["valid"] != true {
-                    return Err("Contract receipt did not verify.".into());
-                }
-                let notice = format!(
-                    "Verified on this node's selected chain: transaction {} in block {}. This proves the recorded call; refresh current balances to check whether its successor remains spendable.",
-                    txid(&checked)?, checked["height"]);
-                if !checked["successor"].is_null() {
-                    let successor: Info = serde_json::from_value(checked["successor"].clone())
-                        .map_err(|e| e.to_string())?;
-                    let successor = self
-                        .contract_rpc("walletWatchObject", json!([successor.opening_hex]))
-                        .await?;
-                    let loaded = self.contract_instances(successor, 0).await?;
-                    Ok(Outcome::WithNotice(Box::new(loaded), notice))
-                } else {
-                    Ok(Outcome::Notice(notice))
-                }
             }
         }
     }
@@ -440,27 +467,22 @@ impl Backend {
         let mut library = self.contract_library().await?;
         if let Some(entry) = library
             .iter_mut()
-            .find(|entry| entry.info.address == info.address)
+            .find(|entry| entry.info.family_key() == info.family_key())
         {
-            if entry.info.opening_hex != info.opening_hex {
+            if entry.info.address == info.address && entry.info.opening_hex != info.opening_hex
+                || entry.candidate.as_ref().is_some_and(|next| {
+                    next.address == info.address && next.opening_hex != info.opening_hex
+                })
+            {
                 return Err("Saved contract opening changed.".into());
             }
-            entry.info = info.clone();
-            if let Some(name) = name {
-                entry.name = name;
-            }
-        } else if let Some(entry) = library.iter_mut().find(|entry| {
-            entry
-                .candidate
-                .as_ref()
-                .is_some_and(|candidate| candidate.address == info.address)
-        }) {
-            if entry.candidate.as_ref().unwrap().opening_hex != info.opening_hex {
-                return Err("Saved contract opening changed.".into());
-            }
-            // A state query, never submission alone, advances the saved entry.
-            if confirmed {
+            // A fresh state query, never submission alone, advances the entry.
+            // Other independent deposits remain accessible through known states.
+            let following = confirmed && entry.info.address != info.address;
+            if confirmed || entry.info.address == info.address {
                 entry.info = info.clone();
+            }
+            if following {
                 entry.candidate = None;
             }
             if let Some(name) = name {
@@ -471,6 +493,8 @@ impl Backend {
                 name: name.unwrap_or_default(),
                 info: info.clone(),
                 candidate: None,
+                kind: None,
+                source: Source::Existing,
             });
         }
         self.save_contract_library(&library).await?;
@@ -502,7 +526,7 @@ mod tests {
         );
     }
 
-    fn backend(directory: &Path) -> Backend {
+    pub(super) fn backend(directory: &Path) -> Backend {
         Backend {
             inner: Arc::new(BackendInner {
                 config: Mutex::new(BackendConfig {
@@ -560,6 +584,12 @@ mod tests {
             "9007199254740993"
         );
         assert_eq!(library[0].name, "Household");
+        // The old balance can still be live while the submitted successor waits.
+        let refreshed = reopened.remember_contract(&info, None, true).await.unwrap();
+        assert_eq!(
+            refreshed[0].candidate.as_ref().unwrap().address,
+            successor.address
+        );
         reopened
             .remember_contract(&successor, None, false)
             .await

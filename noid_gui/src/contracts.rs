@@ -7,6 +7,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+mod workflow;
+pub use workflow::*;
+
 pub const TERMS_LIMIT: usize = 32 * 1024;
 pub const LIBRARY_LIMIT: usize = 256;
 
@@ -150,6 +153,18 @@ pub struct Info {
 }
 
 impl Info {
+    /// Local grouping only; authorization always uses the full opening.
+    pub fn family_key(&self) -> String {
+        let mut definition = self.editable_definition();
+        definition["definition"]
+            .as_object_mut()
+            .unwrap()
+            .remove("state");
+        blake3::hash(&serde_json::to_vec(&definition).unwrap())
+            .to_hex()
+            .to_string()
+    }
+
     pub fn has_program_details(&self) -> bool {
         let field = |value: &str, digits| {
             value.len() == digits && value.bytes().all(|b| b.is_ascii_hexdigit())
@@ -207,6 +222,10 @@ pub struct LibraryEntry {
     /// alongside its candidate instead of silently replacing a live contract.
     #[serde(default)]
     pub candidate: Option<Info>,
+    #[serde(default)]
+    pub kind: Option<Kind>,
+    #[serde(default)]
+    pub source: Source,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -285,7 +304,8 @@ pub struct Instances {
     pub next_slot: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Kind {
     #[default]
     Payment,
@@ -327,6 +347,11 @@ impl std::fmt::Display for Kind {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Field {
+    DraftName,
+    InitialAmount,
+    InitialFee,
+    FilePath,
+    Payout,
     Authority,
     Deadline,
     MaxFee,
@@ -335,16 +360,44 @@ pub enum Field {
     Payee,
     Amount,
     Fee,
-    Restore,
-    ReceiptTxid,
     Start,
     Period,
     Budget,
     Name,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Tab {
+    #[default]
+    Create,
+    Mine,
+    Open,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VerifiedReceipt {
+    pub txid: String,
+    pub height: u64,
+    pub terminal: bool,
+    pub authority: String,
+    pub successor: Option<Info>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
+    Use(UseAction),
+    ShowHelp(Kind),
+    CloseHelp,
+    CreateAndFund,
+    BrowseFile,
+    OpenFile,
+    AcceptFile,
+    Poll,
+    SelectOperation(usize),
+    SaveOperationReceipt(usize),
+    SetDetail(DetailTab),
+    SetTab(Tab),
+    ToggleProgram,
     Home,
     LoadSaved(usize),
     Rename,
@@ -359,8 +412,6 @@ pub enum Action {
     Edit(Field, String),
     Select(u32),
     Create,
-    Import,
-    Restore,
     Refresh,
     NextPage,
     Save,
@@ -369,12 +420,32 @@ pub enum Action {
     ReviewPay,
     Confirm,
     CancelReview,
-    ExportReceipt,
-    VerifyReceipt,
 }
 
 #[derive(Debug, Clone)]
 pub enum Request {
+    OpenFile(Option<String>),
+    AcceptFile(OpenedFile),
+    Poll(Info),
+    SaveOperationReceipt(Info, Operation),
+    PrepareFunding {
+        info: Info,
+        amount: u64,
+        fee: u64,
+        sender: String,
+        creation: Option<Creation>,
+    },
+    CreateAndFund {
+        definition: Value,
+        creation: Creation,
+        amount: u64,
+        fee: u64,
+        sender: String,
+    },
+    SaveDraft {
+        definition: Value,
+        creation: Creation,
+    },
     Home,
     LoadSaved(usize),
     Rename(Info, String),
@@ -383,9 +454,6 @@ pub enum Request {
         info: Info,
         payload: Value,
     },
-    Create(Value),
-    Import,
-    Restore(String),
     Refresh(Info, u32),
     Related(Info, String),
     Save(Info),
@@ -394,6 +462,7 @@ pub enum Request {
         amount: u64,
         fee: u64,
         sender: String,
+        creation: Option<Creation>,
     },
     Call {
         info: Info,
@@ -402,15 +471,20 @@ pub enum Request {
         recovery: bool,
         preview: Preview,
     },
-    ExportReceipt {
-        opening: String,
-        txid: String,
-    },
-    VerifyReceipt,
 }
 
 #[derive(Debug, Clone)]
 pub enum Outcome {
+    FundingReview {
+        info: Info,
+        amount: u64,
+        fee: u64,
+        sender: String,
+        creation: Option<Creation>,
+    },
+    Opened(OpenedFile),
+    WithActivity(Box<Outcome>, Vec<Operation>),
+    Refreshed(Box<Outcome>),
     WithNotice(Box<Outcome>, String),
     Home(Protocol, Vec<LibraryEntry>),
     Library(Vec<LibraryEntry>),
@@ -427,11 +501,39 @@ pub enum Outcome {
         successor: Option<Info>,
     },
     Notice(String),
-    Cancelled,
+}
+
+impl Outcome {
+    pub fn reveals_content(&self) -> bool {
+        match self {
+            Self::Loaded(..)
+            | Self::Opened(_)
+            | Self::FundingReview { .. }
+            | Self::Previewed { .. } => true,
+            Self::WithActivity(outcome, _) | Self::WithNotice(outcome, _) => {
+                outcome.reveals_content()
+            }
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct State {
+    pub use_action: UseAction,
+    pub help: Option<Kind>,
+    pub detail: DetailTab,
+    pub draft_name: String,
+    pub initial_amount: String,
+    pub initial_fee: String,
+    pub file_path: String,
+    pub opened: Option<OpenedFile>,
+    pub operations: Vec<Operation>,
+    pub selected_operation: Option<usize>,
+    pub payout: String,
+    pub last_poll: Option<(u64, String)>,
+    pub tab: Tab,
+    pub program_expanded: bool,
     pub protocol: Option<Protocol>,
     pub library: Vec<LibraryEntry>,
     pub name: String,
@@ -450,8 +552,6 @@ pub struct State {
     pub payee: String,
     pub amount: String,
     pub fee: String,
-    pub restore: String,
-    pub receipt_txid: String,
     pub info: Option<Info>,
     pub instances: Option<Instances>,
     pub selected: Option<u32>,
@@ -459,12 +559,25 @@ pub struct State {
     pub error: Option<String>,
     pub notice: Option<String>,
     pub review: Option<(Request, String)>,
-    pub last_call: Option<(String, String)>,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
+            use_action: UseAction::Fund,
+            help: None,
+            detail: DetailTab::Actions,
+            draft_name: String::new(),
+            initial_amount: String::new(),
+            initial_fee: String::new(),
+            file_path: String::new(),
+            opened: None,
+            operations: Vec::new(),
+            selected_operation: None,
+            payout: String::new(),
+            last_poll: None,
+            tab: Tab::Create,
+            program_expanded: false,
             protocol: None,
             library: Vec::new(),
             name: String::new(),
@@ -483,8 +596,6 @@ impl Default for State {
             payee: String::new(),
             amount: String::new(),
             fee: String::new(),
-            restore: String::new(),
-            receipt_txid: String::new(),
             info: None,
             instances: None,
             selected: None,
@@ -492,7 +603,6 @@ impl Default for State {
             error: None,
             notice: None,
             review: None,
-            last_call: None,
         }
     }
 }
@@ -512,13 +622,93 @@ impl State {
         active: &str,
         height: u64,
     ) -> Result<Option<Request>, String> {
+        // Navigation and help never authorize or mutate a contract.
+        match action {
+            Action::SetTab(tab) => {
+                self.tab = tab;
+                self.help = None;
+                self.notice = None;
+                self.error = None;
+                return Ok(None);
+            }
+            Action::ShowHelp(kind) => {
+                self.help = Some(kind);
+                return Ok(None);
+            }
+            Action::CloseHelp => {
+                self.help = None;
+                return Ok(None);
+            }
+            Action::SetDetail(tab) => {
+                self.detail = tab;
+                return Ok(None);
+            }
+            _ => {}
+        }
         if self.busy {
             return Ok(None);
         }
         self.error = None;
         match action {
+            Action::SetTab(_) | Action::ShowHelp(_) | Action::CloseHelp | Action::SetDetail(_) => {
+                unreachable!()
+            }
+            Action::Use(action) => {
+                self.use_action = action;
+                self.review = None;
+            }
+            Action::BrowseFile | Action::OpenFile => {
+                self.opened = None;
+                self.notice = None;
+                return Ok(Some(Request::OpenFile(
+                    if matches!(action, Action::OpenFile) {
+                        if self.file_path.trim().is_empty() {
+                            return Err("Choose a contract file first.".into());
+                        }
+                        Some(self.file_path.trim().to_owned())
+                    } else {
+                        None
+                    },
+                )));
+            }
+            Action::AcceptFile => {
+                let file = self
+                    .opened
+                    .clone()
+                    .ok_or("Open and check a contract file first.")?;
+                if file.info.is_none() {
+                    return Err("This receipt records a closed balance.".into());
+                }
+                return Ok(Some(Request::AcceptFile(file)));
+            }
+            Action::Poll => {
+                if let Some(info) = &self.info {
+                    return Ok(Some(Request::Poll(info.clone())));
+                }
+            }
+            Action::SelectOperation(index) => {
+                if index >= self.operations.len() {
+                    return Err("Operation list changed. Refresh it.".into());
+                }
+                self.selected_operation = Some(index);
+            }
+            Action::SaveOperationReceipt(index) => {
+                let op = self
+                    .operations
+                    .get(index)
+                    .ok_or("Operation list changed. Refresh it.")?
+                    .clone();
+                let info = self.info.clone().ok_or("Choose a contract first.")?;
+                return Ok(Some(Request::SaveOperationReceipt(info, op)));
+            }
+            Action::ToggleProgram => self.program_expanded = !self.program_expanded,
             Action::Home => return Ok(Some(Request::Home)),
-            Action::LoadSaved(index) => return Ok(Some(Request::LoadSaved(index))),
+            Action::LoadSaved(index) => {
+                self.tab = Tab::Mine;
+                self.detail = DetailTab::Actions;
+                self.review = None;
+                return Ok(Some(Request::LoadSaved(index)));
+            }
             Action::Forget(index) => return Ok(Some(Request::Forget(index))),
             Action::Rename => {
                 return Ok(Some(Request::Rename(
@@ -579,14 +769,29 @@ impl State {
                         .map_err(|e| e.to_string())?,
                 );
                 self.kind = Kind::Custom;
+                self.tab = Tab::Create;
                 self.review = None;
             }
             Action::Edit(field, value) => {
-                if value.len() > 256 {
+                if value.len()
+                    > if matches!(field, Field::FilePath) {
+                        4096
+                    } else {
+                        256
+                    }
+                {
                     return Err("Field is too long.".into());
                 }
                 self.review = None;
+                if matches!(field, Field::FilePath) {
+                    self.opened = None;
+                }
                 *match field {
+                    Field::DraftName => &mut self.draft_name,
+                    Field::InitialAmount => &mut self.initial_amount,
+                    Field::InitialFee => &mut self.initial_fee,
+                    Field::FilePath => &mut self.file_path,
+                    Field::Payout => &mut self.payout,
                     Field::Authority => &mut self.authority,
                     Field::Deadline => &mut self.deadline,
                     Field::MaxFee => &mut self.max_fee,
@@ -595,8 +800,6 @@ impl State {
                     Field::Payee => &mut self.payee,
                     Field::Amount => &mut self.amount,
                     Field::Fee => &mut self.fee,
-                    Field::Restore => &mut self.restore,
-                    Field::ReceiptTxid => &mut self.receipt_txid,
                     Field::Start => &mut self.start,
                     Field::Period => &mut self.period,
                     Field::Budget => &mut self.budget,
@@ -630,78 +833,38 @@ impl State {
                         return Err("Contract authority or deadline branch changed. Review the transaction again.".into()),
                     _ => {}
                 }
+                if let Request::Fund { info, .. } = &request {
+                    self.info = Some(info.clone());
+                    self.instances = None;
+                    self.selected = None;
+                }
+                self.tab = Tab::Mine;
+                self.detail = DetailTab::Actions;
+                self.last_poll = None;
                 return Ok(Some(request));
             }
-            Action::Import => return Ok(Some(Request::Import)),
-            Action::VerifyReceipt => return Ok(Some(Request::VerifyReceipt)),
-            Action::Restore => return Ok(Some(Request::Restore(self.restore.trim().to_owned()))),
-            Action::Create => {
+            Action::Create | Action::CreateAndFund => {
                 self.review = None;
-                if self.kind == Kind::Custom {
-                    let definition: Value =
-                        serde_json::from_str(&self.editor.text()).map_err(|e| e.to_string())?;
-                    if definition["kind"] != "custom_program" {
-                        return Err("Use a custom_program definition in the editor.".into());
-                    }
-                    return Ok(Some(Request::Create(definition)));
+                let definition = self.definition(active, height)?;
+                let creation = Creation {
+                    name: self.draft_name.trim().to_owned(),
+                    kind: self.kind,
+                };
+                validate_name(&creation.name)?;
+                if matches!(action, Action::CreateAndFund) {
+                    self.require_active(height)?;
+                    return Ok(Some(Request::CreateAndFund {
+                        definition,
+                        creation,
+                        amount: crate::app::parse_noid_amount(&self.initial_amount)?,
+                        fee: crate::app::parse_optional_noid_fee(&self.initial_fee)?,
+                        sender: active.to_owned(),
+                    }));
                 }
-                let deadline = self
-                    .deadline
-                    .trim()
-                    .parse::<u64>()
-                    .map_err(|_| "Enter a block height.")?;
-                if deadline <= height.saturating_add(1) {
-                    return Err("Choose a future block height.".into());
-                }
-                let max_fee = crate::app::parse_noid_amount(&self.max_fee)?;
-                let number = |text: &str| {
-                    text.trim()
-                        .parse::<u64>()
-                        .map_err(|_| "Enter a block height or positive period.")
-                };
-                let start = if matches!(self.kind, Kind::Budget | Kind::Recurring | Kind::Vesting) {
-                    number(&self.start)?
-                } else {
-                    0
-                };
-                let period = if matches!(self.kind, Kind::Budget | Kind::Recurring | Kind::Vesting)
-                {
-                    number(&self.period)?
-                } else {
-                    0
-                };
-                let definition = match self.kind {
-                    Kind::Payment => json!({"kind":"refundable_payment", "payer":active,
-                        "payee":self.authority.trim(), "expiry_height":deadline, "max_fee_micronoid":max_fee}),
-                    Kind::Vault => json!({"kind":"timelocked_vault", "owner":active,
-                        "unlock_height":deadline, "max_fee_micronoid":max_fee}),
-                    Kind::Allowance => json!({"kind":"allowance_wallet", "recovery_key":active,
-                        "spending_key":self.authority.trim(), "recover_at":deadline,
-                        "payout_recipient":(!self.payee.trim().is_empty()).then(|| self.payee.trim()),
-                        "max_fee_micronoid":max_fee,
-                        "max_payout_micronoid":crate::app::parse_noid_amount(&self.max_payment)?,
-                        "min_retained_micronoid":if self.reserve.trim() == "0" { 0 } else { crate::app::parse_noid_amount(&self.reserve)? }}),
-                    Kind::Budget => {
-                        json!({"kind":"period_budget_wallet", "spending_key":self.authority.trim(),
-                        "recovery_key":active, "payout_recipient":(!self.payee.trim().is_empty()).then(|| self.payee.trim()),
-                        "start_height":start, "period_blocks":period, "recover_at":deadline,
-                        "budget_micronoid":crate::app::parse_noid_amount(&self.budget)?, "max_fee_micronoid":max_fee,
-                        "max_payout_micronoid":crate::app::parse_noid_amount(&self.max_payment)?,
-                        "min_retained_micronoid":if self.reserve.trim() == "0" { 0 } else { crate::app::parse_noid_amount(&self.reserve)? }})
-                    }
-                    Kind::Recurring => {
-                        json!({"kind":"recurring_payment", "payer":active, "payee":self.authority.trim(),
-                        "first_due_height":start, "period_blocks":period, "recover_at":deadline,
-                        "payment_micronoid":crate::app::parse_noid_amount(&self.max_payment)?, "max_fee_micronoid":max_fee})
-                    }
-                    Kind::Vesting => {
-                        json!({"kind":"tranche_vesting", "beneficiary":self.authority.trim(),
-                        "first_unlock_height":start, "period_blocks":period, "mature_at":deadline,
-                        "tranche_micronoid":crate::app::parse_noid_amount(&self.max_payment)?, "max_fee_micronoid":max_fee})
-                    }
-                    Kind::Custom => unreachable!(),
-                };
-                return Ok(Some(Request::Create(definition)));
+                return Ok(Some(Request::SaveDraft {
+                    definition,
+                    creation,
+                }));
             }
             Action::Refresh | Action::NextPage | Action::Save => {
                 let info = self
@@ -721,20 +884,6 @@ impl State {
                 };
                 return Ok(Some(request));
             }
-            Action::ExportReceipt => {
-                let txid = self.receipt_txid.trim().to_owned();
-                if txid.len() != 64 || !txid.bytes().all(|c| c.is_ascii_hexdigit()) {
-                    return Err("Enter a transaction ID.".into());
-                }
-                let opening = self
-                    .last_call
-                    .as_ref()
-                    .filter(|(id, _)| *id == txid)
-                    .map(|(_, opening)| opening.clone())
-                    .or_else(|| self.info.as_ref().map(|info| info.opening_hex.clone()))
-                    .ok_or("Import the terms used for this call.")?;
-                return Ok(Some(Request::ExportReceipt { opening, txid }));
-            }
             Action::ReviewFund => {
                 self.require_active(height)?;
                 let info = self
@@ -746,26 +895,13 @@ impl State {
                 }
                 let amount = crate::app::parse_noid_amount(&self.amount)?;
                 let fee = crate::app::parse_optional_noid_fee(&self.fee)?;
-                let summary = format!(
-                    "Fund {} with {} NOID from {}. Network fee: {}.",
-                    info.address,
-                    crate::model::format_micronoid(amount),
-                    active,
-                    if fee == 0 {
-                        "automatic".into()
-                    } else {
-                        format!("{} NOID", crate::model::format_micronoid(fee))
-                    }
-                );
-                self.review = Some((
-                    Request::Fund {
-                        info,
-                        amount,
-                        fee,
-                        sender: active.to_owned(),
-                    },
-                    summary,
-                ));
+                return Ok(Some(Request::PrepareFunding {
+                    info,
+                    amount,
+                    fee,
+                    sender: active.to_owned(),
+                    creation: None,
+                }));
             }
             Action::ReviewClose | Action::ReviewPay | Action::ReviewContinue => {
                 self.require_active(height)?;
@@ -819,7 +955,7 @@ impl State {
                         return Err("Payment exceeds the per-call limit.".into());
                     }
                     let payee = if info.unrestricted_payout_recipient {
-                        self.payee.trim()
+                        self.payout.trim()
                     } else {
                         recipient.as_str()
                     };
@@ -835,6 +971,73 @@ impl State {
             }
         }
         Ok(None)
+    }
+
+    fn definition(&self, active: &str, height: u64) -> Result<Value, String> {
+        if self.kind == Kind::Custom {
+            let definition: Value =
+                serde_json::from_str(&self.editor.text()).map_err(|e| e.to_string())?;
+            if definition["kind"] != "custom_program" {
+                return Err("Use a custom_program definition in the editor.".into());
+            }
+            return Ok(definition);
+        }
+        let deadline = self
+            .deadline
+            .trim()
+            .parse::<u64>()
+            .map_err(|_| "Enter a block height.")?;
+        if deadline <= height.saturating_add(1) {
+            return Err("Choose a future block height.".into());
+        }
+        let max_fee = crate::app::parse_noid_amount(&self.max_fee)?;
+        let number = |text: &str| {
+            text.trim()
+                .parse::<u64>()
+                .map_err(|_| "Enter a block height or positive period.")
+        };
+        let start = if matches!(self.kind, Kind::Budget | Kind::Recurring | Kind::Vesting) {
+            number(&self.start)?
+        } else {
+            0
+        };
+        let period = if matches!(self.kind, Kind::Budget | Kind::Recurring | Kind::Vesting) {
+            number(&self.period)?
+        } else {
+            0
+        };
+        let definition = match self.kind {
+            Kind::Payment => json!({"kind":"refundable_payment", "payer":active,
+                        "payee":self.authority.trim(), "expiry_height":deadline, "max_fee_micronoid":max_fee}),
+            Kind::Vault => json!({"kind":"timelocked_vault", "owner":active,
+                        "unlock_height":deadline, "max_fee_micronoid":max_fee}),
+            Kind::Allowance => json!({"kind":"allowance_wallet", "recovery_key":active,
+                        "spending_key":self.authority.trim(), "recover_at":deadline,
+                        "payout_recipient":(!self.payee.trim().is_empty()).then(|| self.payee.trim()),
+                        "max_fee_micronoid":max_fee,
+                        "max_payout_micronoid":crate::app::parse_noid_amount(&self.max_payment)?,
+                        "min_retained_micronoid":if self.reserve.trim() == "0" { 0 } else { crate::app::parse_noid_amount(&self.reserve)? }}),
+            Kind::Budget => {
+                json!({"kind":"period_budget_wallet", "spending_key":self.authority.trim(),
+                        "recovery_key":active, "payout_recipient":(!self.payee.trim().is_empty()).then(|| self.payee.trim()),
+                        "start_height":start, "period_blocks":period, "recover_at":deadline,
+                        "budget_micronoid":crate::app::parse_noid_amount(&self.budget)?, "max_fee_micronoid":max_fee,
+                        "max_payout_micronoid":crate::app::parse_noid_amount(&self.max_payment)?,
+                        "min_retained_micronoid":if self.reserve.trim() == "0" { 0 } else { crate::app::parse_noid_amount(&self.reserve)? }})
+            }
+            Kind::Recurring => {
+                json!({"kind":"recurring_payment", "payer":active, "payee":self.authority.trim(),
+                        "first_due_height":start, "period_blocks":period, "recover_at":deadline,
+                        "payment_micronoid":crate::app::parse_noid_amount(&self.max_payment)?, "max_fee_micronoid":max_fee})
+            }
+            Kind::Vesting => {
+                json!({"kind":"tranche_vesting", "beneficiary":self.authority.trim(),
+                        "first_unlock_height":start, "period_blocks":period, "mature_at":deadline,
+                        "tranche_micronoid":crate::app::parse_noid_amount(&self.max_payment)?, "max_fee_micronoid":max_fee})
+            }
+            Kind::Custom => unreachable!(),
+        };
+        Ok(definition)
     }
 
     fn require_active(&self, height: u64) -> Result<(), String> {
@@ -854,11 +1057,79 @@ impl State {
         self.busy = false;
         match result {
             Err(error) => self.error = Some(error),
+            Ok(Outcome::WithNotice(outcome, notice)) => {
+                self.finish(Ok(*outcome));
+                self.notice = Some(notice);
+            }
+            Ok(Outcome::Refreshed(outcome)) => {
+                let tab = self.tab;
+                let notice = self.notice.clone();
+                self.finish(Ok(*outcome));
+                self.tab = tab;
+                self.notice = notice;
+            }
+            Ok(Outcome::WithActivity(outcome, operations)) => {
+                let selected_txid = self
+                    .selected_operation
+                    .and_then(|i| self.operations.get(i))
+                    .map(|op| op.txid.clone());
+                self.finish(Ok(*outcome));
+                self.operations = operations;
+                self.selected_operation = selected_txid
+                    .and_then(|txid| self.operations.iter().position(|op| op.txid == txid));
+            }
+            Ok(Outcome::Opened(file)) => {
+                self.file_path = file.file_name.clone();
+                self.opened = Some(file);
+                self.tab = Tab::Open;
+                self.notice = None;
+            }
+            Ok(Outcome::FundingReview {
+                info,
+                amount,
+                fee,
+                sender,
+                creation,
+            }) => {
+                let summary = format!(
+                    "Fund {} with {} NOID from {}. Network fee: {} NOID.",
+                    info.address,
+                    crate::model::format_micronoid(amount),
+                    sender,
+                    crate::model::format_micronoid(fee)
+                );
+                self.review = Some((
+                    Request::Fund {
+                        info,
+                        amount,
+                        fee,
+                        sender,
+                        creation,
+                    },
+                    summary,
+                ));
+            }
             Ok(Outcome::Home(protocol, library)) => {
                 self.protocol = Some(protocol);
                 self.library = library;
             }
             Ok(Outcome::Library(library)) => {
+                if self.info.as_ref().is_some_and(|info| {
+                    !library
+                        .iter()
+                        .any(|entry| entry.info.family_key() == info.family_key())
+                }) {
+                    // A removed entry must not be re-created by background polling.
+                    self.info = None;
+                    self.instances = None;
+                    self.known_states = None;
+                    self.candidate = None;
+                    self.operations.clear();
+                    self.selected_operation = None;
+                    self.selected = None;
+                    self.review = None;
+                    self.name.clear();
+                }
                 self.library = library;
             }
             Ok(Outcome::Previewed {
@@ -881,14 +1152,22 @@ impl State {
                     "Review the node's exact call result below.".into(),
                 ));
             }
-            Ok(Outcome::Cancelled) => {}
             Ok(Outcome::Notice(notice)) => self.notice = Some(notice),
-            Ok(Outcome::WithNotice(outcome, notice)) => {
-                self.finish(Ok(*outcome));
-                self.notice = Some(notice);
-            }
             Ok(Outcome::Related(states)) => self.known_states = Some(states),
             Ok(Outcome::Loaded(info, instances, library, states)) => {
+                self.tab = Tab::Mine;
+                let changed = self
+                    .info
+                    .as_ref()
+                    .is_none_or(|previous| previous.address != info.address);
+                if changed {
+                    self.use_action = UseAction::Fund;
+                    self.program_expanded = false;
+                    self.amount.clear();
+                    self.fee.clear();
+                    self.payout.clear();
+                    self.selected_operation = None;
+                }
                 // This is a fresh balance view, not a transaction receipt.
                 // Do not carry an older submission's waiting message into it.
                 self.notice = None;
@@ -897,17 +1176,23 @@ impl State {
                 self.candidate = self
                     .library
                     .iter()
-                    .find(|entry| entry.info.address == info.address)
+                    .find(|entry| entry.info.family_key() == info.family_key())
                     .and_then(|entry| entry.candidate.clone());
-                self.restore = info.address.clone();
                 self.name = self
                     .library
                     .iter()
-                    .find(|entry| entry.info.address == info.address)
+                    .find(|entry| entry.info.family_key() == info.family_key())
                     .map(|entry| entry.name.clone())
                     .unwrap_or_default();
                 self.info = Some(info);
-                self.selected = instances.slots.first().map(|slot| slot.slot_index);
+                if changed
+                    || !instances
+                        .slots
+                        .iter()
+                        .any(|slot| Some(slot.slot_index) == self.selected)
+                {
+                    self.selected = instances.slots.first().map(|slot| slot.slot_index);
+                }
                 self.instances = Some(instances);
                 self.review = None;
             }
@@ -916,19 +1201,26 @@ impl State {
                 old_opening,
                 successor,
             }) => {
+                self.tab = Tab::Mine;
+                self.last_poll = None;
                 self.notice = Some(format!(
                     "Submitted: {txid}. Awaiting confirmation; refresh to read current balances."
                 ));
-                if let Some(opening) = old_opening {
-                    self.receipt_txid = txid.clone();
-                    self.last_call = Some((txid, opening));
-                }
+                let _ = old_opening;
                 self.candidate = successor;
                 self.known_states = None;
                 self.instances = None;
                 self.selected = None;
             }
         }
+    }
+}
+
+pub fn validate_name(name: &str) -> Result<(), String> {
+    if name.chars().count() > 64 || name.chars().any(char::is_control) {
+        Err("Contract name must be at most 64 characters without control characters.".into())
+    } else {
+        Ok(())
     }
 }
 
@@ -1014,6 +1306,113 @@ pub(crate) mod tests {
             payout: serde_json::from_value(payload["payout"].clone()).unwrap(),
             successor: Some(info()),
         }
+    }
+
+    #[test]
+    fn navigation_preserves_a_draft_and_selected_balance_during_rpc() {
+        let mut state = loaded();
+        prepare_funding(&mut state);
+        assert!(state.review.is_some());
+        let opening = state.info.as_ref().unwrap().opening_hex.clone();
+        state.busy = true;
+        for tab in [Tab::Open, Tab::Mine] {
+            assert!(state
+                .action(Action::SetTab(tab), "spending-key", 50)
+                .unwrap()
+                .is_none());
+            assert_eq!(state.tab, tab);
+            assert_eq!(state.info.as_ref().unwrap().opening_hex, opening);
+            assert_eq!(state.selected, Some(7));
+            assert_eq!(state.amount, "1");
+            assert!(state.review.is_some());
+            assert!(state.busy);
+        }
+    }
+
+    #[test]
+    fn editing_a_new_program_keeps_loaded_terms_but_cancels_the_old_review() {
+        let mut state = loaded();
+        prepare_funding(&mut state);
+        state
+            .action(Action::EditLoaded, "spending-key", 50)
+            .unwrap();
+        assert_eq!(state.tab, Tab::Create);
+        assert!(state.review.is_none());
+        assert!(state.info.is_some());
+        state
+            .action(Action::SetTab(Tab::Mine), "spending-key", 50)
+            .unwrap();
+        assert_eq!(state.tab, Tab::Mine);
+        assert_eq!(state.selected, Some(7));
+        state
+            .action(Action::EditLoaded, "spending-key", 50)
+            .unwrap();
+        assert_eq!(state.tab, Tab::Create);
+        assert_eq!(state.kind, Kind::Custom);
+    }
+
+    #[test]
+    fn removing_a_contract_stops_automatic_refresh_without_discarding_a_draft() {
+        let mut state = loaded();
+        state.draft_name = "New draft".into();
+        state.finish(Ok(Outcome::Library(vec![])));
+        assert!(state.info.is_none() && state.selected.is_none());
+        assert!(state
+            .action(Action::Poll, "spending-key", 50)
+            .unwrap()
+            .is_none());
+        assert_eq!(state.draft_name, "New draft");
+    }
+
+    #[test]
+    fn opening_a_file_does_not_replace_the_selected_contract_before_acceptance() {
+        let mut state = loaded();
+        let old = state.info.as_ref().unwrap().address.clone();
+        state.finish(Ok(Outcome::Opened(OpenedFile {
+            file_name: "received.json".into(),
+            name: "Received".into(),
+            info: Some(info()),
+            instances: None,
+            proof: None,
+            verified_call: None,
+            operation: None,
+        })));
+        assert_eq!(state.tab, Tab::Open);
+        assert_eq!(state.info.as_ref().unwrap().address, old);
+        assert!(matches!(
+            state
+                .action(Action::AcceptFile, "spending-key", 50)
+                .unwrap(),
+            Some(Request::AcceptFile(_))
+        ));
+        state
+            .action(Action::BrowseFile, "spending-key", 50)
+            .unwrap();
+        assert!(state.opened.is_none());
+        state.finish(Err("Invalid file".into()));
+        assert!(state.opened.is_none());
+    }
+
+    fn prepare_funding(state: &mut State) {
+        let Some(Request::PrepareFunding {
+            info,
+            amount,
+            fee: _,
+            sender,
+            creation,
+        }) = state
+            .action(Action::ReviewFund, "spending-key", 50)
+            .unwrap()
+        else {
+            panic!("quote required")
+        };
+        state.finish(Ok(Outcome::FundingReview {
+            info,
+            amount,
+            fee: 5800,
+            sender,
+            creation,
+        }));
     }
 
     #[test]
@@ -1155,7 +1554,7 @@ pub(crate) mod tests {
             Some(Request::Save(_))
         ));
         state.protocol.as_mut().unwrap().runtime_available = true;
-        state.action(Action::ReviewFund, "payer", 20).unwrap();
+        prepare_funding(&mut state);
         assert!(state.action(Action::Confirm, "other-key", 20).is_err());
     }
 
@@ -1172,7 +1571,7 @@ pub(crate) mod tests {
             (Kind::Vesting, "tranche_vesting"),
         ] {
             state.kind = kind;
-            let Some(Request::Create(definition)) =
+            let Some(Request::SaveDraft { definition, .. }) =
                 state.action(Action::Create, "active-key", 50).unwrap()
             else {
                 panic!()
@@ -1190,7 +1589,8 @@ pub(crate) mod tests {
             }
         }
         state.action(Action::EditLoaded, "payer", 50).unwrap();
-        let Some(Request::Create(definition)) = state.action(Action::Create, "payer", 50).unwrap()
+        let Some(Request::SaveDraft { definition, .. }) =
+            state.action(Action::Create, "payer", 50).unwrap()
         else {
             panic!()
         };

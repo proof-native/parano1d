@@ -24,10 +24,37 @@ illustrative.
 | `F4` | Receipts | Saved outgoing receipts and independent verification |
 | `F5` | Mining | Internal miner controls and mined blocks |
 | `F6` | Scope | Search current State, blocks and retained transactions |
-| `F7` | Settings | Secret, node, network and interface controls |
+| `F7` | Contracts | Templates, saved contracts and contract receipts |
+| `F8` | Settings | Secret, node, network and interface controls |
 | `F10` | Quit | Stop the supervised node and close |
 
 `Esc` returns from detail views and closes dialogs.
+
+## Contracts
+
+Contracts become available at the v2 activation height. **F7** separates three
+workflows:
+
+- **Create**: choose a template or edit a custom program. The info button explains
+  its rules and gives an example. **Create & fund** quotes the network fee and
+  asks for confirmation; **Save without deposit** keeps the rules for later.
+- **My contracts**: open a saved contract, check the active address's permissions,
+  select a deposit and review an action. **Operations & receipts** tracks recent
+  local operations and offers verified receipt export after confirmation.
+  **Rules** shows the full spending policy and program.
+- **Open file**: preview a shared contract or a call receipt. The node checks its
+  rules, any attached proof and current balances before you explicitly add it.
+
+**Share contract** saves the public rules with a matching verified receipt when
+one is available. A receipt proves a past operation; current spendability is
+checked separately. Each deposit has its own balance and program counters.
+Creating identical rules does not give multiple deposits a shared budget.
+
+The contract list and recent activity survive wallet restarts. The node retains
+watched contract openings and call receipts; export files when sharing them
+with another participant. Back up `wallet.contracts.json` and the
+`contract-activity/` directory with the wallet data. Public contract rules and
+saved proofs cannot be reconstructed from the master secret alone.
 
 ## The active address
 

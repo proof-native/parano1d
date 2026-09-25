@@ -22,6 +22,7 @@ use crate::view;
 
 pub const BLOCK_DETAILS_SCROLL_ID: &str = "block-details-scroll";
 pub const TRANSACTION_DETAILS_SCROLL_ID: &str = "transaction-details-scroll";
+pub const CONTRACTS_SCROLL_ID: &str = "contracts-scroll";
 pub const NODE_LOG_LINE_LIMIT: usize = 80;
 
 const PHOTO_SCAN_FRAME: Duration = Duration::from_millis(33);
@@ -488,6 +489,13 @@ impl App {
                 {
                     return Task::none();
                 }
+                let reveal = matches!(
+                    action,
+                    crate::contracts::Action::SetTab(_)
+                        | crate::contracts::Action::EditLoaded
+                        | crate::contracts::Action::ReviewFund
+                        | crate::contracts::Action::SetDetail(_)
+                );
                 match self.contracts.action(
                     action,
                     &self.snapshot.active_address().address,
@@ -504,10 +512,30 @@ impl App {
                     Ok(None) => {}
                     Err(error) => self.contracts.error = Some(error),
                 }
+                if reveal {
+                    return iced::widget::operation::snap_to(
+                        CONTRACTS_SCROLL_ID,
+                        iced::widget::operation::RelativeOffset::START,
+                    );
+                }
             }
             Message::ContractFinished(result) => {
+                let reveal = result
+                    .as_ref()
+                    .is_ok_and(crate::contracts::Outcome::reveals_content);
                 self.contracts.finish(result);
-                return self.refresh_snapshot();
+                let refresh = self.refresh_snapshot();
+                return if reveal {
+                    Task::batch([
+                        refresh,
+                        iced::widget::operation::snap_to(
+                            CONTRACTS_SCROLL_ID,
+                            iced::widget::operation::RelativeOffset::START,
+                        ),
+                    ])
+                } else {
+                    refresh
+                };
             }
             Message::Navigate(section) => {
                 if self.secret_action_in_flight
@@ -1066,6 +1094,20 @@ impl App {
                                 || previous_state_root != self.snapshot.network.state_root)
                         {
                             return self.refresh_explorer_view();
+                        }
+                        let contract_key = (
+                            self.snapshot.network.height,
+                            self.snapshot.network.state_root.clone(),
+                        );
+                        if self.section == Section::Contracts
+                            && self.contracts.tab == crate::contracts::Tab::Mine
+                            && !self.contracts.busy
+                            && self.contracts.review.is_none()
+                            && self.contracts.info.is_some()
+                            && self.contracts.last_poll.as_ref() != Some(&contract_key)
+                        {
+                            self.contracts.last_poll = Some(contract_key);
+                            return self.update(Message::Contract(crate::contracts::Action::Poll));
                         }
                         if self.section == Section::Proofs
                             && !self.receipts_loading
@@ -2230,9 +2272,18 @@ impl App {
                         Named::F4 => Some(Message::Navigate(Section::Proofs)),
                         Named::F5 => Some(Message::Navigate(Section::Mine)),
                         Named::F6 => Some(Message::Navigate(Section::Explorer)),
-                        Named::F7 => Some(Message::Navigate(Section::Settings)),
-                        Named::F8 => Some(Message::Navigate(Section::Contracts)),
+                        Named::F7 => Some(Message::Navigate(Section::Contracts)),
+                        Named::F8 => Some(Message::Navigate(Section::Settings)),
                         Named::F10 => Some(Message::Exit),
+                        Named::Escape if self.contracts.help.is_some() => {
+                            Some(Message::Contract(crate::contracts::Action::CloseHelp))
+                        }
+                        Named::Escape
+                            if self.section == Section::Contracts
+                                && self.contracts.review.is_some() =>
+                        {
+                            Some(Message::Contract(crate::contracts::Action::CancelReview))
+                        }
                         Named::Escape if self.block_transaction_position.is_some() => {
                             Some(Message::CloseBlockTransaction)
                         }
