@@ -199,7 +199,7 @@
       transparent · no trusted setup
     </text>
     <text x="913" y="622" fill="#727b8f" font-size="10" text-anchor="middle">
-      canonical B25 + B255 matrix packs
+      canonical legacy + v2 matrix packs
     </text>
 
     <!-- outputs -->

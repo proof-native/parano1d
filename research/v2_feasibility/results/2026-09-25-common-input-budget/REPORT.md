@@ -277,3 +277,64 @@ equivalent to commit `cb9504f`; the record also preserves its build base and
 patch identity. Reproduce with `scripts/live_v2_contract_scenario.py` in a
 fresh loopback-only namespace, using the pinned isolated node and a new
 `NOID_V2_LIVE_DIR`, with pruning enabled.
+
+## Full-capacity daemon workloads
+
+The stopped H64 fixture continued through H83 with the same node, bank and
+enforced receiver profile. Large was permitted on the producer throughout.
+The 63-payment and 63-call workloads still selected Small; the larger payment
+workloads selected Large. Every submitted intent reached both mempools before
+mining and appeared in the accepted block on both nodes.
+
+| Accepted workload | Class | Height | User pages | Live inputs | Preparation | Receiver verification | Receiver application |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 63 ordinary payments | Small | 65 | 63 | 63 | 20.755 s | 2.700 s | 0.294 s |
+| 63 counter calls | Small | 66 | 63 | 63 | 22.790 s | 2.774 s | 2.391 s |
+| 206 ordinary payments | Large | 70 | 206 | 206 | 50.180 s | 6.305 s | 1.254 s |
+| 63 counter calls + 143 payments | Large | 71 | 206 | 206 | 67.326 s | 6.723 s | 6.050 s |
+| One 341-input spend + 163 payments | Large | 72 | 206 | 504 | 54.619 s | 8.394 s | 1.619 s |
+| 63 payments immediately after Large | Small | 73 | 63 | 63 | 23.904 s | 5.696 s | 1.094 s |
+| One 504-input spend | Small | 75 | 63 | 504 | 19.634 s | 2.867 s | 1.254 s |
+
+These are individual observations. Preparation uses six proof workers on the
+shared laptop and excludes wallet authorization, PoW and delivery. Large took
+longer than the 30-second target on this producer; these results do not estimate
+AVX-512 server performance. Receiver application is measured after terminal
+verification and includes State, watched-wallet and receipt work.
+
+The two full-call blocks advanced all 63 counters from zero to one and then
+two. The receiver found every successor and independently verified receipts
+from both ends of each call prefix. Calls use the same page budget as payments:
+Large increases ordinary payment space without changing the 63-call limit.
+The maximum-input Large layout contained 164 logical transactions occupying
+206 pages. The maximum-input Small layout contained one logical transaction
+occupying 63 pages. Page capacity is not a transaction count for multi-page
+spends. Both wallet planning and submission rejected a 505-input spend with
+`InputLimitExceeded` and `max_inputs: 504`.
+
+The first Small block after Large required 5.696 s for terminal verification.
+The next two distinct Small blocks took 2.729 and 2.867 s, followed by eight
+empty Small blocks with a 2.890 s median and a 2.587–4.156 s range. Their
+preparation median was 21.253 s. This sequence did not retain a doubled Small
+verification cost after Large. The receiver then restarted and reopened the
+exact H83 tip. Its initial RPC startup took 10.023 s and its restart 12.512 s.
+
+The receiver cgroup peaked at 1,775,669,248 bytes (1.65 GiB), with no memory-
+limit or OOM events and no swap. This includes startup, mempool admission,
+full blocks, receipt checks and the subsequent Small sequence. It excludes
+producer memory and is a local qualification workload, not a measurement of
+a production seed under sustained public traffic.
+
+For admission, serialized wallet submission of the 206-payment batch until
+both mempools held every intent took 187.275 s; the receiver used 19.041 CPU
+seconds over that interval. The mixed batch took 179.643 s and 19.691 receiver
+CPU seconds. These wall times include the producer's authorization work and
+are not saturated transaction-relay throughput measurements. The receiver
+CPU deltas also include its background activity during each interval.
+
+The complete scenario took 1,656.438 s and shut down successfully.
+[Capacity records](capacity-daemons.json) retain all 19 accepted blocks,
+six admission workloads, exact page/input totals, both over-limit errors,
+resource counters, source identities and log hashes. Reproduce with
+`scripts/live_v2_capacity_scenario.py` in a fresh loopback-only namespace,
+using this bank and the stopped successful contract-lifecycle fixture.

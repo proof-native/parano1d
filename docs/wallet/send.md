@@ -71,7 +71,7 @@ The wallet can refuse or abandon a send when:
 
 - the address is invalid;
 - amount plus fee exceeds active-owner balance;
-- selected inputs exceed the 1,020-input protocol limit;
+- selected inputs exceed the active limit: 1,020 before v2, 504 from H210537;
 - no current output-slot hints are available;
 - the transaction epoch changes during construction;
 - an input is spent by a newly accepted block;

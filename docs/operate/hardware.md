@@ -64,8 +64,16 @@ The following are operational starting points, not consensus minima:
 |---|---|---:|---|
 | Wallet or ordinary node | 2 or more modern vCPUs | 4 GiB | SSD, 20 GiB free to start |
 | Public seed/full node | 4 or more modern vCPUs | 8 GiB | SSD or NVMe with monitored headroom |
-| B25 miner | Benchmark the exact host | 8 GiB or more | SSD or NVMe |
-| B255 miner | Benchmark the exact host | 16 GiB or more | NVMe preferred |
+| Legacy B25 miner | Benchmark the exact host | 8 GiB or more | SSD or NVMe |
+| Legacy B255 miner | Benchmark the exact host | 16 GiB or more | NVMe preferred |
+
+V2 uses Small `m=23` by default and permits Large `m=24` only with the server
+flag `--v2-large-blocks`. Both allow 504 inputs and 63 contract calls; their
+page budgets are 63 and 206. The
+[current qualification record](../../research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md)
+separates prover measurements from an enforced 4-CPU, 8-GiB receiving-node
+profile. Those measurements specify their workload, backend and cache state;
+historical B25/B255 timings are not measurements of these v2 relations.
 
 CPU generation, clock, memory bandwidth and the selected carry-less
 multiplication backend matter more than a provider's vCPU label. Mining

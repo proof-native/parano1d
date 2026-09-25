@@ -1,0 +1,1504 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source": {
+    "job": "capacity",
+    "source_head": "38dca0b0c80c357a486e731f67a65d87795d52ba",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "node_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "script_sha256": "2812e7894ac4de88b5fcc4118c0f78daed0cf95fddecd0eb285164a7924e25fd",
+    "command": [
+      "unshare",
+      "--user",
+      "--map-root-user",
+      "--net",
+      "python3",
+      "scripts/live_v2_capacity_scenario.py"
+    ],
+    "output": "/home/neo/rust/parano1d-artifacts/v2-common-live-capacity-20260925-a"
+  },
+  "node_build": {
+    "source_head": "f3029445383b632afc5e9707f529ed741ed24c7d",
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "pack": "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-pack-20260925-a",
+    "node_sha256": "2250f0d93263b1c300d198db627aef5a9d3f341ddbe5d6526117a15fcfc9b583",
+    "archive": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-node-2250f0d9",
+    "cli_sha256": "9d2912e054293c55cc66e9d5160b0f0d3551c2f9ba50de940177140247e6ba61",
+    "miner_sha256": "8a432d717b5dae09e57090f7cc9ea4009681096efe76c19163f24909e4ecfa68",
+    "patch": "common-diagnostic-source.patch",
+    "patch_sha256": "e4116a19c07220ee20407546cc73af38d959cc09a32b2a254cadc8419ea72458",
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--locked",
+      "-p",
+      "noid_node",
+      "--example",
+      "isolated_v2_node",
+      "--features",
+      "isolated-v2-fork-testnet"
+    ]
+  },
+  "node_source_equivalent_commit": "cb9504f4b88ddcb7b28807e02814a2c38a6600e4",
+  "run_seconds": 1656.4382494819874,
+  "host": "Shared Intel Core i7-1365U laptop",
+  "producer_cpu_affinity": [
+    1,
+    3,
+    5,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "receiver_cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "receiver_backend": "pclmul",
+  "receiver_enforcement": {
+    "memory.max": "8589934592",
+    "memory.swap.max": "0",
+    "cpu.max": "400000 100000",
+    "memory.current": "131801088",
+    "memory.peak": "144904192",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "cpu.stat": "usage_usec 21665359\nuser_usec 21614382\nsystem_usec 50977\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 100\nnr_throttled 11\nthrottled_usec 8096\nnr_bursts 0\nburst_usec 0"
+  },
+  "receiver_final": {
+    "memory.max": "8589934592",
+    "memory.swap.max": "0",
+    "cpu.max": "400000 100000",
+    "memory.current": "1402634240",
+    "memory.peak": "1775669248",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "cpu.stat": "usage_usec 510874988\nuser_usec 508127219\nsystem_usec 2747769\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6410\nnr_throttled 327\nthrottled_usec 279231\nnr_bursts 0\nburst_usec 0"
+  },
+  "receiver_peak_bytes": 1775669248,
+  "startup": [
+    {
+      "label": "01-receiver",
+      "height": 64,
+      "seconds": 10.023
+    },
+    {
+      "label": "02-producer",
+      "height": 64,
+      "seconds": 4.005
+    },
+    {
+      "label": "03-receiver-restart",
+      "height": 83,
+      "seconds": 12.512
+    }
+  ],
+  "protocol": {
+    "tip_height": 64,
+    "activation_height": 10,
+    "active_at_next_block": true,
+    "runtime_available": true,
+    "next_block_time_seconds": 30,
+    "abi_version": 3,
+    "instructions": 16,
+    "persistent_registers": 2,
+    "classes": [
+      {
+        "class": "small",
+        "pages": 63,
+        "live_inputs": 504,
+        "contract_calls": 63
+      },
+      {
+        "class": "large",
+        "pages": 206,
+        "live_inputs": 504,
+        "contract_calls": 63
+      }
+    ]
+  },
+  "final_tip": {
+    "height": 83,
+    "best_hash": "78bcb5db79cd6ae66d4f3b45ceb8411cc233a7fd37a4a22c72e82730f93ca80c",
+    "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+    "active_slot_count": 146,
+    "log_slots": 24,
+    "circulating_supply_micronoid": "1468335000"
+  },
+  "workloads": {
+    "full 63 ordinary payments": {
+      "height": 65,
+      "label": "full 63 ordinary payments",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.274907563987654,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "611700736",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 46288060\nuser_usec 45776315\nsystem_usec 511745\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 381\nnr_throttled 21\nthrottled_usec 16561\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "637624320",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 57420430\nuser_usec 56882772\nsystem_usec 537657\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 464\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 20755,
+      "verification_ms": 2700,
+      "application_ms": 294
+    },
+    "full 63 persistent-counter calls with Large enabled": {
+      "height": 66,
+      "label": "full 63 persistent-counter calls with Large enabled",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 63,
+      "contract_calls": 63,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.462796359992353,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "623218688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 63344199\nuser_usec 62724520\nsystem_usec 619679\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 680\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "646115328",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 76278518\nuser_usec 75615835\nsystem_usec 662683\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 788\nnr_throttled 45\nthrottled_usec 39269\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 22790,
+      "verification_ms": 2774,
+      "application_ms": 2391
+    },
+    "full 206 ordinary payments": {
+      "height": 70,
+      "label": "full 206 ordinary payments",
+      "user_transactions": 206,
+      "accepted_user_transactions": 206,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 206,
+      "accepted_live_outputs": 412,
+      "contract_calls": 0,
+      "class": "Large",
+      "production_and_delivery_seconds": 64.33620253999834,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "651890688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 168765948\nuser_usec 167565600\nsystem_usec 1200348\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2566\nnr_throttled 92\nthrottled_usec 78766\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1386717184",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 190913851\nuser_usec 189243546\nsystem_usec 1670304\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2765\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 50180,
+      "verification_ms": 6305,
+      "application_ms": 1254
+    },
+    "full Large: 63 calls and 143 payments": {
+      "height": 71,
+      "label": "full Large: 63 calls and 143 payments",
+      "user_transactions": 206,
+      "accepted_user_transactions": 206,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 206,
+      "accepted_live_outputs": 349,
+      "contract_calls": 63,
+      "class": "Large",
+      "production_and_delivery_seconds": 85.83251812597155,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1379864576",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 210604983\nuser_usec 208709344\nsystem_usec 1895638\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3518\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1390907392",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 244388218\nuser_usec 242427422\nsystem_usec 1960796\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3825\nnr_throttled 131\nthrottled_usec 110312\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 67326,
+      "verification_ms": 6723,
+      "application_ms": 6050
+    },
+    "Large: 206 pages and 504 inputs": {
+      "height": 72,
+      "label": "Large: 206 pages and 504 inputs",
+      "user_transactions": 164,
+      "accepted_user_transactions": 164,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 504,
+      "accepted_live_outputs": 327,
+      "contract_calls": 0,
+      "class": "Large",
+      "production_and_delivery_seconds": 65.932339143008,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1375027200",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 307609175\nuser_usec 305429409\nsystem_usec 2179766\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4557\nnr_throttled 174\nthrottled_usec 148084\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1392574464",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 343218742\nuser_usec 341005073\nsystem_usec 2213669\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4775\nnr_throttled 208\nthrottled_usec 175922\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 54619,
+      "verification_ms": 8394,
+      "application_ms": 1619
+    },
+    "full Small immediately after Large": {
+      "height": 73,
+      "label": "full Small immediately after Large",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 32.75319142200169,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1369300992",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 350156381\nuser_usec 347858644\nsystem_usec 2297737\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5007\nnr_throttled 208\nthrottled_usec 175922\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1387028480",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 374466087\nuser_usec 372130381\nsystem_usec 2335705\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5132\nnr_throttled 231\nthrottled_usec 198400\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 23904,
+      "verification_ms": 5696,
+      "application_ms": 1094
+    },
+    "Small: 504 inputs in one paged spend": {
+      "height": 75,
+      "label": "Small: 504 inputs in one paged spend",
+      "user_transactions": 1,
+      "accepted_user_transactions": 1,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 504,
+      "accepted_live_outputs": 1,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.728886666009203,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1393840128",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 392487840\nuser_usec 390049132\nsystem_usec 2438707\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5478\nnr_throttled 239\nthrottled_usec 203775\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1383862272",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 405042392\nuser_usec 402561685\nsystem_usec 2480706\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5579\nnr_throttled 247\nthrottled_usec 210323\nnr_bursts 0\nburst_usec 0"
+      },
+      "preparation_ms": 19634,
+      "verification_ms": 2867,
+      "application_ms": 1254
+    }
+  },
+  "blocks": [
+    {
+      "height": 65,
+      "label": "full 63 ordinary payments",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.274907563987654,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "611700736",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 46288060\nuser_usec 45776315\nsystem_usec 511745\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 381\nnr_throttled 21\nthrottled_usec 16561\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "637624320",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 57420430\nuser_usec 56882772\nsystem_usec 537657\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 464\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 66,
+      "label": "full 63 persistent-counter calls with Large enabled",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 63,
+      "contract_calls": 63,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.462796359992353,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "623218688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 63344199\nuser_usec 62724520\nsystem_usec 619679\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 680\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "646115328",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 76278518\nuser_usec 75615835\nsystem_usec 662683\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 788\nnr_throttled 45\nthrottled_usec 39269\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 67,
+      "label": "prepare Large payment inputs",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 29.095126180996886,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "629571584",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 102753689\nuser_usec 102002837\nsystem_usec 750851\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1084\nnr_throttled 65\nthrottled_usec 58410\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "649854976",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 114344586\nuser_usec 113569737\nsystem_usec 774848\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1173\nnr_throttled 74\nthrottled_usec 63840\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 68,
+      "label": "prepare Large payment inputs",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.689089666004293,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "629993472",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 119887357\nuser_usec 119044397\nsystem_usec 842960\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1404\nnr_throttled 74\nthrottled_usec 63840\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "644325376",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 131881915\nuser_usec 131013008\nsystem_usec 868907\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1495\nnr_throttled 82\nthrottled_usec 69801\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 69,
+      "label": "prepare Large payment inputs",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.20833670400316,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "634085376",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 137911277\nuser_usec 136967316\nsystem_usec 943960\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1724\nnr_throttled 82\nthrottled_usec 69801\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "646856704",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 149724834\nuser_usec 148760880\nsystem_usec 963953\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1808\nnr_throttled 92\nthrottled_usec 78766\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 70,
+      "label": "full 206 ordinary payments",
+      "user_transactions": 206,
+      "accepted_user_transactions": 206,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 206,
+      "accepted_live_outputs": 412,
+      "contract_calls": 0,
+      "class": "Large",
+      "production_and_delivery_seconds": 64.33620253999834,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "651890688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 168765948\nuser_usec 167565600\nsystem_usec 1200348\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2566\nnr_throttled 92\nthrottled_usec 78766\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1386717184",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 190913851\nuser_usec 189243546\nsystem_usec 1670304\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2765\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 71,
+      "label": "full Large: 63 calls and 143 payments",
+      "user_transactions": 206,
+      "accepted_user_transactions": 206,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 206,
+      "accepted_live_outputs": 349,
+      "contract_calls": 63,
+      "class": "Large",
+      "production_and_delivery_seconds": 85.83251812597155,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1379864576",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 210604983\nuser_usec 208709344\nsystem_usec 1895638\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3518\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1390907392",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 244388218\nuser_usec 242427422\nsystem_usec 1960796\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3825\nnr_throttled 131\nthrottled_usec 110312\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 72,
+      "label": "Large: 206 pages and 504 inputs",
+      "user_transactions": 164,
+      "accepted_user_transactions": 164,
+      "accepted_user_pages": 206,
+      "accepted_live_inputs": 504,
+      "accepted_live_outputs": 327,
+      "contract_calls": 0,
+      "class": "Large",
+      "production_and_delivery_seconds": 65.932339143008,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1375027200",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 307609175\nuser_usec 305429409\nsystem_usec 2179766\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4557\nnr_throttled 174\nthrottled_usec 148084\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1392574464",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 343218742\nuser_usec 341005073\nsystem_usec 2213669\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4775\nnr_throttled 208\nthrottled_usec 175922\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 73,
+      "label": "full Small immediately after Large",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 32.75319142200169,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1369300992",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 350156381\nuser_usec 347858644\nsystem_usec 2297737\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5007\nnr_throttled 208\nthrottled_usec 175922\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1387028480",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 374466087\nuser_usec 372130381\nsystem_usec 2335705\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5132\nnr_throttled 231\nthrottled_usec 198400\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 74,
+      "label": "prepare Small maximum-input inventory",
+      "user_transactions": 63,
+      "accepted_user_transactions": 63,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 63,
+      "accepted_live_outputs": 126,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.008345701004146,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1370062848",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 380128823\nuser_usec 377722077\nsystem_usec 2406745\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5375\nnr_throttled 231\nthrottled_usec 198400\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1390063616",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 392187310\nuser_usec 389751619\nsystem_usec 2435691\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5470\nnr_throttled 239\nthrottled_usec 203775\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 75,
+      "label": "Small: 504 inputs in one paged spend",
+      "user_transactions": 1,
+      "accepted_user_transactions": 1,
+      "accepted_user_pages": 63,
+      "accepted_live_inputs": 504,
+      "accepted_live_outputs": 1,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 27.728886666009203,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1393840128",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 392487840\nuser_usec 390049132\nsystem_usec 2438707\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5478\nnr_throttled 239\nthrottled_usec 203775\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1383862272",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 405042392\nuser_usec 402561685\nsystem_usec 2480706\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5579\nnr_throttled 247\nthrottled_usec 210323\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 76,
+      "label": "Small carried-Large tail 1/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.256299689004663,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1383862272",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 405042392\nuser_usec 402561685\nsystem_usec 2480706\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5579\nnr_throttled 247\nthrottled_usec 210323\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1389240320",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 420080324\nuser_usec 417561591\nsystem_usec 2518733\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5686\nnr_throttled 262\nthrottled_usec 223257\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 77,
+      "label": "Small carried-Large tail 2/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 32.01173631197889,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1389240320",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 420080373\nuser_usec 417561640\nsystem_usec 2518733\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5686\nnr_throttled 262\nthrottled_usec 223257\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1390960640",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 433128136\nuser_usec 430580294\nsystem_usec 2547841\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5792\nnr_throttled 266\nthrottled_usec 225403\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 78,
+      "label": "Small carried-Large tail 3/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 25.872012558975257,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1390960640",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 433128136\nuser_usec 430580294\nsystem_usec 2547841\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5792\nnr_throttled 266\nthrottled_usec 225403\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1385848832",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 444936734\nuser_usec 442355929\nsystem_usec 2580804\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5886\nnr_throttled 278\nthrottled_usec 235977\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 79,
+      "label": "Small carried-Large tail 4/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 29.578886692994274,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1385848832",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 444936734\nuser_usec 442355929\nsystem_usec 2580804\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5886\nnr_throttled 278\nthrottled_usec 235977\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1392902144",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 457076240\nuser_usec 454464393\nsystem_usec 2611847\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5994\nnr_throttled 286\nthrottled_usec 243293\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 80,
+      "label": "Small carried-Large tail 5/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 30.164103090995923,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1392902144",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 457076255\nuser_usec 454464408\nsystem_usec 2611847\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5994\nnr_throttled 286\nthrottled_usec 243293\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1391374336",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 474769997\nuser_usec 472115214\nsystem_usec 2654782\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6105\nnr_throttled 303\nthrottled_usec 259147\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 81,
+      "label": "Small carried-Large tail 6/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 41.48404603701783,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1391374336",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 474770093\nuser_usec 472115309\nsystem_usec 2654783\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6106\nnr_throttled 303\nthrottled_usec 259147\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1394577408",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 486382060\nuser_usec 483693242\nsystem_usec 2688818\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6234\nnr_throttled 313\nthrottled_usec 266730\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 82,
+      "label": "Small carried-Large tail 7/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 24.83946075901622,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1394577408",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 486382060\nuser_usec 483693242\nsystem_usec 2688818\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6234\nnr_throttled 313\nthrottled_usec 266730\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1395331072",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 498616512\nuser_usec 495899713\nsystem_usec 2716798\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6318\nnr_throttled 321\nthrottled_usec 275065\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "height": 83,
+      "label": "Small carried-Large tail 8/8",
+      "user_transactions": 0,
+      "accepted_user_transactions": 0,
+      "accepted_user_pages": 0,
+      "accepted_live_inputs": 0,
+      "accepted_live_outputs": 0,
+      "contract_calls": 0,
+      "class": "Small",
+      "production_and_delivery_seconds": 26.201863061985932,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1395331072",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 498616512\nuser_usec 495899713\nsystem_usec 2716798\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6318\nnr_throttled 321\nthrottled_usec 275065\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1402638336",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 510874988\nuser_usec 508127219\nsystem_usec 2747769\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 6410\nnr_throttled 327\nthrottled_usec 279231\nnr_bursts 0\nburst_usec 0"
+      }
+    }
+  ],
+  "admission": [
+    {
+      "label": "full Small ordinary payments",
+      "transactions": 63,
+      "wallet_submission_and_receiver_admission_seconds": 58.14531109799282,
+      "receiver_cpu_seconds": 24.413168,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "135593984",
+        "memory.peak": "144904192",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 21874789\nuser_usec 21820817\nsystem_usec 53972\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 105\nnr_throttled 11\nthrottled_usec 8096\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "611700736",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 46287957\nuser_usec 45776211\nsystem_usec 511745\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 381\nnr_throttled 21\nthrottled_usec 16561\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "label": "full Small contract calls",
+      "transactions": 63,
+      "wallet_submission_and_receiver_admission_seconds": 54.43925818701973,
+      "receiver_cpu_seconds": 5.923769,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "637624320",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 57420430\nuser_usec 56882772\nsystem_usec 537657\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 464\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "623218688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 63344199\nuser_usec 62724520\nsystem_usec 619679\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 680\nnr_throttled 33\nthrottled_usec 25217\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "label": "full Large ordinary payments",
+      "transactions": 206,
+      "wallet_submission_and_receiver_admission_seconds": 187.27492404202349,
+      "receiver_cpu_seconds": 19.041114,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "646856704",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 149724834\nuser_usec 148760880\nsystem_usec 963953\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1808\nnr_throttled 92\nthrottled_usec 78766\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "651890688",
+        "memory.peak": "778358784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 168765948\nuser_usec 167565600\nsystem_usec 1200348\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2566\nnr_throttled 92\nthrottled_usec 78766\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "label": "full Large mixed block",
+      "transactions": 206,
+      "wallet_submission_and_receiver_admission_seconds": 179.6432019059721,
+      "receiver_cpu_seconds": 19.691132,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1386459136",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 190913851\nuser_usec 189243546\nsystem_usec 1670304\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2765\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1379864576",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 210604983\nuser_usec 208709344\nsystem_usec 1895638\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3517\nnr_throttled 108\nthrottled_usec 90642\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "label": "Large reaches both page and input limits",
+      "transactions": 164,
+      "wallet_submission_and_receiver_admission_seconds": 150.36780004101456,
+      "receiver_cpu_seconds": 15.427651,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1378332672",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 292181465\nuser_usec 290207043\nsystem_usec 1974422\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3950\nnr_throttled 174\nthrottled_usec 148084\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1375027200",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 307609116\nuser_usec 305429350\nsystem_usec 2179766\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4556\nnr_throttled 174\nthrottled_usec 148084\nnr_bursts 0\nburst_usec 0"
+      }
+    },
+    {
+      "label": "Small maximum-input payment",
+      "transactions": 1,
+      "wallet_submission_and_receiver_admission_seconds": 1.394339596008649,
+      "receiver_cpu_seconds": 0.300453,
+      "receiver_before": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1389805568",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 392187310\nuser_usec 389751619\nsystem_usec 2435691\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5470\nnr_throttled 239\nthrottled_usec 203775\nnr_bursts 0\nburst_usec 0"
+      },
+      "receiver_after": {
+        "memory.max": "8589934592",
+        "memory.swap.max": "0",
+        "cpu.max": "400000 100000",
+        "memory.current": "1394003968",
+        "memory.peak": "1775669248",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 392487763\nuser_usec 390049056\nsystem_usec 2438706\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5478\nnr_throttled 239\nthrottled_usec 203775\nnr_bursts 0\nburst_usec 0"
+      }
+    }
+  ],
+  "prepared_blocks": [
+    {
+      "height": 65,
+      "block_hash": "44507cc90c9d0f42c79b7ad9d5648e7dccb6cfe26a065df1dc93ba1ec7afc72b",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 20755
+    },
+    {
+      "height": 66,
+      "block_hash": "0c21eb73871ca1f2c5e05d4b170d42e66c85123a89aa834c5a43ceab90d23721",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 22790
+    },
+    {
+      "height": 67,
+      "block_hash": "dcee5da141749e2d7d5b1fa1b43351ce5abf0f75a41341062ac82d95580d535d",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 22213
+    },
+    {
+      "height": 68,
+      "block_hash": "1046a2c92698acb1880e1f1457fa82b630269677766d141ca17aaff843447574",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 23626
+    },
+    {
+      "height": 69,
+      "block_hash": "d8b79d18fab744c849348c9853e1f26911d733fd04d35d808337344bed006292",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 21613
+    },
+    {
+      "height": 70,
+      "block_hash": "84b0bcc5b2f252ca5168be7b7bbf609fdb7d42a3a96b277da6771236e3dd0680",
+      "body_pages": 207,
+      "user_pages": 206,
+      "class": "V2(Large)",
+      "preparation_ms": 50180
+    },
+    {
+      "height": 71,
+      "block_hash": "77b32d4249f7bfdba3cef887d1ddb1a221d5837d7ad2647a33f9a5a6234868db",
+      "body_pages": 207,
+      "user_pages": 206,
+      "class": "V2(Large)",
+      "preparation_ms": 67326
+    },
+    {
+      "height": 72,
+      "block_hash": "a3429a752fe78595d1549ef1378d5a508405a8cb867a4aeb4b4d401d96d986b1",
+      "body_pages": 165,
+      "user_pages": 206,
+      "class": "V2(Large)",
+      "preparation_ms": 54619
+    },
+    {
+      "height": 73,
+      "block_hash": "58a52bc372536eb3ce03a565c059067eb06b596e3c466ee4b1b769bc23f743e7",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 23904
+    },
+    {
+      "height": 74,
+      "block_hash": "3a3cb59825241f1e9fb0d2638997f901718722b1f18fec23daadfff3f6024770",
+      "body_pages": 64,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 21040
+    },
+    {
+      "height": 75,
+      "block_hash": "8fcacbfce6bdfb8a293ed4c27e80da99ecb1de44122f615ab2fd8e17ce92dcee",
+      "body_pages": 2,
+      "user_pages": 63,
+      "class": "V2(Small)",
+      "preparation_ms": 19634
+    },
+    {
+      "height": 76,
+      "block_hash": "d5945f92669c125a892c04470ec41d5c52f586bb4f8a69820c41105592b4d2d3",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 22220
+    },
+    {
+      "height": 77,
+      "block_hash": "b7102e20fd3a901aeda072c1bc4d456b609b8a420fe76836f39865d4418964f1",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 25105
+    },
+    {
+      "height": 78,
+      "block_hash": "54874f3665ceb5de9fd2865c42754a9689be835c8545c55d70c5909b96f74539",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 19113
+    },
+    {
+      "height": 79,
+      "block_hash": "9bf663edfd31f0015e284ca6a2c6ed9c9dfb303ab5050e8fcae98197956e5c47",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 21599
+    },
+    {
+      "height": 80,
+      "block_hash": "033bcb6891d04ec898a95fe78cc5a91553478b51384a4dddd063c70966795931",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 20907
+    },
+    {
+      "height": 81,
+      "block_hash": "5e22638a6e16de603c1bcec400f8429ddf43c57d59bc8a93268554f11ce9d35c",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 29572
+    },
+    {
+      "height": 82,
+      "block_hash": "d9902731c8c843949ee01f140d11902647f3b17ef9635b1856c4ef9db4a3adbe",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 18419
+    },
+    {
+      "height": 83,
+      "block_hash": "78bcb5db79cd6ae66d4f3b45ceb8411cc233a7fd37a4a22c72e82730f93ca80c",
+      "body_pages": 1,
+      "user_pages": 0,
+      "class": "V2(Small)",
+      "preparation_ms": 19207
+    }
+  ],
+  "receiver_terminal_checks": [
+    {
+      "log": "01-receiver.log",
+      "height": 65,
+      "verification_ms": 2700
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 66,
+      "verification_ms": 2774
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 67,
+      "verification_ms": 2802
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 68,
+      "verification_ms": 2887
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 69,
+      "verification_ms": 2831
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 70,
+      "verification_ms": 6305
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 71,
+      "verification_ms": 6723
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 72,
+      "verification_ms": 8394
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 73,
+      "verification_ms": 5696
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 74,
+      "verification_ms": 2729
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 75,
+      "verification_ms": 2867
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 76,
+      "verification_ms": 3487
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 77,
+      "verification_ms": 3007
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 78,
+      "verification_ms": 2756
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 79,
+      "verification_ms": 2722
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 80,
+      "verification_ms": 4156
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 81,
+      "verification_ms": 2587
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 82,
+      "verification_ms": 2932
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 83,
+      "verification_ms": 2847
+    }
+  ],
+  "receiver_applications": [
+    {
+      "log": "01-receiver.log",
+      "height": 65,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 294
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 66,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 2391
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 67,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 506
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 68,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 563
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 69,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 599
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 70,
+      "blocks": 1,
+      "body_bytes": 67078,
+      "application_ms": 1254
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 71,
+      "blocks": 1,
+      "body_bytes": 67078,
+      "application_ms": 6050
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 72,
+      "blocks": 1,
+      "body_bytes": 67078,
+      "application_ms": 1619
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 73,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 1094
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 74,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 1100
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 75,
+      "blocks": 1,
+      "body_bytes": 20889,
+      "application_ms": 1254
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 76,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 973
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 77,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 872
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 78,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 900
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 79,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 908
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 80,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 1296
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 81,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 878
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 82,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 901
+    },
+    {
+      "log": "01-receiver.log",
+      "height": 83,
+      "blocks": 1,
+      "body_bytes": 540,
+      "application_ms": 954
+    }
+  ],
+  "small_input_boundary": {
+    "pages": 63,
+    "inputs": 504,
+    "logical_transactions": 1,
+    "height": 75,
+    "over_limit_rejections": {
+      "walletPlanSend": "RPC walletPlanSend@26301 failed: {'code': -32011, 'message': 'InputLimitExceeded', 'data': {'max_inputs': 504}}",
+      "walletSend": "RPC walletSend@26301 failed: {'code': -32011, 'message': 'InputLimitExceeded', 'data': {'max_inputs': 504}}"
+    }
+  },
+  "large_input_boundary": {
+    "pages": 206,
+    "inputs": 504,
+    "logical_transactions": 164,
+    "multi_page_transaction_inputs": 341,
+    "additional_one_input_payments": 163,
+    "height": 72
+  },
+  "empty_small_tail": {
+    "count": 8,
+    "preparation_median_ms": 21253.0,
+    "verification_median_ms": 2889.5
+  },
+  "timing_scope": {
+    "preparation": "Complete node HistoryStep preparation; excludes wallet authorization, PoW and delivery.",
+    "verification": "Each distinct received terminal, normal sequential daemon cache; before native application.",
+    "application": "Logged exact-suffix commit after terminal verification, including State and wallet work.",
+    "admission": "Serialized producer wallet submissions until both mempools hold every intent. Receiver CPU delta includes its background work during that interval; wall time is not a saturated relay-throughput measurement.",
+    "resources": "Constrained receiving daemon, including startup, admission, block verification, State, wallet and receipts; not prover memory."
+  },
+  "report_sha256": "257327c9b09394dd464c0f96ab04ad01addc755386e1a790bca7ff82df36aaba",
+  "log_sha256": {
+    "02-producer.log": "b41cfd209404a9e02ab4ed15eb9a091ad46fceecb7e5507ee25d98bfde32fcac",
+    "01-receiver.log": "1fa7fbc3f89c424dff171a62f684406c3da7ae7ff516192941ee11eb94d8852c",
+    "03-receiver-restart.log": "d802eb4cd873e11de8ebaced2fc1936475e4b14ef6113eafb2daa0324fdb0a9e"
+  }
+}

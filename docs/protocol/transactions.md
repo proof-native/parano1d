@@ -1,7 +1,7 @@
 # Transaction protocol
 
-The user transaction is one canonical logical `PagedSpend`. It consists of one
-to 128 fixed `Tx8x2` pages and exactly one detached authorization capsule.
+An ordinary user transaction is one canonical logical `PagedSpend`. It consists
+of one to 128 fixed `Tx8x2` pages and exactly one detached authorization capsule.
 
 ## Physical page
 
@@ -43,6 +43,11 @@ A valid `PagedSpend` satisfies all of these rules:
 - the detached authorization is no larger than 256 KiB.
 
 The maximum canonical intent encoding is 303,495 bytes.
+
+These physical bounds remain valid for decoding legacy history. At and after
+mainnet H210537, a transaction must also fit an installed v2 class: Small has
+63 pages and Large has 206; both share a whole-block limit of 504 live inputs.
+Wallet planning and mempool admission enforce the candidate height's limits.
 
 ## Logical transaction ID
 
@@ -108,6 +113,21 @@ membership and contains no Live State Merkle path.
 The block `HistoryStep` proves current membership, emptiness, balance,
 allocation and the post-State root. Both statements bind the same public
 logical transaction.
+
+## V2 contract calls
+
+V2 also accepts a call that supplies the public opening of a committed contract
+output. A call consumes one page, spends one exact output incarnation, and can
+make a permitted payment, create a successor with updated counters or close.
+The opening determines the spending or recovery authority at the candidate
+height. Authorization proves knowledge of that authority's secret; the block
+relation checks the opening's commitment, program, rules and exact successor.
+
+Calls form a canonical prefix of the selected user pages. Both v2 classes
+allow up to 63 calls, sharing page and input budgets with ordinary payments.
+The [contract reference](../reference/contracts.md) specifies the integer core,
+templates, APIs and retained public terms. The
+[scheduled parameters](parameters.md#scheduled-v2-profile) give combined limits.
 
 ## System records
 

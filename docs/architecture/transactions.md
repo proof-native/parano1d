@@ -11,7 +11,13 @@ into one atomic intent with one transaction ID and one authorization capsule.
 |---|---:|---|
 | `Tx8x2` page | 8 inputs, 2 outputs | Fixed consensus and proof record |
 | `PagedSpend` | 128 pages | One atomic wallet operation |
-| Logical transaction | 1,020 inputs, 256 outputs | Maximum live records after page markers |
+| Logical transaction wire format | 1,020 inputs, 256 outputs | Maximum live records after page markers |
+
+From mainnet H210537, v2 admission also requires the complete intent to fit
+one installed class: Small has 63 pages and Large has 206; both have a
+504-input whole-block budget. Physical wire bounds remain available for
+legacy history. The [scheduled profile](../protocol/parameters.md#scheduled-v2-profile)
+defines the combined limits.
 
 ## Fixed physical pages
 
@@ -83,8 +89,9 @@ verification:
 4. reacquire the lock and repeat the cheap State and conflict checks;
 5. reserve every live input and output slot, then relay the intent.
 
-The second cheap pass closes the race between authorization verification and a
-new block or competing transaction. Duplicate submission is idempotent.
+Both cheap passes check the candidate height's class budgets. This closes the
+race between authorization verification and a new block, fork boundary or
+competing transaction. Duplicate submission is idempotent.
 
 The mempool holds at most 1,024 logical transactions and 384 MiB of intent
 data. Slot reservations make conflicting-input and output detection constant
@@ -93,7 +100,7 @@ time.
 ## Selection
 
 Miners order admissible groups by fee rate, breaking ties by transaction ID.
-Groups remain indivisible. Selection also respects:
+Groups remain indivisible. Before v2, selection also respects:
 
 - the active proof class, B25 or B255;
 - at most 1,020 live inputs per block;
@@ -103,6 +110,14 @@ Groups remain indivisible. Selection also respects:
 
 A scheduled development-reward payout uses one physical page position, leaving
 254 user pages in that block. Otherwise up to 255 user pages are available.
+
+From v2, the selected Small or Large class supplies its own page, input and
+contract-call budgets. Calls form a canonical prefix of the selected user
+pages. They share page and input space with payments, up to 63 calls and
+504 inputs in either class. Large adds ordinary payment capacity and is
+produced only when the operator permits it. Nodes admit and verify both classes
+regardless of their own mining preference. See
+[class selection](mining.md#scheduled-v2-profile).
 
 ## Confirmation and receipts
 

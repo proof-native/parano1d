@@ -45,9 +45,13 @@ The downstream pipeline combines:
   regions.
 
 The resulting proof system is transparent: it requires no trusted setup.
-The released binaries embed authenticated B25 and B255 matrix packs, including
-their expected digests. A build using a different pack cannot silently present
-it as the canonical relation.
+The transition binary embeds authenticated B25/B255 legacy matrices and the
+jointly authenticated v2 Small/Large bank, including their expected digests.
+Candidate height selects the applicable relation. A build using a different
+pack cannot silently present it as the canonical relation. The
+[scheduled profile](../protocol/parameters.md#scheduled-v2-profile) records the
+v2 classes; contract programs share their existing interpreter and do not
+require a new matrix for each program.
 
 ## Wallet authorization
 
@@ -79,7 +83,7 @@ choice.
 ## Security accounting
 
 The production wide-challenge profile uses 65 wallet queries and 133 History
-queries. Its current security results are:
+queries. The published legacy B25/B255 results are:
 
 | Security statement | Production result |
 |---|---:|
