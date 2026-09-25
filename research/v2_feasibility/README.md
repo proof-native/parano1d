@@ -4,7 +4,9 @@ Status: the [joint-bank measurements](results/2026-09-24-banked-integer-core/REP
 now prove a candidate m23 class with 63 user pages and 63 contract-call positions,
 alongside an m24 class with 255 pages and 26 call positions. Both contain the
 expanded integer core. All four class transitions and filled call envelopes
-have actual recursive proofs; production integration and qualification remain.
+have actual recursive proofs. The [full-node capacity run](results/2026-09-25-live-full-capacity/REPORT.md)
+also exercised 63 ordinary payments, 63 contract calls, manual B255 and a return
+to small blocks on a receiver constrained to four CPUs and 8 GiB.
 The earlier [112-page baseline](results/2026-09-24-tps/REPORT.md) used a different
 single-class core and does not establish capacity for this bank. The
 [carried-claim measurements](results/2026-09-24-carried-claims/REPORT.md)
@@ -12,6 +14,11 @@ retain the original legacy-bank control experiment.
 The [fork-origin check](results/2026-09-25-fork-origin/REPORT.md) verifies the
 same post-fork history without loading either legacy matrix, including recovery
 of the authenticated certificate from disk in a fresh protocol context.
+The [cold P2P run](results/2026-09-25-retired-cold-sync/REPORT.md) additionally
+qualified an empty retired-history node, offline restart, failure with unusable
+local certificates and their authenticated replacement at an unchanged tip.
+The [wallet discovery run](results/2026-09-25-contract-discovery/REPORT.md)
+covers participant calls, reorganization rollback and a real GUI-submitted call.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
 are included in the joint-bank measurements. The development branch
 schedules 30-second v2 blocks at H210537, estimated for October 10, 2026 at
@@ -122,13 +129,9 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 
 ## Required next gates
 
-Complete production integration while preserving the published legacy matrix
-identities. Extend the joint-bank qualification to both legacy boundary classes,
-resource-distribution limits and sustained whole-node verification under a
-4 CPU / 8 GiB budget. The first joint sequence retains both accumulated claims
-after the large class appears; cold-cache, restart and real transport tests must
-retain that requirement too.
-
-Capacity, interval and class count are joint decisions after measurements.
-The final pack requires a fresh soundness calculation and transition checks
-covering reorgs, restart, cold sync, miners and existing RPC integrations.
+Preserve the published legacy matrix identities. Finish the both-legacy-class
+origin qualification, select final class limits and freeze the bank under the
+source-pinned mainnet height. The final pack needs reproducible generation and
+its own soundness inventory. Completed isolated-network runs cover contracts,
+GUI calls, pruning, reorgs through activation, restart, cold synchronization and
+bounded receiver load; they do not make the H10 test pack a mainnet artifact.

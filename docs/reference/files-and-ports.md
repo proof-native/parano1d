@@ -104,7 +104,7 @@ Receipts preserve payment-specific inclusion evidence outside body retention.
 | Snapshot export lease idle lifetime | 15 minutes |
 | Snapshot State segments in flight | 8 |
 | State-segment request correlation entries | 64 |
-| External template lifetime | 30 seconds |
+| External template lifetime after proof preparation | 30 seconds |
 
 ## RPC bounds
 

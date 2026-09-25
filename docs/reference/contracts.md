@@ -109,7 +109,7 @@ The contract methods are:
 
 - `getContractProtocol`, `createObject`, `getObjectStatus`, `getObjectInstances`;
 - `previewObjectCall`, `walletFundObject`, `walletCallObject`;
-- `walletWatchObject`, `walletGetObjectOpening`;
+- `walletWatchObject`, `walletGetObjectOpening`, `walletListObjectStates`;
 - `exportObjectReceipt`, `verifyObjectReceipt`.
 
 An instance query takes an inclusive slot cursor and returns its exact tip

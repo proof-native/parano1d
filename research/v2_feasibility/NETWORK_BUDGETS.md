@@ -49,16 +49,19 @@ Pre-fork formats and their metadata class range are preserved.
 The joint candidate's terminal bounds are 1,014,132 bytes for m23 and
 1,081,396 bytes for m24. Both fit 1,100,000 bytes, but the existing exact-object
 response budget may require fetching the body and terminal separately.
-Metadata/transport support does not establish full node integration or qualify
-the live synchronization and mining paths. Historical single-class receiver
-reports retain their recorded rejection of version 6.
+The [full-node capacity run](results/2026-09-25-live-full-capacity/REPORT.md)
+exercised both classes over P2P, including a full B255 body and the small-block
+tail. Historical single-class receiver reports retain their recorded rejection
+of version 6; those reports describe a different format.
 
 The [fork-origin codec](../../noid_p2p/src/fork_origin.rs) acquires a shared memory
 permit before allocating its payload and retains the permit through consumption.
 It bounds request concurrency and serves certificates outside the control loop.
 Its request hash is a lookup key; only proof verification authenticates an origin.
 The first [retirement check](results/2026-09-25-fork-origin/REPORT.md) covers an
-old B25-only boundary, not the full network lifecycle.
+old B25-only boundary. The [cold-sync scenario](results/2026-09-25-retired-cold-sync/REPORT.md)
+also exercises transport, offline restart and same-tip certificate recovery.
+It retains the same B25-only legacy-origin scope.
 
 For 112 independent one-page payments, the body is 36,716 bytes. At 223 and 255
 such payments it would be 72,569 and 82,905 bytes. The measured proof sizes and

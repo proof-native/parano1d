@@ -62,6 +62,19 @@ Proof preparation, nonce search and propagation share the same interval.
 The classes prove the same consensus relation. They are capacity choices, not
 different block-validity rules.
 
+### Scheduled v2 development branch
+
+At the scheduled fork, the source switches to a jointly authenticated m23/m24
+bank and a 30-second target. The default producer uses m23. A server operator
+can allow B255 selection with `--v2-large-blocks`; the option applies to internal
+mining and external-worker templates. The graphical wallet has no such control.
+Every node verifies both classes. Pre-fork calibration remains as described above.
+
+Class selection respects each installed class's page, input and contract-call
+limits. Enabling B255 does not force every block to use it: the smaller class
+can retain more eligible contract calls. Read the actual limits from
+`getContractProtocol`; final v2 capacities remain under qualification.
+
 ## CPU scheduling
 
 The internal miner uses one shared CPU pool across proof construction and
@@ -81,9 +94,10 @@ Templates are rebuilt on events that change useful work:
 - the first transaction entering a coinbase-only template;
 - invalidation of selected transactions.
 
-A 100-second heartbeat is a safety net, not the normal refresh loop. Already
-proved templates remain bound to their original payout and transaction set;
-they are not mutated after proof construction.
+The default fallback heartbeat is five target intervals: 100 seconds before
+v2 and 150 seconds afterward. The events above normally refresh work sooner.
+Already proved templates remain bound to their original payout and transaction
+set; they are not mutated after proof construction.
 
 ## Internal miner
 

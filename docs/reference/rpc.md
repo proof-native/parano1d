@@ -177,7 +177,9 @@ node payout. A non-empty address is accepted only when the node enabled custom
 coinbase.
 
 `nonce_hex` is exactly 32 lowercase hex characters encoding 16 little-endian
-bytes. Templates are single-use and expire after 30 seconds.
+bytes. Templates are single-use and expire 30 seconds after proof preparation
+finishes. The RPC request itself can take longer while the node prepares the
+proof; the external worker's default request timeout is 180 seconds.
 
 ## Node control
 
