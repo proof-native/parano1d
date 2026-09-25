@@ -58,7 +58,7 @@ A successful final panel means the complete intent was accepted by the local
 node and submitted to the network. It shows the logical transaction ID, amount,
 fee, inputs and outputs.
 
-It does not claim that a block has already included the transaction. You may
+Confirmation follows when a canonical block includes the transaction. You may
 leave the panel immediately; the node continues tracking the mempool and
 canonical chain.
 
@@ -71,7 +71,7 @@ The wallet can refuse or abandon a send when:
 
 - the address is invalid;
 - amount plus fee exceeds active-owner balance;
-- selected inputs exceed the active limit: 1,020 before v2, 504 from H210537;
+- selected inputs exceed the active limit: 504 inputs;
 - no current output-slot hints are available;
 - the transaction epoch changes during construction;
 - an input is spent by a newly accepted block;

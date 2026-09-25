@@ -17,8 +17,9 @@ Each page has the fixed 323-byte body encoding:
 | `validity_bitmap` | Live records and logical start/end markers |
 | `is_coinbase` | False for every user page |
 
-Bits 0–7 select inputs and bits 8–9 select outputs. Bits 10 and 11 mark the
-start and end of a logical group. No other bitmap bit may be set.
+Bits 0–7 select inputs, 8–9 outputs, and 10–11 logical start/end.
+V2 contract calls additionally use bit 12 (contract) and bit 13 (closing).
+Ordinary payments leave these two bits zero; bits 14–15 are always zero.
 
 A record whose live bit is zero must be the all-zero canonical dummy. This
 removes alternate encodings of the same statement.
@@ -38,16 +39,16 @@ A valid `PagedSpend` satisfies all of these rules:
 - no input appears twice;
 - no output slot appears twice;
 - an output slot is not also an input slot in the same spend;
-- there are at most 1,020 inputs and 256 outputs;
+- there are at most 504 inputs and 256 outputs, within the class page budget;
 - total input value equals total output value plus the fee;
 - the detached authorization is no larger than 256 KiB.
 
 The maximum canonical intent encoding is 303,495 bytes.
 
-These physical bounds remain valid for decoding legacy history. At and after
-mainnet H210537, a transaction must also fit an installed v2 class: Small has
-63 pages and Large has 206; both share a whole-block limit of 504 live inputs.
-Wallet planning and mempool admission enforce the candidate height's limits.
+Small permits 63 pages and Large 206 per block, with a shared 504-input
+budget. A logical ordinary spend still has at most 128 pages and must fit in
+one block. Wallet planning and both mempool admission checks enforce the
+candidate height's limits. Format-only historical bounds are in the archive.
 
 ## Logical transaction ID
 
@@ -116,18 +117,17 @@ logical transaction.
 
 ## V2 contract calls
 
-V2 also accepts a call that supplies the public opening of a committed contract
-output. A call consumes one page, spends one exact output incarnation, and can
-make a permitted payment, create a successor with updated counters or close.
-The opening determines the spending or recovery authority at the candidate
-height. Authorization proves knowledge of that authority's secret; the block
-relation checks the opening's commitment, program, rules and exact successor.
+A call carries a 699-byte public opening and one canonical contract page.
+It spends one exact `(slot_index, creation_id)` and checks the committed
+program, selected authority and value policy. A continuing call creates an
+updated commitment in output 0 and an optional payment in output 1. Closing
+pays the branch recipient through output 0 and creates no successor.
 
-Calls form a canonical prefix of the selected user pages. Both v2 classes
-allow up to 63 calls, sharing page and input budgets with ordinary payments.
-The [contract reference](../reference/contracts.md) specifies the integer core,
-templates, APIs and retained public terms. The
-[scheduled parameters](parameters.md#scheduled-v2-profile) give combined limits.
+Both classes support the same ABI and at most 63 calls. Calls share page and
+input budgets with ordinary spends, forming the canonical user-page prefix.
+The authorization proves the selected authority's secret; State ownership is
+the opening's object commitment. See [contract core](../contracts/core.md)
+and [lifecycle](../contracts/lifecycle.md) for the complete branch rules.
 
 ## System records
 

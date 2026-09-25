@@ -7,7 +7,7 @@ wallet use does not require a terminal.
 ## Choose the package
 
 Download the GUI wallet for the computer from the
-[GitHub release page](https://github.com/ignotusnemo/parano1d/releases):
+[GitHub release page](https://github.com/proof-native/parano1d/releases):
 
 | Platform | Package |
 |---|---|
@@ -122,3 +122,9 @@ application from Applications to Trash.
 Wallet and node data remain under `.parano1d` in the user profile. Remove that
 directory only after exporting or backing up the master secret and any receipts
 you intend to keep.
+
+## Use contracts
+
+Open **F7 Contracts** to create terms from a template, fund a contract, call
+it or import a file from another party. See the [contract wallet guide](../contracts/gui.md).
+Back up public terms and receipts alongside your master secret.

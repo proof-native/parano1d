@@ -33,11 +33,16 @@ consecutive block records.
 
 ## Input rules
 
+Ordinary input authority is its owner; a contract input instead proves the
+active authority in its committed policy. The same proof verifies the program,
+branch permissions, counters and exact successor or closing. Contract calls
+precede ordinary user groups and obey the shared class budgets.
+
 Every live user input must:
 
 - be inside the parent State domain;
 - identify a currently occupied slot;
-- match the declared amount and shared owner;
+- match the declared amount and owner commitment;
 - match the current `creation_id`;
 - appear only once in the block;
 - be authorized by the group's wallet proof.

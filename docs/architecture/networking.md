@@ -139,10 +139,21 @@ proof verification and cumulative-work consensus.
 
 ## Interface boundaries
 
-P2P port `9600` is intended for public exposure. RPC port `9601` is not. RPC
-includes wallet and process-control methods and has no public transport
-authentication layer; keep it on loopback or behind an authenticated private
-tunnel.
+P2P port `9600` serves public peers. RPC on `9601` includes wallet and
+process-control methods. Local TCP loopback has owner access; remote mining
+and operator tokens grant fixed, narrower method sets. Contract methods
+require local owner access. HTTP bearer tokens do not encrypt traffic, so
+remote RPC needs a private tunnel or protected TLS transport.
 
 See [Configuration](../operate/configuration.md) for deployment settings and
 [Synchronization](synchronization.md) for the data carried by sync protocols.
+
+## V2 proof transport
+
+The per-block terminal cap remains **1,100,000 bytes** for both classes.
+The one-time fork-origin exchange has a separate **48 MiB** response cap.
+It authenticates the transition from the selected legacy boundary and is
+reused by later v2 proofs; it is not attached to every block. Contract openings
+and authorization capsules travel with transaction intents under their own
+bounds. [Files, ports and limits](../reference/files-and-ports.md) lists the
+RPC, receipt and intent caps separately.

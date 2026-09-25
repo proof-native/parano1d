@@ -10,8 +10,19 @@
 ## Concepts
 
 - [A proof-native Layer 1](concepts/proof-native-layer-1.md)
+- [Proof-native contracts: from live value to live rights](concepts/proof-native-contracts.md)
 - [Signatureless ownership](concepts/signatureless-ownership.md)
 - [Receipts and pruned history](concepts/receipts.md)
+
+## Contracts
+
+- [Overview](contracts/index.md)
+- [Lifecycle and mechanics](contracts/lifecycle.md)
+- [Integer core and ABI](contracts/core.md)
+- [Templates](contracts/templates.md)
+- [API and integration](contracts/api.md)
+- [GUI walkthrough](contracts/gui.md)
+- [Receipts and recovery](contracts/receipts-and-recovery.md)
 
 ## Architecture
 
@@ -54,6 +65,7 @@
 - [Addresses](wallet/addresses.md)
 - [Send NOID](wallet/send.md)
 - [Receipts](wallet/receipts.md)
+- [Contracts in the wallet](wallet/contracts.md)
 - [Consolidation](wallet/consolidation.md)
 - [Scope](wallet/scope.md)
 - [Settings](wallet/settings.md)
@@ -77,7 +89,14 @@
 
 - [Command-line interface](reference/cli.md)
 - [JSON-RPC API](reference/rpc.md)
+- [Contract quick reference](reference/contracts.md)
 - [Files, ports and limits](reference/files-and-ports.md)
 - [Protocol parameters](reference/parameters.md)
 - [Performance measurements](reference/performance.md)
 - [Glossary](reference/glossary.md)
+
+## Archive
+
+- [Archive overview](archive/index.md)
+- [v1 / v1.1 profiles](archive/legacy-profiles.md)
+- [Historical measurements](archive/legacy-performance.md)

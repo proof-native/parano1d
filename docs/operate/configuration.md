@@ -80,7 +80,7 @@ SSH tunnel or an authenticated TLS proxy when the worker is remote.
 
 A pool or exchange may add a separate `--operator-key-file` for a remote accounting and payout host. Its fixed scope contains bounded wallet status, balance, mined-block and receipt queries, send planning and submission, confirmed and mempool transaction lookup, receipt verification, address validation, chain status, fee estimates, exact wallet consolidation, and submission of an externally authorized raw transaction intent. Mining, process control, wallet scanning and discovery, address management, unbounded wallet listings, and all unlisted methods remain denied. The operator token must differ from the mining token and carries spending authority, so keep it in an owner-only file and expose it only through a firewalled private or encrypted transport. The exact method list is documented in [JSON-RPC API](../reference/rpc.md#authentication).
 
-RPC supports HTTP only. WebSocket upgrades are rejected and request bodies are limited to 1 MiB. JSON-RPC batches remain supported within that body limit.
+RPC supports HTTP only. WebSocket upgrades are rejected and request bodies are limited to 2,237,632 bytes. JSON-RPC batches remain supported within that body limit.
 
 ## Mining
 
@@ -117,3 +117,8 @@ parano1d --check-hardware
 ```
 
 The successful final line is `NODE READY`.
+
+Large block production is a command-line choice: `--v2-large-blocks`. It
+applies to internal mining and external templates, never to verification
+permission. The target is 30 seconds; all nodes verify Small and Large.
+Contract RPC methods require local owner scope.

@@ -69,3 +69,12 @@ Once saved, the receipt no longer depends on the body-retention window.
 
 For wallet use, continue with [Receipts](../wallet/receipts.md). For the
 consensus transaction tree, see [Blocks and headers](../protocol/blocks.md).
+
+## Contract receipts
+
+The format above describes ordinary payment receipts, including contract
+deposits. A contract call uses its own receipt containing public terms, the
+call and recursive proof evidence. Verification can restore a successor or
+prove closing after the body has been pruned. Import merges local activity
+from both parties; the live balance is queried from State. See
+[contract receipts and recovery](../contracts/receipts-and-recovery.md).

@@ -10,9 +10,8 @@ when the application exits.
 
 ![Parano1d wallet main screen](../assets/wallet/main.png)
 
-Screenshots of populated wallet pages use the built-in preview dataset.
-Addresses, balances, blocks and transaction identifiers shown in them are
-illustrative.
+Screenshots show the English wallet connected to an isolated v2 test network.
+Addresses, balances and heights belong to that local test.
 
 ## Navigation
 
@@ -32,7 +31,7 @@ illustrative.
 
 ## Contracts
 
-Contracts become available at the v2 activation height. **F7** separates three
+**F7** separates three contract
 workflows:
 
 - **Create**: choose a template or edit a custom program. The info button explains
@@ -112,3 +111,5 @@ account and back up the secret before receiving funds.
 Start with [First run](first-run.md), learn how a
 [photo can become the wallet key](photo-key.md), or jump to
 [Backup and recovery](backup-recovery.md).
+
+The [detailed contract guide](../contracts/gui.md) includes the full workflow and English screenshots.

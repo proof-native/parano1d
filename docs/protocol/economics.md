@@ -1,8 +1,9 @@
 # Network economics
 
-Parano1d v2 schedules issuance by block height and prices persistent State
-growth separately from ordinary transaction work. Before v2, issuance follows
-Live State capacity.
+V2 separates two responsibilities: **block height determines issuance; live
+State occupancy prices the cost of persistent storage**. The rules on this
+page apply from **H210537**. The reasons for changing the original model are
+explained below; old network profiles are retained in the [archive](../archive/index.md).
 
 ## Unit
 
@@ -10,101 +11,111 @@ Live State capacity.
 1 NOID = 1,000,000 μNOID
 ```
 
-NOID is the currency ticker; the wallet uses ① as its interface symbol.
-All consensus amounts are integers in μNOID.
-
-## Legacy block reward (before v2)
-
-The starting subsidy is 50 NOID. It halves whenever the State domain expands
-and never falls below 1 NOID:
-
-| `log_slots` | Capacity | Block reward |
-|---:|---:|---:|
-| 24 | 16,777,216 slots | 50.000000 NOID |
-| 25 | 33,554,432 slots | 25.000000 NOID |
-| 26 | 67,108,864 slots | 12.500000 NOID |
-| 27 | 134,217,728 slots | 6.250000 NOID |
-| 28 | 268,435,456 slots | 3.125000 NOID |
-| 29 | 536,870,912 slots | 1.562500 NOID |
-| 30–32 | Up to 4,294,967,296 slots | 1.000000 NOID |
-
-Expansion requires sustained 75% occupancy in a hard-finalized window. The
-network therefore moves to a lower inflation tier only after materially using
-the current State capacity.
-
-## Legacy launch development allocation
-
-For the first three target-time years, each block subsidy is divided:
-
-- 90% to the miner;
-- 5% to the O(1) Network Fund;
-- 5% to Parano1d Lab.
-
-There is no premine. After height 4,730,400, the complete block subsidy goes to
-the miner.
-
-To avoid creating two extra live UTXOs in every block, the two development
-shares are paid in one mandatory two-output system record every 4,320 target
-blocks. The amount uses the reward tier active at that payout boundary. If the
-State expands during the interval, the resulting difference remains unissued.
-
-At the initial 50 NOID subsidy, the miner receives 45 NOID plus claimable fees,
-and each fund receives 10,800 NOID per 4,320-block payout interval. There are
-1,095 scheduled payouts through height 4,730,400 inclusive. The schedule is
-height-based, not a wall-clock payment guarantee.
-
-The payout schedule, recipients and amounts are derived statelessly from height
-and `log_slots` and are proved inside `HistoryStep`. A miner cannot omit,
-redirect or defer a due payout.
+NOID is the ticker; the wallet uses ①. Consensus uses integer μNOID, never
+floating-point arithmetic. There is no fixed maximum supply because the
+permanent tail continues at 1 NOID per block.
 
 ## V2 issuance
 
-Live State measures the data currently needed by the network. Spent slots can
-be reused, consolidation removes live outputs, and a contract can repeatedly
-update one object. Useful activity therefore need not increase State capacity.
-V2 uses block height as its monetary clock while occupancy continues to price
-the cost of adding persistent State.
+Let `H = 210537` and `I = 1051200`. For a block at height `h ≥ H`, the tier is
+`min((h − H) / I, 8)` using integer division. The exact gross subsidy table is:
 
-At the v2 activation height `H = 210,537`, the gross block subsidy becomes
-16 NOID. Each subsequent step begins exactly 1,051,200 blocks after the
-previous one, counted from `H`. This is one nominal 365-day year at the
-30-second block target; actual dates depend on block production.
+| Tier / nominal years from v2 | First height | NOID per block | Gross NOID per full interval |
+| ---: | ---: | ---: | ---: |
+| 0 | 210,537 | 16 | 16,819,200 |
+| 1 | 1,261,737 | 11.30 | 11,878,560 |
+| 2 | 2,312,937 | 8 | 8,409,600 |
+| 3 | 3,364,137 | 5.65 | 5,939,280 |
+| 4 | 4,415,337 | 4 | 4,204,800 |
+| 5 | 5,466,537 | 2.83 | 2,974,896 |
+| 6 | 6,517,737 | 2 | 2,102,400 |
+| 7 | 7,568,937 | 1.41 | 1,482,192 |
+| 8 | 8,620,137 | 1 | 1,051,200 |
 
-| Blocks since v2 activation | Nominal years since v2 | Gross subsidy per block |
-|---:|---:|---:|
-| 0 | 0 | 16.00 NOID |
-| 1,051,200 | 1 | 11.30 NOID |
-| 2,102,400 | 2 | 8.00 NOID |
-| 3,153,600 | 3 | 5.65 NOID |
-| 4,204,800 | 4 | 4.00 NOID |
-| 5,256,000 | 5 | 2.83 NOID |
-| 6,307,200 | 6 | 2.00 NOID |
-| 7,358,400 | 7 | 1.41 NOID |
-| 8,409,600 and later | 8 and later | 1.00 NOID |
+The final row repeats indefinitely. The nine amounts are exact consensus
+constants: **16 → 11.30 → 8 → 5.65 → 4 → 2.83 → 2 → 1.41 → 1**.
+There is no square-root calculation or discretionary adjustment at a boundary.
+The block relation proves the reward selected by its authenticated height.
+State expansion neither advances nor resets the schedule.
 
-These are exact integer amounts, not rounded results of a formula. The
-1 NOID floor continues indefinitely, so the schedule does not impose a fixed
-maximum supply. State expansion neither advances nor resets this clock.
-The authenticated block height selects the reward inside `HistoryStep`.
+An interval is a nominal 365-day year at the **30-second target**. Calendar
+dates depend on actual production; the clock starts at the v2 block, not at
+genesis or a release date. The eight declining intervals total **53,810,928
+NOID** in gross scheduled subsidy. The first two total **28,697,760 NOID**;
+the tail schedules **1,051,200 NOID per nominal year**. These are subsidy sums,
+not circulating-supply forecasts: burns, unclaimed amounts and the temporary
+allocation accounting affect actual issued and live value.
 
-The chosen transition spans eight nominal years: its two-year anchors halve
-exactly, `16 → 8 → 4 → 2 → 1`. Intermediate annual amounts approximate a
-geometric half-step. The eight-year horizon and 1 NOID tail are explicit design
-choices; the table, rather than a square-root calculation, defines consensus.
+## Why the monetary clock changed
 
-At the target intervals, moving from 50 NOID per 20 seconds to 16 per
-30 seconds reduces the initial gross issuance rate by 78.67%. This is a
-substantial initial subsidy reduction; the smaller annual steps distribute
-subsequent reductions over time. The first two complete v2 intervals schedule
-28,697,760 NOID in gross subsidy. Fee burns reduce the resulting supply, so
-gross subsidy should not be presented as circulating-supply growth.
+The initial model linked reward reductions to State expansion: starting at
+50 NOID, the reward halved when sustained occupancy required a larger slot
+domain. This assumed that growth of useful network activity would provide a
+meaningful clock for reducing issuance.
 
-Keeping Live State small still matters. Within each State capacity level,
-the [occupancy multiplier](#fees) increases the charge for adding net-new
-live slots. That entire growth component is burned. Consolidating several
-inputs into fewer outputs avoids the growth charge and frees slots, while
-ordinary transaction fees still apply. The v2 emission change preserves this
-incentive and the existing fee rules.
+Early mainnet operation exposed a mismatch. Live occupancy remained low while
+blocks continued issuing at the initial rate. State measures **currently live
+outputs**, not elapsed time, transaction volume or adoption. Spending frees
+slots; consolidation reduces their count; a contract can repeatedly update a
+right without growing the live set. A busy, efficient application can therefore
+leave State size almost unchanged. A reduction triggered only by expansion
+has no predictable horizon, and rewarding State efficiency should not make
+future issuance less legible.
+
+V2 replaces that activity-dependent monetary clock with authenticated height.
+The new schedule starts at the published fork height. Operators can
+review the exact constants and applications can calculate every future tier
+without forecasting occupancy. Existing balances are not rescaled.
+
+## Why this curve
+
+The design chooses a permanent **1 NOID tail**, **four halving equivalents**
+before reaching it and **two nominal years per halving**. This gives the
+anchors `16 → 8 → 4 → 2 → 1` over eight nominal years. Splitting each halving
+into two annual reductions gives an approximate multiplier of `1/√2`, with
+the published intermediate values fixed as integer amounts.
+
+The tail preserves an ongoing block subsidy alongside fees. The finite
+transition gives a visible horizon; smaller annual steps spread later subsidy
+reductions rather than concentrating each into a 50% boundary. The intermediate steps are rounded to the fixed amounts 11.30,
+5.65, 2.83 and 1.41 NOID.
+
+Changing 50 NOID per 20 seconds to 16 per 30 seconds reduces the initial gross
+issuance rate by **78.67%**, at the respective targets and before any old State
+halving. That is a substantial immediate reduction, followed by the scheduled
+steps. Height-based rules remove the need to tune the monetary
+clock to observed State growth; changing them again would require another
+consensus upgrade.
+
+## State efficiency still matters
+
+The reason to consolidate remains economic. Within every State level,
+occupancy raises the price of **net-new live slots**. That growth component is
+burned. Turning several inputs into fewer outputs frees slots and avoids a
+growth charge, while ordinary input/output fees still apply. Contracts pay for
+their actual live footprint under the same rules. Issuance and storage pricing
+therefore serve separate purposes without penalizing efficient State reuse.
+
+## Existing allocation schedule
+
+The existing 90% / 5% / 5% subsidy split continues for its original three
+365-day target-time years from genesis. V2 does not restart that period.
+Transaction fees after the growth burn remain miner-claimable.
+
+The remaining target-time duration is converted to 30-second blocks:
+`H − 1 + floor((94608000 − (H − 1) × 20) / 30) = 3223778`.
+The allocation ends at **H3223778**; subsequent subsidies go entirely to miners.
+V2 uses **2,880 blocks per nominal daily payout**, beginning at **H213416**.
+There is no payout on H210537; the incomplete old daily interval is not paid.
+The final partial v2 interval is paid at the ending height. Percentages and
+recipients are unchanged.
+
+The payout uses the reward tier at its boundary; a tier change within an
+interval can leave a difference unissued. At the initial 16 NOID tier, the
+miner subsidy is 14.4 NOID, and each 5% share of a complete daily interval is
+2,304 NOID. Mandatory system records are derived by consensus, not by an
+operator transaction. This accounting must not be mistaken for extra issuance
+on top of the gross schedule.
 
 ## Fees
 

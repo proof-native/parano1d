@@ -65,7 +65,8 @@ empty slot 9700063          ─ allocate ─> slot 9700063, creation 894
 
 UTXO 无需移动，分段无需复制，槽位编号保持有效。更新根的工作量与已占用槽位数量无关。
 
-扩展还会把发行计划推进到下一个奖励档位，但不会改变已有金额，也不会创建迁移交易。
+[发行计划](../protocol/economics.md)按区块高度推进。扩容保持现有值和槽位索引，
+占用率相关增长费继续为净新增活输出定价。
 
 ## State 压力与手续费
 
@@ -89,3 +90,8 @@ MDBX 以事务方式存储 State 变更。对于近期区块，有界撤销记�
 重启不会从创世区块重建 State。节点打开持久化 Live State，检查其规范元数据，并从当前[终端证明](../reference/glossary.md#terminal)继续运行。
 
 规范规则见[State 转换](../protocol/state.md)，认证 State 传输见[同步](synchronization.md)。
+
+## 合约承诺
+
+输出所有者可以是合约承诺，活金额和实例仍使用同一 State 格式。调用时公开
+条款和计数器，参与者保留条款及[回执](../contracts/receipts-and-recovery.md)。

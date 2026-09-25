@@ -88,3 +88,9 @@ Live State，然后强制重新进行认证同步。钱包文件、收据和对�
 
 State 撤销数据保留 36 个区块，完整区块体保留 42 个。这些窗口由程序自动
 管理。增加本地磁盘保留量不会改变共识中的 18 区块最终性规则。
+
+## 合约数据
+
+请与钱包秘密一起备份 `wallet.contracts.json`、`contract-activity/` 及完整
+`objects/`（包含 `objects/terminals/`）。公开条款、活动及证明证据不能仅从
+秘密恢复。停止节点后执行一致备份，见[合约恢复](../contracts/receipts-and-recovery.md)。

@@ -55,8 +55,15 @@ parano1d-cli peers
 parano1d-cli mining
 ```
 
-进程会准备内嵌的 B25 与 B255 证明矩阵，并选择最合适的 CPU 后端。每个
-挖矿会话都从 B25 开始。第一次完成的准备满足 `prepare_time_B25 × 4 ≤ 20 秒` 时允许 B255，随后由所选合格页面数量决定模板类别。详见[挖矿架构](../architecture/mining.md)。
+进程选择支持的 CPU 后端，默认使用 Small m23：63 页、504 输入、63 调用。
+服务器可允许 Large m24（206 页，相同输入和调用限制）：
+
+```sh
+parano1d --mode miner --v2-large-blocks
+```
+
+合格集合提供更多可领取手续费时选择 Large，Small 仍可使用。请测量实际主机，
+GUI 没有 Large 选项。见[类别选择](../architecture/mining.md)。
 
 ## CPU 规划
 

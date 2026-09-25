@@ -41,7 +41,12 @@ insertion, removal or mutation changes the intent.
 
 ## Spending authority
 
-Every user input is covered by a valid authorization capsule bound to the
+Ordinary input authority is its owner; a contract input instead proves the
+active authority in its committed policy. The same proof verifies the program,
+branch permissions, counters and exact successor or closing. Contract calls
+precede ordinary user groups and obey the shared class budgets.
+
+Every ordinary user input is covered by a valid authorization capsule bound to the
 logical transaction ID and input owner. Verification establishes knowledge of
 the owner's 256-bit secret without placing that secret in the transaction.
 

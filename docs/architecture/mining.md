@@ -36,59 +36,29 @@ not change.
 
 Everything except the header nonce is now immutable.
 
-## B25 and B255
+## Small and Large
 
-The proof stack ships two authenticated matrix classes:
+The active bank has two jointly authenticated classes:
 
-| Class | Hypercube dimension | Effective page capacity |
-|---|---:|---:|
-| B25 | `m=22` | Up to 25 |
-| B255 | `m=24` | Up to 255 |
+| Class | Pages | Live inputs | Calls |
+| --- | ---: | ---: | ---: |
+| Small, m23 | 63 | 504 | 63 |
+| Large, m24 | 206 | 504 | 63 |
 
-Every mining session starts with B25, without a startup benchmark. The first
-completed B25 proof preparation supplies the timing sample. B255 is permitted
-for that session only if `prepare_time_B25 × 4 ≤ 20 seconds`. This is a
-prediction, not a measured B255 time, and does not wait for a successful PoW
-nonce. Later samples do not change the session's permission.
+Small is the default. `--v2-large-blocks` permits Large for both internal mining
+and external templates; there is no GUI control. The producer chooses Large
+when its eligible set yields more claimable fees, otherwise Small. There is no
+v2 automatic timing calibration. Every node verifies both classes.
 
-The producer selects eligible transactions in fee order within its permitted
-capacity. A selection of at most 25 pages uses B25; a larger selection uses
-B255. A due fund payout occupies one page, leaving up to 24 or 254 user pages
-respectively. Transactions remain atomic during selection.
+Calls share page and input budgets with payments. Large can fit 63 calls plus
+143 one-page payments, within the 504-input bound. Primary coinbase is separate;
+an extra mandatory system record uses one effective page. Programs use the same
+interpreter in either class. Query `getContractProtocol` for installed budgets.
 
-ASERT applies that target to the complete interval between accepted blocks.
-Proof preparation, nonce search and propagation share the same interval.
-
-The classes prove the same consensus relation. They are capacity choices, not
-different block-validity rules.
-
-### Scheduled v2 profile
-
-At mainnet H210537, the source switches to a jointly authenticated m23/m24
-bank and a 30-second target. The default producer uses m23. A server operator
-can allow Large-class selection with `--v2-large-blocks`; the option applies to internal
-mining and external-worker templates. The graphical wallet has no such control.
-Every node verifies both classes. Pre-fork calibration remains as described above.
-
-| Class | Pages | Live inputs per block | Contract calls per block |
-|---|---:|---:|---:|
-| Small, `m=23` | 63 | 504 | 63 |
-| Large, `m=24` | 206 | 504 | 63 |
-
-Calls share the page budget with ordinary payments. Large therefore fits
-206 one-page payments or 63 calls plus 143 one-page payments, provided the
-total input count stays within 504. Both classes support the same programs;
-Large's additional pages increase ordinary payment capacity. The primary
-coinbase has its own position; an additional mandatory system page reduces
-the available page budget.
-
-Class selection respects each installed class's page, input and contract-call
-limits. The producer selects the larger class when its eligible transaction
-set yields more claimable fees; otherwise it keeps the smaller class. Read
-the actual limits from `getContractProtocol`. Enabling the flag permits Large;
-it does not force every template to use it. The
-[measurement report](../../research/v2_feasibility/results/2026-09-25-common-input-budget/REPORT.md)
-records the frozen matrices and the scope of completed qualification runs.
+ASERT targets the complete 30-second mean interval: proving, nonce search and
+propagation all consume it. Benchmark the complete preparation path on the
+actual host. [Measured costs](../reference/performance.md) include the sequence
+of Small blocks after a Large block.
 
 ## CPU scheduling
 
@@ -109,8 +79,7 @@ Templates are rebuilt on events that change useful work:
 - the first transaction entering a coinbase-only template;
 - invalidation of selected transactions.
 
-The default fallback heartbeat is five target intervals: 100 seconds before
-v2 and 150 seconds afterward. The events above normally refresh work sooner.
+The default fallback heartbeat is five target intervals, or 150 seconds. The events above normally refresh work sooner.
 Already proved templates remain bound to their original payout and transaction
 set; they are not mutated after proof construction.
 

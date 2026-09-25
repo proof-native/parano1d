@@ -53,7 +53,7 @@
     <text x="56" y="55" fill="#f6f7fa" font-size="21" font-weight="650"
           letter-spacing="2.7">ONE BINARY PROOF STACK</text>
     <text x="56" y="85" fill="#9299ad" font-size="14">
-      Private ownership and public state execution use different relations over the same arithmetic foundation.
+      Private authorization and public state execution use different relations over the same arithmetic foundation.
     </text>
     <text x="1384" y="57" fill="#34e06f" font-size="15" text-anchor="end"
           font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
@@ -95,7 +95,7 @@
     </text>
     <g fill="#b8bdca" font-size="13">
       <circle cx="83" cy="359" r="3" fill="#ce58d6"/>
-      <text x="96" y="364">256-bit owner secret</text>
+      <text x="96" y="364">256-bit authority secret</text>
       <circle cx="83" cy="389" r="3" fill="#ce58d6"/>
       <text x="96" y="394">logical transaction ID</text>
     </g>
@@ -164,7 +164,7 @@
     <rect x="414" y="610" width="252" height="16" rx="5"
           fill="#142832" stroke="#67d7f6" stroke-opacity=".25"/>
     <text x="540" y="622" fill="#85dff6" font-size="9" text-anchor="middle"
-          letter-spacing=".9">BATCHED DEGREE-SEVEN RELATIONS</text>
+          letter-spacing=".9">BATCHED GLOBAL RELATIONS</text>
 
     <!-- closure -->
     <g filter="url(#shadow)">
@@ -199,7 +199,7 @@
       transparent · no trusted setup
     </text>
     <text x="913" y="622" fill="#727b8f" font-size="10" text-anchor="middle">
-      canonical legacy + v2 matrix packs
+      authenticated v2 bank + fork origin
     </text>
 
     <!-- outputs -->
@@ -264,7 +264,7 @@
     <text x="1360" y="713" fill="#34e06f" font-size="15" font-weight="700"
           text-anchor="end"
           font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
-      NIST CATEGORY 1 E2E · 127-BIT PROVABLE FS-FRI
+      C1 RESOURCE MODEL · V2 + LEGACY ANCESTRY
     </text>
   </g>
 </svg>

@@ -30,7 +30,7 @@ P2P-соединения принимаются на TCP `9600`. JSON-RPC дол
 ## Установка релиза Core
 
 Скачайте архив нужной архитектуры и `SHA256SUMS` со
-[страницы релизов](https://github.com/ignotusnemo/parano1d/releases). Проверьте
+[страницы релизов](https://github.com/proof-native/parano1d/releases). Проверьте
 архив до распаковки, заменив `VERSION` номером версии:
 
 ```sh

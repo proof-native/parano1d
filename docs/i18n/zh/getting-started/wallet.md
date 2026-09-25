@@ -5,7 +5,7 @@
 
 ## 选择安装包
 
-请从 [GitHub 发布页面](https://github.com/ignotusnemo/parano1d/releases)
+请从 [GitHub 发布页面](https://github.com/proof-native/parano1d/releases)
 下载与电脑匹配的 GUI 钱包：
 
 | 平台 | 安装包 |
@@ -112,3 +112,8 @@ Applications 中的应用移到废纸篓。
 
 钱包和节点数据仍保存在用户目录下的 `.parano1d` 中。只有在导出或
 备份主密钥以及需要保留的收据后，才应删除该目录。
+
+## 使用合约
+
+打开 **F7 Contracts**，从模板创建条款、存入资金、调用合约或导入另一方文件。
+参见[合约钱包指南](../contracts/gui.md)。请与主秘密一起备份公开条款和回执。

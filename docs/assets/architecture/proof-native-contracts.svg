@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 390" role="img" aria-labelledby="title desc">
+<title id="title">Proof-native contracts: from live value to live rights</title>
+<desc id="desc">A wallet retains public terms and authorizes a call. The miner proves a transition from a live commitment to a successor or closing payment. Peers verify the shared recursive proof, and participants retain portable receipts.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#00bcd4"/></marker></defs>
+<rect width="1120" height="390" rx="20" fill="#111827"/>
+<g font-family="Arial,sans-serif" fill="#e5e7eb">
+<text x="40" y="44" font-size="24" font-weight="bold">From live value to live rights</text>
+<g fill="#1f2937" stroke="#475569"><rect x="40" y="80" width="280" height="155" rx="12"/><rect x="420" y="80" width="280" height="155" rx="12"/><rect x="800" y="80" width="280" height="155" rx="12"/></g>
+<g font-size="19" fill="#67e8f9"><text x="60" y="111">Live contract output</text><text x="440" y="111">Authorized transition</text><text x="820" y="111">New live right or close</text></g>
+<g font-size="16"><text x="60" y="145">Value + exact incarnation</text><text x="60" y="177">Program + policy commitment</text><text x="60" y="209">Two persistent counters</text><text x="440" y="145">Authority + inclusion height</text><text x="440" y="177">Integer program + fee rules</text><text x="440" y="209">Proved inside HistoryStep</text><text x="820" y="145">Successor counters and value</text><text x="820" y="177">Permitted payment</text><text x="820" y="209">Exact authenticated State</text></g>
+<g stroke="#00bcd4" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M325 157H409"/><path d="M705 157H789"/></g>
+<rect x="40" y="265" width="1040" height="88" rx="12" fill="#172f39"/>
+<text x="60" y="298" font-size="18">Nodes verify the recursive proof; current State carries the live commitment.</text>
+<text x="60" y="329" font-size="18">Participants retain public terms and receipts; old call bodies can be pruned.</text>
+</g></svg>

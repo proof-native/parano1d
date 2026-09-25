@@ -61,9 +61,9 @@ boundary from height and reject deeper alternatives.
 
 ## Difficulty
 
-The target interval between accepted blocks is 20 seconds. Proof preparation,
+The target interval between accepted blocks is 30 seconds. Proof preparation,
 nonce search and propagation share that interval. ASERT adjusts the target
-using six-block reference epochs and a 120-second half-life. The target is
+using six-block reference epochs and a 180-second half-life. The target is
 encoded as a 256-bit little-endian integer.
 
 Validation derives the one exact target from canonical header history. Miners
@@ -106,3 +106,15 @@ become canonical State.
 Continue with [Blocks and headers](blocks.md),
 [Transaction protocol](transactions.md), [State transition](state.md), and the
 [consensus invariant map](invariants.md).
+
+## Height-selected rules
+
+Mainnet v2 applies from H210537. Candidate height selects the proof bank,
+resource budgets, 30-second timing and height-based subsidy together. The first
+new proof binds to the selected predecessor; reorgs across that boundary must
+replace the origin and undo orphaned contract transitions. ASERT sums ideal
+intervals under each height's rules. Epoch, finality and retention counts stay
+144, 18, 42 and 36 blocks respectively. Contract branches use inclusion height.
+
+See [parameters](parameters.md), [economics](economics.md) and
+[the authenticated fork boundary](security-model.md#fork-and-matrix-boundary).

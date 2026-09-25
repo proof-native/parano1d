@@ -127,3 +127,13 @@ Include:
 
 Never include `wallet.key`, the exported master secret, private photo material
 or bearer tokens.
+
+## Contract balance or history is missing
+
+Refresh against a synchronized node and inspect related saved states. A call
+may have moved value to a successor address or closed the instance. The local
+journal contains saved and imported evidence; being offline during a call can
+leave a gap after its block body is pruned. Import the other party's contract
+receipt through F7 Open file. Existing local records are preserved. A plain
+master-secret import cannot reconstruct lost public contract terms. See
+[recovery](../contracts/receipts-and-recovery.md).

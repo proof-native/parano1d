@@ -117,3 +117,31 @@ Receipts preserve payment-specific inclusion evidence outside body retention.
 | Mined-block page | 50 rows |
 | Imported address discovery | 20 candidates |
 | Interactive consolidation | 64 inputs |
+
+## Contract artifacts and transport
+
+| Artifact | Location and purpose |
+| --- | --- |
+| `wallet.contracts.json` | GUI wallet directory; public contract library and local names |
+| `contract-activity/` | GUI wallet directory; saved local operations |
+| `objects/` | Node wallet directory; tracked openings, states and receipts |
+| `objects/terminals/` | Shared authenticated terminals referenced by local receipts |
+
+Back up these files with the wallet secret. A key can recover authority, but a
+hash commitment cannot reconstruct lost public program terms or old receipts.
+Keep the objects directory together so shared terminal references remain usable.
+
+| Bound | Value |
+| --- | ---: |
+| Recursive block terminal | 1,100,000 bytes |
+| One-time fork-origin response | 48 MiB |
+| Ordinary payment receipt | 128 KiB |
+| Contract receipt | 1,110,624 bytes |
+| RPC HTTP request body | 2,237,632 bytes |
+| Contract instance query | 1…256 rows |
+| Saved contract states or receipts per RPC page | 1…64 rows |
+| Recent operations displayed by GUI | 256 |
+
+The GUI limit bounds the displayed list; retained receipts remain in storage.
+At 30 seconds, the 144-block epoch is nominally 72 minutes, the 18-block
+finality window 9 minutes, and body/undo retention 21/18 minutes.

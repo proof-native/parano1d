@@ -1,6 +1,6 @@
 # 设置
 
-按 `F7` 打开设置。
+按 `F8` 打开设置。
 
 ![钱包设置](../../../assets/wallet/settings.png)
 

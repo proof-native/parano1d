@@ -38,7 +38,7 @@ Public daemon options are:
 | `--operator-key TOKEN` | Separate bearer token for the fixed pool accounting/payout RPC scope |
 | `--operator-key-file FILE` | Read the pool operator token from an owner-only file |
 | `--allow-custom-coinbase` | Permit an authenticated external worker to request its payout |
-| `--v2-large-blocks` | Development branch: permit Large-class production after v2; default production uses the small class, and all nodes verify both |
+| `--v2-large-blocks` | Permit Large production for internal mining or external templates; Small is default, all nodes verify both |
 | `--purge-state` | Clear the complete chain database and synchronize it again from peers |
 | `--check-hardware` | Report production CPU support and exit without touching node data |
 
@@ -275,3 +275,12 @@ height="$(
 
 Human-readable output and colors are presentation interfaces. Scripts should
 consume JSON.
+
+### Contracts
+
+`parano1d-cli contract` provides `protocol`, `payment`, `vault`, `allowance`,
+`budget`, `recurring`, `vesting`, `create`, `fund`, `watch`, `status`, `instances`,
+`call`, `receipt`, `verify` and `restore`. Amounts are NOID. `call --preview`
+reviews an exact instance; `--expected-txid` binds the reviewed body.
+See [complete workflow](../contracts/api.md#cli-workflow) and each command
+with `--help`. Contract API access uses local owner scope.

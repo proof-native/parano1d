@@ -43,7 +43,7 @@ Block production proceeds in this order:
 1. The node waits until it is synchronized and has the required authenticated
    peer quorum.
 2. It reads its canonical tip, current State and admissible mempool intents.
-3. It selects the B25 or B255 proof class and fixes every semantic field of the
+3. It selects the Small or Large proof class and fixes every semantic field of the
    candidate block except its nonce.
 4. It computes the exact slot writes and resulting UTXO root.
 5. It proves the new `HistoryStep`, including recursive continuity from the
@@ -84,7 +84,7 @@ least one authenticated peer. The active wallet address receives newly
 constructed payouts. Changing the active address affects the next template;
 an existing immutable template keeps its original payout.
 
-The page reports the selected CPU backend, B25/B255 readiness, current mining
+The page reports the selected CPU backend, proof preparation, current mining
 state and locally found blocks. See
 [Mining in the wallet](../wallet/mining.md) for shutdown behavior and the mined
 block table.
@@ -161,63 +161,41 @@ configuration and trust boundary are documented in
 
 ## CPU and proof capacity
 
-The production instruction floor is:
+Production requires SSE4.1 + PCLMULQDQ on x86-64 or NEON + PMULL on ARM64.
+Runtime dispatch selects the best supported backend. Proof and PoW share one
+thread budget; leave room for wallet work and P2P service.
 
-| Architecture | Required instructions |
-|---|---|
-| x86-64 | SSE4.1 and PCLMULQDQ |
-| ARM64 | NEON and PMULL |
+The active bank has two jointly authenticated classes:
 
-Wider kernels are selected at runtime when the host exposes them. The hardware
-check establishes that the production backend can run; it does not guarantee
-competitive mining performance.
+| Class | Pages | Live inputs | Calls |
+| --- | ---: | ---: | ---: |
+| Small, m23 | 63 | 504 | 63 |
+| Large, m24 | 206 | 504 | 63 |
 
-Before v2, every mining process begins with the B25 proof class. B255 is used
-only when the first B25 preparation permits the larger relation under the
-legacy calibration rule. Both classes prove the same consensus statement:
+Small is the default. `--v2-large-blocks` permits Large for both internal mining
+and external templates; there is no GUI control. The producer chooses Large
+when its eligible set yields more claimable fees, otherwise Small. There is no
+v2 automatic timing calibration. Every node verifies both classes.
 
-| Class | Relation | Effective page positions |
-|---|---|---:|
-| B25 | `m=22` | up to 25 |
-| B255 | `m=24` | up to 255 |
+Calls share page and input budgets with payments. Large can fit 63 calls plus
+143 one-page payments, within the 504-input bound. Primary coinbase is separate;
+an extra mandatory system record uses one effective page. Programs use the same
+interpreter in either class. Query `getContractProtocol` for installed budgets.
 
-At mainnet H210537, default production switches to Small `m=23`: 63 pages,
-504 live inputs and 63 contract calls per block. Large `m=24` adds page
-capacity to 206 while keeping the same input and call limits. Calls share
-the page budget with payments.
-
-A server operator can permit Large templates with `--v2-large-blocks`, for
-either internal mining or external workers. The GUI has no control for this
-flag. Permission does not force Large: the producer keeps Small unless the
-eligible larger selection yields more claimable fees. All nodes verify both
-classes. `parano1d-cli contract protocol` reports their installed limits.
-
-Proof construction and PoW are ordered all-core phases sharing one thread
-budget. They are not two competing all-core jobs. On a public host, leaving
-some CPU capacity outside `--cpu-threads` keeps the operating
-system and peer service responsive.
-
-The network targets a 20-second mean block interval before v2 and 30 seconds
-from activation. This is not a deadline:
-individual blocks may arrive sooner or much later. Proof latency still matters
-because a candidate becomes stale when another miner advances the tip. Measure
-the complete preparation path for the intended class on the intended machine;
-CPU model and advertised vCPU count alone do not establish its speed.
-
-See [Hardware and capacity](../operate/hardware.md) and
-[Performance measurements](../reference/performance.md) for the production
-floor and published reference timings.
+ASERT targets the complete 30-second mean interval: proving, nonce search and
+propagation all consume it. Benchmark the complete preparation path on the
+actual host. [Measured costs](../reference/performance.md) include the sequence
+of Small blocks after a Large block.
 
 ## Difficulty, rewards and confirmations
 
 ASERT adjusts the Poseidon2b target against the complete interval between
 accepted blocks. Proof preparation, nonce search and propagation share that
-height-selected mean target.
+30-second mean target.
 The chain with the greatest cumulative valid work wins; an equal-work tie uses
 the canonical block-hash tie-break.
 
-Before v2 the reward follows the active State level. From H210537 it follows
-the [fixed height schedule](../protocol/economics.md#v2-issuance), starting at
+The gross reward follows the [fixed height schedule](../protocol/economics.md#v2-issuance), starting at
 16 NOID gross and advancing every 1,051,200 blocks. The mining RPC reports the
 next block's gross subsidy:
 
@@ -243,10 +221,8 @@ connections, the same infrastructure also relays transactions and blocks and
 serves synchronization data.
 
 External workers and pools remain possible: one proving node can serve more
-than one nonce worker. Parano1d therefore does not claim that specialized
-hardware is impossible. Its stronger and narrower property is that
-specialized hashpower cannot independently originate a block or compensate for
-an incapable proof node.
+than one nonce worker. Specialized nonce hardware still
+needs a node capable of constructing valid block proofs at the required pace.
 
 For the exact header relation, continue with
 [Proof of work](../protocol/proof-of-work.md). For the implementation pipeline,

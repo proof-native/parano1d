@@ -27,7 +27,7 @@
 
 ## 安装 Core
 
-从[发布页面](https://github.com/ignotusnemo/parano1d/releases)下载与服务器
+从[发布页面](https://github.com/proof-native/parano1d/releases)下载与服务器
 架构匹配的压缩包和 `SHA256SUMS`。解压前先校验，把 `VERSION` 换成实际
 版本号：
 

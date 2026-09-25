@@ -1,6 +1,6 @@
 # Signatureless ownership
 
-A Parano1d address is the Poseidon2b image of a 256-bit secret. Spending does
+An ordinary Parano1d owner address is the Poseidon2b image of a 256-bit secret. Spending does
 not reveal a public key and does not attach a digital signature. The wallet
 instead produces a zero-knowledge proof that it knows the preimage behind the
 input owner.
@@ -63,14 +63,8 @@ The Ed25519 identity used by libp2p is outside this boundary. It identifies a
 network peer; it cannot authorize a transaction, create value or satisfy any
 consensus ownership rule.
 
-The production profile has 127 provable and 127 conjectured Block–Tiwari
-FS-FRI bits against a 128-bit target. The separate end-to-end QROM theorem
-includes wallet authorization in the from-genesis invalid-State game and
-gives provable end-to-end post-quantum soundness for state validation from
-genesis at NIST PQC Category 1 under its fixed Poseidon2b delta, batch
-gate-depth price and scalar gate-charge premises. See the
-[Proof stack](../architecture/proof-stack.md) for the construction and the
-[Security model](../protocol/security-model.md) for the exact statements.
+The [security model](../protocol/security-model.md) gives the v2 resource
+assessment, including historical ancestry and matrix retirement.
 
 ## Operational consequence
 
@@ -84,3 +78,10 @@ resizing or messenger recompression derives a different secret.
 
 See [First run](../wallet/first-run.md) and
 [Backup and recovery](../wallet/backup-recovery.md) before funding a wallet.
+
+## Contract authority
+
+A contract State owner is a commitment to public terms and counters. The call
+proves knowledge of the active claim or recovery authority's secret; the block
+proof additionally enforces program and policy. Knowing that secret does not
+permit bypassing the committed restrictions. See [live rights](proof-native-contracts.md).

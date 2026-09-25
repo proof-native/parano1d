@@ -57,7 +57,11 @@ database recovery on the next start.
 
 The lower table records primary rewards received by generated wallet addresses.
 It shows confirmation depth and whether complete block data remains inside the
-42-block retention window. Permanent header data remains available afterward.
+18-block GUI browsing window. The node keeps 42 bodies for synchronization service. Permanent header data remains available afterward.
 
 For server deployment, see
 [Internal mining](../operate/internal-mining.md).
+
+The GUI produces Small m23 blocks with up to 63 user pages. Large m24
+production is an explicit server option; it has no GUI control. The node
+verifies both classes. See [mining](../mining/index.md) for budgets and costs.
