@@ -1,4 +1,4 @@
-# Contracts in the v2 development branch
+# Proof-native contracts
 
 Contract transactions become available at the scheduled v2 activation height.
 `getContractProtocol` reports that height, whether the next block can include
