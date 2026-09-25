@@ -1,0 +1,275 @@
+{
+  "status": "passed",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source_head": "4b9ce461d363f14215c3b1a67f34cb69fea2100b",
+  "binary_sha256": "25b380951f0bc503ee5f98806a7a8267945686ae3530d98e17b8358dd29d1a9c",
+  "binary": "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-production-25b38095",
+  "features": "noid_chain/isolated-v2-fork-testnet",
+  "command": [
+    "systemd-run",
+    "--user",
+    "--scope",
+    "--quiet",
+    "--unit=noid-common-full-origin-production",
+    "-p",
+    "MemoryMax=20G",
+    "-p",
+    "MemorySwapMax=0",
+    "/usr/bin/time",
+    "-v",
+    "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/common-production-25b38095",
+    "joint-produce",
+    "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+    "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-full-20260925-a",
+    "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "/home/neo/rust/parano1d-artifacts/v2-common-full-origin-production-20260925-a",
+    "fork"
+  ],
+  "run_seconds": 400.8723042010097,
+  "legacy_origin_sha256": "8c5caf28ff8ee105b6591cfe51f3b72620d0b01dfe56b373ee3630979ad959cf",
+  "legacy_fixture": "/home/neo/rust/parano1d-artifacts/isolated-v2-full-20260924-2",
+  "legacy_prefix_heights": [
+    1,
+    9
+  ],
+  "setup": {
+    "cpu": "ProcessCpuBudgetPlan { available_threads: 12, shared_pool_threads: 12, pow_phase_threads: 0, history_step_phase_threads: 12, inbound_verifier_threads: 12 }",
+    "memory": {
+      "process_peak_rss_kib": 1534196,
+      "rss_kib": 1168496
+    },
+    "ms": 184472.684213,
+    "phase": "production_setup"
+  },
+  "result": {
+    "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "complete": true,
+    "daemon_p2p_qualified": false,
+    "durable_reopen": true,
+    "memory": {
+      "process_peak_rss_kib": 4875344,
+      "rss_kib": 1408872
+    },
+    "mode": "fork",
+    "records": [
+      {
+        "admission_ms": 0.000216,
+        "auth_ms": 0.0,
+        "calls": 0,
+        "class": 0,
+        "height": 10,
+        "label": "fork_empty",
+        "memory": {
+          "process_peak_rss_kib": 3668072,
+          "rss_kib": 2425776
+        },
+        "pages": 0,
+        "pow_ms": 1040.2388629999998,
+        "preparation_ms": 67514.598999,
+        "template_ms": 2.97842,
+        "terminal_bytes": 914100,
+        "verify_apply_ms": 451.826308
+      },
+      {
+        "admission_ms": 167.972139,
+        "auth_ms": 2685.1923659999998,
+        "calls": 0,
+        "class": 0,
+        "height": 11,
+        "label": "fund_six_templates",
+        "memory": {
+          "process_peak_rss_kib": 4680920,
+          "rss_kib": 2542552
+        },
+        "pages": 6,
+        "pow_ms": 1370.220014,
+        "preparation_ms": 15738.948748,
+        "template_ms": 13.218858,
+        "terminal_bytes": 912948,
+        "verify_apply_ms": 712.661828
+      },
+      {
+        "admission_ms": 192.595868,
+        "auth_ms": 2867.0035179999995,
+        "calls": 6,
+        "class": 0,
+        "height": 12,
+        "label": "template_calls_and_payment",
+        "memory": {
+          "process_peak_rss_kib": 4770604,
+          "rss_kib": 2561656
+        },
+        "pages": 7,
+        "pow_ms": 1439.187417,
+        "preparation_ms": 16103.380384000002,
+        "template_ms": 8.972544000000001,
+        "terminal_bytes": 914548,
+        "verify_apply_ms": 670.483082
+      },
+      {
+        "admission_ms": 0.00023,
+        "auth_ms": 0.0,
+        "calls": 0,
+        "class": 0,
+        "height": 13,
+        "label": "between_due_heights",
+        "memory": {
+          "process_peak_rss_kib": 4790404,
+          "rss_kib": 2556808
+        },
+        "pages": 0,
+        "pow_ms": 1609.843449,
+        "preparation_ms": 15628.075788,
+        "template_ms": 2.525787,
+        "terminal_bytes": 913332,
+        "verify_apply_ms": 698.91437
+      },
+      {
+        "admission_ms": 139.669145,
+        "auth_ms": 2257.9061129999996,
+        "calls": 4,
+        "class": 0,
+        "height": 14,
+        "label": "template_calls_and_payment",
+        "memory": {
+          "process_peak_rss_kib": 4790404,
+          "rss_kib": 2620748
+        },
+        "pages": 5,
+        "pow_ms": 1958.660071,
+        "preparation_ms": 16032.673674000001,
+        "template_ms": 7.792286,
+        "terminal_bytes": 914612,
+        "verify_apply_ms": 879.0538919999999
+      },
+      {
+        "admission_ms": 0.000305,
+        "auth_ms": 0.0,
+        "calls": 0,
+        "class": 0,
+        "height": 15,
+        "label": "between_due_heights",
+        "memory": {
+          "process_peak_rss_kib": 4849868,
+          "rss_kib": 2647112
+        },
+        "pages": 0,
+        "pow_ms": 303.79094699999996,
+        "preparation_ms": 21588.145897000002,
+        "template_ms": 4.401459,
+        "terminal_bytes": 914548,
+        "verify_apply_ms": 924.518423
+      },
+      {
+        "admission_ms": 141.664416,
+        "auth_ms": 2371.499773,
+        "calls": 4,
+        "class": 0,
+        "height": 16,
+        "label": "template_calls_and_payment",
+        "memory": {
+          "process_peak_rss_kib": 4875344,
+          "rss_kib": 2640496
+        },
+        "pages": 5,
+        "pow_ms": 513.8001129999999,
+        "preparation_ms": 21279.067988000003,
+        "template_ms": 8.089869,
+        "terminal_bytes": 915380,
+        "verify_apply_ms": 628.262604
+      },
+      {
+        "admission_ms": 0.00017800000000000002,
+        "auth_ms": 0.0,
+        "calls": 0,
+        "class": 0,
+        "height": 17,
+        "label": "after_recovery",
+        "memory": {
+          "process_peak_rss_kib": 4875344,
+          "rss_kib": 2649356
+        },
+        "pages": 0,
+        "pow_ms": 55.261603,
+        "preparation_ms": 14742.829828,
+        "template_ms": 4.375471,
+        "terminal_bytes": 916916,
+        "verify_apply_ms": 682.3301590000001
+      }
+    ],
+    "tip": 17
+  },
+  "artifacts": {
+    "h000010.block": {
+      "bytes": 540,
+      "sha256": "38dd7ce3fd8927f6d7aeb93dee86102b30eca705b85219510753f3f4eb745bc6"
+    },
+    "h000010.terminal": {
+      "bytes": 914100,
+      "sha256": "34f47ea9b4b3480b0a4e204d7c778c180633735fa1e2a4fac8698c518e2ddfb8"
+    },
+    "h000011.block": {
+      "bytes": 2478,
+      "sha256": "2554b28112b7f1a179a511309f42d634a0a742a04984b66a275e752d50c89034"
+    },
+    "h000011.terminal": {
+      "bytes": 912948,
+      "sha256": "2c32b33c4aa8f2ade450bc0d1a02c0e720aeb79018e63e9b5dff0ab3655c74b5"
+    },
+    "h000012.block": {
+      "bytes": 2801,
+      "sha256": "1a4346a56660a92dc0d06a843706c068fe06aac6cc8b578c9740d228e65a1737"
+    },
+    "h000012.terminal": {
+      "bytes": 914548,
+      "sha256": "75e3fbad96f21e5308b65bce9adf049ad862250e65bb553f846fde07b5a060b1"
+    },
+    "h000013.block": {
+      "bytes": 540,
+      "sha256": "95813a56cb0c1f65f99bab329d03c9e388bc2d9320e50bd47a72276593c0fec1"
+    },
+    "h000013.terminal": {
+      "bytes": 913332,
+      "sha256": "f7e11edb277380fc2523d4d5c3ca98a7f8e24ee4162e1303fa754524e32dafb2"
+    },
+    "h000014.block": {
+      "bytes": 2155,
+      "sha256": "224786a7660eca9a01a35e8425ba80febc45e92a4633829d1bc4ba4009b43bbd"
+    },
+    "h000014.terminal": {
+      "bytes": 914612,
+      "sha256": "8566750164bc058a607b08a4331bc235a115b60c6d4cf2503f4d755d7d04091f"
+    },
+    "h000015.block": {
+      "bytes": 540,
+      "sha256": "24081cefd94b49ec56f81c367d66941d7ed89c36344ad7bddf9c7a35a6539546"
+    },
+    "h000015.terminal": {
+      "bytes": 914548,
+      "sha256": "d3eba6dad1e5a0ff5f36aff348f8b49634eddf2b799e4b7b02f11d572ed7655f"
+    },
+    "h000016.block": {
+      "bytes": 2155,
+      "sha256": "53d6073f23b1bdea11c23ece2fba9e90464307a7711a4e22d441ca6a76426bbb"
+    },
+    "h000016.terminal": {
+      "bytes": 915380,
+      "sha256": "7fdff8aedffccf1b118cc38dbf44ee401cc53ce7265ecbd918373e04e9ad9523"
+    },
+    "h000017.block": {
+      "bytes": 540,
+      "sha256": "d7ef88f17e1ec8641d0dabe68c98e7316b029f04b50b1b4c4fac49f0a83edaae"
+    },
+    "h000017.terminal": {
+      "bytes": 916916,
+      "sha256": "1afbe36f40d57f733ae0fac652f53e97effca29396e869db4789933df8e8c46d"
+    }
+  },
+  "timing_scope": "Standalone native admission, template, proof preparation, nonce sealing, local commit, inbound verification and MDBX reopen; 12 proof/verifier workers on the laptop. Prover and receiver share a process. Preparation excludes separately recorded wallet authorization, template selection, PoW and verify/apply.",
+  "memory_scope": "Whole standalone producer/receiver process including setup, not an 8-GiB seed measurement.",
+  "report_sha256": "3407c1466c1c6ddb4802a9c422007450001929b5abcb103430c2c75502312914",
+  "log_sha256": "b35420716189c9fdae8b368d0e65eb6355cda8e7d8dec1eea9ef5d8b5ecc24fe",
+  "retirement_certificates_qualified_by_this_run": false
+}

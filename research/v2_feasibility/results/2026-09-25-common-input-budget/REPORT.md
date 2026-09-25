@@ -433,3 +433,32 @@ caption-only build, and retain the source patch identity, test results, receipt
 hash, selected State, and screenshot and log hashes. Both GUI/node runs stopped
 successfully. The original H89 fixture is preserved for cold synchronization
 and retirement-certificate qualification.
+
+## Native production after both legacy classes
+
+A separate native production run replayed the saved H1–H9 legacy fixture that
+had used both B25 and B255, then accepted eight new Small blocks at H10–H17
+with this bank. It used the real mempool, template builder, block prover, local
+commit and inbound verifier. Both producer and receiver MDBX contexts reopened
+at the exact H17 header and State root.
+
+H11 funded all six templates. H12 made six contract calls and one ordinary
+payment; H14 and H16 each made four calls and one payment. The intervening
+heights checked that recurring and vesting payments could not execute early.
+The final block followed closure of all test objects. Every terminal remained
+below 1,100,000 bytes; observed sizes ranged from 912,948 to 916,916 bytes.
+
+This was a standalone producer/receiver process using 12 proof and verifier
+workers on the laptop. Legacy replay and setup took 184.473 s. The first v2
+preparation took 67.515 s; subsequent preparations took 14.743–21.588 s.
+These timings exclude separately measured wallet authorization, template
+selection, PoW and inbound verify/apply. The complete run took 400.872 s and
+peaked at 4,875,344 KiB RSS, including the prover and setup. These are not
+constrained receiving-daemon measurements.
+
+[Native production records](native-production.json) preserve the accepted
+layouts, exact legacy-origin hash, executable identity, command, terminal
+hashes and timing scopes. The executable was built with
+`noid_chain/isolated-v2-fork-testnet`, as required by `joint-produce`. This run
+uses the legacy matrices; qualification of certificates and binaries that omit
+them is a separate stage.
