@@ -1,0 +1,174 @@
+{
+  "status": "passed",
+  "source_head": "86d07d660910a010463a6d73b30d43309e940950",
+  "script_sha256": {
+    "live_v2_retired_sync_scenario.py": "0177cc8578787f1ddb69332d98b355224191e0647dae7778f8c146d625bbbeb0",
+    "live_v2_contract_scenario.py": "7e10a9e1b9315716c5659e070381a8dc6b972ee01a14f1a7c9683bf653d3f063",
+    "live_two_miner_fork_reorg_scenario.py": "bfe633e4cb1585b8de3a6870d041a5e62cb70808d63a1424efd072a2ee925687"
+  },
+  "binary_sha256": {
+    "isolated-v2-transition-node": "ea180c090ab51665c9a29c3a1a00689af46e30a9ecb78e8620630ff4b70eac56",
+    "isolated-v2-retired-node": "d566412872987a3c4fc227a8251b89db13dcddc809f8de364cd550464c011c5f"
+  },
+  "certificate_sha256": "e0ad089019d29e0dc5319abb849e27fd7f2a5d0aeb5907ca45e9b19c261dd6f0",
+  "certificate_bytes": 7353469,
+  "receiver_cpu_affinity": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "receiver_backend": "pclmul",
+  "receiver_memory_max": 8589934592,
+  "receiver_swap_max": 0,
+  "offline_provider_stopped": true,
+  "offline_rejections": [
+    {
+      "label": "missing",
+      "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'fork origin ec62da6bcc1c845ba9e46532f3ce6b3c3651205c29100e24db45258585352356 requires its authenticated certificate'}"
+    },
+    {
+      "label": "legacy-format",
+      "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'v2 HistoryStep: Legacy(Bank(MatrixEvaluation(CanonicalHistoryStepClassId(0))))'}"
+    },
+    {
+      "label": "corrupted",
+      "error": "RPC verifyObjectReceipt@26321 failed: {'code': -32000, 'message': 'v2 HistoryStep: Retirement(\"retirement matrix evaluation: sparse evaluation PCS opening: BaseFold(InitialMerkleFailed { query_index: 52 })\")'}"
+    }
+  ],
+  "height": 85,
+  "tip_hash": "624d33e958021699f6a0b67d5707474d05d50a75d56b069f04095c5e56f31607",
+  "retirement": {
+    "certificate_bytes": 7353469,
+    "classes": [
+      {
+        "class": 0,
+        "preprocessing_ms": 109924,
+        "proof_bytes": 6478232,
+        "prove_verify_encode_ms": 319815
+      },
+      {
+        "class": 1,
+        "preprocessing_ms": 0,
+        "proof_bytes": 0,
+        "prove_verify_encode_ms": 0,
+        "reused_inactive_release_key": true
+      }
+    ],
+    "elapsed_ms": 463599,
+    "legacy_bank": "30feb976380c4318b3d4b64c8163a265236bcd2a1066f10c1c5ef7da78bcc78c",
+    "legacy_runtime": "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "origin_binding": "ec62da6bcc1c845ba9e46532f3ce6b3c3651205c29100e24db45258585352356",
+    "release_key_pins": [
+      "0651ce507810b61213cbdc0e9f99436aec3a7922cc662bfba6128b466453c8b2",
+      "c301274d50dc02fd5c383f2e71629075729a954a768f5051388ec2040bce0267"
+    ],
+    "retirement_request": "8b954d3e9012b793993e5ac4a1cbc5492562edfbd92b790397a6d6d671a80fea",
+    "status": "passed",
+    "v2_bank": "e1a79797415bb6d8da4935566ed614a9ec616ddee3315686f75eb8090495a0cd",
+    "verification_without_legacy_rows": true
+  },
+  "checks": [
+    {
+      "label": "transition cold sync",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1267892224",
+        "memory.peak": "1640566784",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 70082822\nuser_usec 69290880\nsystem_usec 791941\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "startup_and_sync_seconds": 32.47296741398168
+    },
+    {
+      "label": "retired cold sync",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1278005248",
+        "memory.peak": "1637761024",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 72442777\nuser_usec 71602722\nsystem_usec 840055\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      },
+      "startup_and_sync_seconds": 33.882685021002544
+    },
+    {
+      "label": "retired offline restart",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1234112512",
+        "memory.peak": "1654394880",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 50946637\nuser_usec 50184672\nsystem_usec 761964\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      }
+    },
+    {
+      "label": "same-tip missing recovery",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1244962816",
+        "memory.peak": "1637306368",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 62381955\nuser_usec 61536159\nsystem_usec 845796\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      }
+    },
+    {
+      "label": "same-tip legacy-format recovery",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1243258880",
+        "memory.peak": "1643991040",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 65301686\nuser_usec 64376435\nsystem_usec 925250\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      }
+    },
+    {
+      "label": "same-tip corrupted recovery",
+      "height": 85,
+      "receipt_verified": true,
+      "resource": {
+        "memory.current": "1245655040",
+        "memory.peak": "1647779840",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+        "cpu.stat": "usage_usec 64454538\nuser_usec 63563572\nsystem_usec 890965\nnice_usec 0\ncore_sched.force_idle_usec 0"
+      }
+    }
+  ],
+  "snapshot_phases": {
+    "02-cold-transition": [
+      "phase=\"history_step_terminal\" scaling=\"O(1)\" count=1 bytes=913748 elapsed_ms=3066 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"header_disk_validation\" scaling=\"O(H)\" count=66 bytes=13992 elapsed_ms=10 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"snapshot_segment_stage_install\" scaling=\"O(state)\" count=1 bytes=7259 elapsed_ms=107 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"retained_suffix_apply\" scaling=\"O(tail)\" count=0 bytes=0 elapsed_ms=0 timing_basis=\"active_work\" outcome=\"accepted\""
+    ],
+    "03-cold-retired": [
+      "phase=\"history_step_terminal\" scaling=\"O(1)\" count=1 bytes=913748 elapsed_ms=3211 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"header_disk_validation\" scaling=\"O(H)\" count=66 bytes=13992 elapsed_ms=20 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"snapshot_segment_stage_install\" scaling=\"O(state)\" count=1 bytes=7259 elapsed_ms=108 timing_basis=\"active_work\" outcome=\"accepted\"",
+      "phase=\"retained_suffix_apply\" scaling=\"O(tail)\" count=0 bytes=0 elapsed_ms=0 timing_basis=\"active_work\" outcome=\"accepted\""
+    ]
+  },
+  "certificate_independent_verification": {
+    "cpu_threads": 4,
+    "backend": "pclmul",
+    "memory_max_bytes": 8589934592,
+    "swap_max_bytes": 0,
+    "verify_ms": 935,
+    "wall_seconds": 6.94,
+    "maximum_rss_kib": 86472
+  },
+  "certificate_preparation": {
+    "wall_seconds": 463.599,
+    "maximum_rss_kib": 7143460,
+    "swap_operations": 0,
+    "memory_max_bytes": 21474836480
+  },
+  "binary_bytes": {
+    "isolated-v2-transition-node": 87358432,
+    "isolated-v2-retired-node": 70216896
+  }
+}
