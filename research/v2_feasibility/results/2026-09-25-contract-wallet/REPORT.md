@@ -65,6 +65,43 @@ suite 2. The ordinary GUI suite ignores the explicit live driver; the scenario
 ran it 23 times. Commands, counts and evidence hashes are in
 [measurements.json](measurements.json).
 
+## Packaged GUI and native artifacts
+
+Fresh Linux x86-64 packages were built from clean commit `5f5260fd` using the
+unchanged scheduled mainnet bank
+`c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e`.
+Both profiles passed archive extraction, checksum, executable-version, GUI
+self-check, bundled documentation and exact embedded-material checks.
+Each packaged daemon also started with fresh data in a loopback-only namespace
+and reported the expected H210537 activation and contract limits. No packages
+were installed or published, and no CI job was run.
+
+| Profile | Core archive, bytes | GUI Debian package, bytes |
+| --- | ---: | ---: |
+| Transition | 64,002,832 | 64,487,640 |
+| Retired history | 47,703,230 | 48,677,268 |
+
+The transition profile remains the selected pre-fork deliverable. The retired
+profile qualifies a later release: it omits both old matrices while retaining
+the independently pinned legacy preprocessing keys and required metadata.
+Both packages include `README.txt` and `CONTRACTS.md`. Their hashes, binary
+identities and startup records are in [packages.json](packages.json).
+
+The exact packaged GUI executable was then opened against a separate copy of
+the H132 isolated test wallet. At 1200 × 760, the three tabs, call-fee help,
+both-party journal, signer/recipient details and receipt action rendered
+correctly. The closing receipt was opened through the actual **Open file**
+screen and explicitly accepted through **Update my contract & open**. The
+saved name and four unique operations remained intact. This used the path
+field; native file dialogs were not retested in this run.
+
+Xvfb rendering used Mesa software Vulkan after the hardware adapter could not
+present on the virtual display without DRI3. The same GUI executable was used
+in both attempts. All smoke processes stopped afterward. Screenshot hashes and
+the checked scope are in [gui-smoke.json](gui-smoke.json). Windows/macOS native
+builds and runtime tests were not performed on this Linux host; their packagers
+were updated to include the same documentation.
+
 ## User-visible boundaries
 
 The journal merges locally retained or explicitly imported evidence. A shared

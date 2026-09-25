@@ -1,0 +1,300 @@
+{
+  "platform": "Linux x86_64",
+  "version": "2.0.0",
+  "selected_profile": "transition",
+  "mainnet_v2_bank": "c2a6df736b0d0da22e285b6930b11cf44b520d65b52c7dfe78f44fe0cd48e76e",
+  "profiles": {
+    "transition": {
+      "status": "passed",
+      "source_head": "5f5260fd1a4e4323c568a4d78df5f3dcd2442caf",
+      "version": "2.0.0",
+      "build_seconds": 287.77333500399254,
+      "binaries": {
+        "parano1d": {
+          "bytes": 87337808,
+          "sha256": "f5de5ce3a2922106b9610e8fec69525d2895f666faa49d3217b5d0c1dd4b3f12",
+          "version": "parano1d 2.0.0"
+        },
+        "parano1d-cli": {
+          "bytes": 6125976,
+          "sha256": "0dd501bca01e65243ec198fec15e38c7604c7831de5f973e6b1204579cf29c2e",
+          "version": "parano1d-cli 2.0.0"
+        },
+        "parano1d-miner": {
+          "bytes": 4693016,
+          "sha256": "dad0e9b25e3cd158b3bf018242d7a45f42b5221db6ff75e8b0dd7bf683cd1310",
+          "version": "parano1d-miner 2.0.0"
+        },
+        "parano1d-gui": {
+          "bytes": 29448168,
+          "sha256": "54a410f552b963d61f40698231bcab88c2d1ba8aa3471f753ddb101356b77a7c",
+          "version": "Parano1d 2.0.0"
+        }
+      },
+      "checksums": {
+        "parano1d-core-v2.0.0-linux-x86_64.tar.gz": "1927908fac7db4adf358a53880759b0622ce4506918bed19c009ef973e76404b",
+        "parano1d-gui-v2.0.0-linux-x86_64.deb": "248f9002c610bcd9f671861f6927739bd268c4ac24882697936e52a5dd0a50be"
+      },
+      "package_sizes": {
+        "parano1d-core-v2.0.0-linux-x86_64.tar.gz": 64002832,
+        "parano1d-gui-v2.0.0-linux-x86_64.deb": 64487640
+      },
+      "embedded_material": {
+        "legacy_metadata": {
+          "present": true,
+          "offset": 53491973
+        },
+        "legacy_small": {
+          "present": true,
+          "offset": 36386421
+        },
+        "legacy_large": {
+          "present": true,
+          "offset": 40251621
+        },
+        "v2_metadata": {
+          "present": true,
+          "offset": 2183020
+        },
+        "v2_small": {
+          "present": true,
+          "offset": 4441560
+        },
+        "v2_large": {
+          "present": true,
+          "offset": 14907471
+        },
+        "key0": {
+          "present": true,
+          "offset": 36385813
+        },
+        "key1": {
+          "present": true,
+          "offset": 36386117
+        }
+      },
+      "smoke": {
+        "status": "passed",
+        "binary_sha256": "f5de5ce3a2922106b9610e8fec69525d2895f666faa49d3217b5d0c1dd4b3f12",
+        "scope": "Packaged mainnet executable, isolated network, fresh data, no peers or mining.",
+        "startup_seconds": 11.528137471002992,
+        "tip": {
+          "height": 0,
+          "best_hash": "860e70453390bf815718e933aa4927167a13d098b0151391eefd722ee1add610",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 0,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "0"
+        },
+        "protocol": {
+          "tip_height": 0,
+          "activation_height": 210537,
+          "active_at_next_block": false,
+          "runtime_available": true,
+          "next_block_time_seconds": 20,
+          "abi_version": 3,
+          "instructions": 16,
+          "persistent_registers": 2,
+          "classes": [
+            {
+              "class": "small",
+              "pages": 63,
+              "live_inputs": 504,
+              "contract_calls": 63
+            },
+            {
+              "class": "large",
+              "pages": 206,
+              "live_inputs": 504,
+              "contract_calls": 63
+            }
+          ]
+        }
+      },
+      "packages_installed": false,
+      "published": false,
+      "artifact_directory": "v2-contract-wallet-release-transition-20260925-a",
+      "material": {
+        "legacy_metadata": {
+          "sha256": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+          "bytes": 2214607
+        },
+        "legacy_small": {
+          "sha256": "72adc8770c2acb10fc67e844a2e96d92dac358ec2b6db781888733e25662d6bc",
+          "bytes": 3865200
+        },
+        "legacy_large": {
+          "sha256": "6bc11c87595edff1e0f85857b20ed9c3554d0d331f0b1d1604dfed18963414f9",
+          "bytes": 13240352
+        },
+        "v2_metadata": {
+          "sha256": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2",
+          "bytes": 2258540
+        },
+        "v2_small": {
+          "sha256": "83abfdc69bffb154efce2452715773cfa4750a94e8f6238470cd82a01c6bf317",
+          "bytes": 10465911
+        },
+        "v2_large": {
+          "sha256": "45ff8187894d976f56dcb7bd14b3bb6a6caef2752f93c8312234449956d21db5",
+          "bytes": 21478342
+        },
+        "key0": {
+          "sha256": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+          "bytes": 304
+        },
+        "key1": {
+          "sha256": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8",
+          "bytes": 304
+        }
+      }
+    },
+    "retired": {
+      "status": "passed",
+      "source_head": "5f5260fd1a4e4323c568a4d78df5f3dcd2442caf",
+      "version": "2.0.0",
+      "build_seconds": 201.85962444799952,
+      "binaries": {
+        "parano1d": {
+          "bytes": 70196328,
+          "sha256": "1659a97cd559b9fcceeee770a4f8a2b4a31f19cd4b4eecf8d66949d124b8d248",
+          "version": "parano1d 2.0.0"
+        },
+        "parano1d-cli": {
+          "bytes": 6125976,
+          "sha256": "f636c7ca2ef5606e4a82d5fc13966645cf001e94af96e99e4dcb42252fb953c7",
+          "version": "parano1d-cli 2.0.0"
+        },
+        "parano1d-miner": {
+          "bytes": 4693016,
+          "sha256": "dad0e9b25e3cd158b3bf018242d7a45f42b5221db6ff75e8b0dd7bf683cd1310",
+          "version": "parano1d-miner 2.0.0"
+        },
+        "parano1d-gui": {
+          "bytes": 29448168,
+          "sha256": "54a410f552b963d61f40698231bcab88c2d1ba8aa3471f753ddb101356b77a7c",
+          "version": "Parano1d 2.0.0"
+        }
+      },
+      "checksums": {
+        "parano1d-core-v2.0.0-linux-x86_64.tar.gz": "55abb849ae1f9a1da3d362b0ba648161a67c7c296728773fc2b1881b4c85b7d8",
+        "parano1d-gui-v2.0.0-linux-x86_64.deb": "bf559ea290f4c50c79e68d949ee359516a6b98f2f7a0b26955a8c5c90ba1c1f0"
+      },
+      "package_sizes": {
+        "parano1d-core-v2.0.0-linux-x86_64.tar.gz": 47703230,
+        "parano1d-gui-v2.0.0-linux-x86_64.deb": 48677268
+      },
+      "embedded_material": {
+        "legacy_metadata": {
+          "present": true,
+          "offset": 36384933
+        },
+        "legacy_small": {
+          "present": false,
+          "offset": null
+        },
+        "legacy_large": {
+          "present": false,
+          "offset": null
+        },
+        "v2_metadata": {
+          "present": true,
+          "offset": 2181532
+        },
+        "v2_small": {
+          "present": true,
+          "offset": 4440072
+        },
+        "v2_large": {
+          "present": true,
+          "offset": 14905983
+        },
+        "key0": {
+          "present": true,
+          "offset": 36384325
+        },
+        "key1": {
+          "present": true,
+          "offset": 36384629
+        }
+      },
+      "smoke": {
+        "status": "passed",
+        "binary_sha256": "1659a97cd559b9fcceeee770a4f8a2b4a31f19cd4b4eecf8d66949d124b8d248",
+        "scope": "Packaged mainnet executable, isolated network, fresh data, no peers or mining.",
+        "startup_seconds": 12.046229444997152,
+        "tip": {
+          "height": 0,
+          "best_hash": "860e70453390bf815718e933aa4927167a13d098b0151391eefd722ee1add610",
+          "difficulty_target": "0000000000000000000000000000000000000000000000000000000000400000",
+          "active_slot_count": 0,
+          "log_slots": 24,
+          "circulating_supply_micronoid": "0"
+        },
+        "protocol": {
+          "tip_height": 0,
+          "activation_height": 210537,
+          "active_at_next_block": false,
+          "runtime_available": true,
+          "next_block_time_seconds": 20,
+          "abi_version": 3,
+          "instructions": 16,
+          "persistent_registers": 2,
+          "classes": [
+            {
+              "class": "small",
+              "pages": 63,
+              "live_inputs": 504,
+              "contract_calls": 63
+            },
+            {
+              "class": "large",
+              "pages": 206,
+              "live_inputs": 504,
+              "contract_calls": 63
+            }
+          ]
+        }
+      },
+      "packages_installed": false,
+      "published": false,
+      "artifact_directory": "v2-contract-wallet-release-retired-20260925-a",
+      "material": {
+        "legacy_metadata": {
+          "sha256": "8fab1225073d658bc1988573c79b0520ce141d2ac4a0e7c8cc2562be0e6767a5",
+          "bytes": 2214607
+        },
+        "legacy_small": {
+          "sha256": "72adc8770c2acb10fc67e844a2e96d92dac358ec2b6db781888733e25662d6bc",
+          "bytes": 3865200
+        },
+        "legacy_large": {
+          "sha256": "6bc11c87595edff1e0f85857b20ed9c3554d0d331f0b1d1604dfed18963414f9",
+          "bytes": 13240352
+        },
+        "v2_metadata": {
+          "sha256": "04e969990958520dbc865e0fddb8ef946dae23f670dc9cb56efaadc5ccebfed2",
+          "bytes": 2258540
+        },
+        "v2_small": {
+          "sha256": "83abfdc69bffb154efce2452715773cfa4750a94e8f6238470cd82a01c6bf317",
+          "bytes": 10465911
+        },
+        "v2_large": {
+          "sha256": "45ff8187894d976f56dcb7bd14b3bb6a6caef2752f93c8312234449956d21db5",
+          "bytes": 21478342
+        },
+        "key0": {
+          "sha256": "02421f91a13d34480e71e3f8a88071d7e8dcb10ac9ca2339f8a2dea7cb8a689c",
+          "bytes": 304
+        },
+        "key1": {
+          "sha256": "c655cbb3c3f485b3654d4a0c5d69f108eda504a3a34769a5579aad1fe3b9e8c8",
+          "bytes": 304
+        }
+      }
+    }
+  },
+  "ci_used": false,
+  "native_windows_macos_tested": false
+}
