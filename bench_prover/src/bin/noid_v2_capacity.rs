@@ -22,6 +22,9 @@ fn run() -> Result<()> {
     if args.first().is_some_and(|s| s == "joint-stage") {
         return banked::stage_saved(&args[1..]);
     }
+    if args.first().is_some_and(|s| s == "joint-freeze-mainnet") {
+        return banked::freeze_mainnet(&args[1..]);
+    }
     if args.first().is_some_and(|s| s == "joint-produce") {
         return production::run(&args[1..]);
     }

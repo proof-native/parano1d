@@ -12,6 +12,9 @@ use noid_recursive::acceptance::history_step::v2::banked as joint;
 use noid_recursive::HistoryStepMatrixLease;
 use std::sync::{Arc, Mutex};
 
+mod release;
+pub use release::freeze_mainnet;
+
 struct Source {
     paths: [PathBuf; 2],
     config: joint::Config,

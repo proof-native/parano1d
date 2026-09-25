@@ -42,6 +42,49 @@ mod tests {
         assert_eq!(block.header.timestamp, chain.parent().timestamp + 30);
         assert_eq!(block.header.difficulty_target, expected);
     }
+
+    #[test]
+    fn freezing_fixture_distinguishes_tip_and_child_epoch_anchors() {
+        for activation in [
+            10,
+            145,
+            noid_chain::consensus::params::MAINNET_V2_ACTIVATION_HEIGHT,
+        ] {
+            let schedule = ForkSchedule::new(
+                Some(5),
+                noid_chain::consensus::forks::V2Activation::new(activation, 30),
+            )
+            .unwrap();
+            let config = v2::V2Config::with_limits(23, 63, 504, 63, schedule).unwrap();
+            let (first, first_epoch) = Chain::for_matrix_freezing(config, 0).unwrap();
+            let (second, second_epoch) = Chain::for_matrix_freezing(config, 1).unwrap();
+            assert_eq!(first.parent().height + 1, activation);
+            assert_ne!(
+                first.accumulator.tip_semantic_id,
+                second.accumulator.tip_semantic_id
+            );
+            first
+                .accumulator
+                .validate_local_header_boundary(first.parent(), &first_epoch)
+                .unwrap();
+            second
+                .accumulator
+                .validate_local_header_boundary(second.parent(), &second_epoch)
+                .unwrap();
+            let (block, _) = first.build(&[], schedule).unwrap();
+            let next = first
+                .accumulator
+                .advance(first.parent(), &block.header)
+                .unwrap();
+            next.validate_local_header_boundary(&block.header, &first.epoch())
+                .unwrap();
+            if activation == 145 {
+                assert_eq!(first_epoch.height, 0);
+                assert_eq!(first.epoch().height, 144);
+                assert_ne!(first.accumulator.epoch_anchor_id, next.epoch_anchor_id);
+            }
+        }
+    }
 }
 impl Chain {
     fn empty() -> Self {
@@ -53,6 +96,46 @@ impl Chain {
             cursor: 2_000_000,
             distributed_cursor: None,
         }
+    }
+
+    /// Hypothetical boundary for matrix generation before the scheduled fork.
+    /// These headers are witness data only, not a proved or accepted history.
+    pub(super) fn for_matrix_freezing(
+        config: v2::V2Config,
+        variant: u64,
+    ) -> Result<(Self, BlockHeader)> {
+        let mut chain = Self::empty();
+        let genesis = *chain.parent();
+        let parent_height = config.activation_height() - 1;
+        // The source-pinned mainnet height is small enough for a dense header
+        // fixture; reject unbounded allocations if reused by another probe.
+        if parent_height > 1_000_000 || variant > 1 {
+            return Err("matrix-freezing fixture bound".into());
+        }
+        for height in 1..=parent_height {
+            let mut header = genesis;
+            header.height = height;
+            header.timestamp += height * 20 + variant;
+            header.nonce = u128::from(variant);
+            chain.headers.push(header);
+        }
+        let parent = chain.parent();
+        let epoch = chain.headers
+            [noid_chain::consensus::tx_epoch_anchor_height_for_child(parent.height) as usize];
+        chain.accumulator = ChainAccumulator {
+            height: parent.height,
+            tip_semantic_id: noid_chain::block_header::semantic_header_id(parent),
+            state_root: parent.state_root,
+            log_slots: parent.log_slots,
+            active_slot_count: parent.active_slot_count,
+            alloc_counter: parent.alloc_counter,
+            epoch_anchor_id: noid_chain::hash_block_header(&epoch),
+        };
+        chain
+            .accumulator
+            .validate_local_header_boundary(chain.parent(), &epoch)
+            .map_err(err)?;
+        Ok((chain, epoch))
     }
 
     /// Reconstruct a benchmark's parent State from bounded block bodies.
