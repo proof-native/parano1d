@@ -19,6 +19,7 @@ isolated schedule uses eleven fewer rows per matrix.
 
 These are simultaneous limits. Calls use the same page budget as payments;
 they are not an additional allowance. The primary coinbase has its own page.
+Any additional mandatory system page consumes part of the remaining budget.
 
 | Workload | Small | Large |
 |---|---:|---:|
@@ -143,6 +144,38 @@ to legacy admission. The mempool/RPC suites passed 96 tests on each of the
 mainnet and H10 profiles; the isolated node passed 202 tests, and the mempool
 API example compiled. These tests do not change the frozen matrices.
 
-Maximum-input workloads across State segments, a constrained receiver and
-real daemon qualification remain separate checks. Earlier daemon/receiver
-results used different banks and do not qualify this profile.
+## Maximum inputs across State segments
+
+The same archived executable continued the verified H36 fixture to H54 with
+18 further accepted proofs. Each maximum-input workload spent 504 inputs from
+256 State segments. Complete frozen-matrix witness checks passed for all four
+layouts. Both classes also accepted an empty successor after their maximum
+input workloads.
+
+| Class and layout | Pages | Inputs | Outputs | Preparation | Verification | Terminal bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| Small, eight inputs per page | 63 | 504 | 126 | 18.099 s | 0.706 s | 915,700 |
+| Large, four inputs per page | 126 | 504 | 252 | 48.032 s | 2.583 s | 983,732 |
+| Large, eight inputs per page | 63 | 504 | 126 | 41.818 s | 2.867 s | 981,076 |
+| Large, all page positions used | 206 | 504 | 412 | 43.545 s | 1.776 s | 979,764 |
+
+These are individual samples on the same laptop and use the preparation timing
+scope described above. Verification ran in the producer process. The last row
+checks that Large's page and input limits can be reached simultaneously.
+
+A deliberately constructed Large block with 505 inputs failed both native
+candidate validation and a direct check against the unchanged frozen matrix.
+The latter check bypassed the narrow native limit to confirm that the circuit
+itself rejects the excess input. Small's 63 pages already bound its inputs to
+504 at eight inputs per page.
+
+The run performed seven complete matrix witness audits and peaked at
+9,651,792 KiB RSS, including the prover and audits. This is not a receiving
+node memory measurement. [Maximum-input records](input-budgets.json) contain
+the command, source identity, terminal hashes, timing records and negative
+control. This executable predates the later wallet/mempool admission change;
+the admission suites and daemon workloads qualify that separate code path.
+
+A constrained receiver and real daemon qualification remain separate checks.
+Earlier daemon/receiver results used different banks and do not qualify this
+profile.

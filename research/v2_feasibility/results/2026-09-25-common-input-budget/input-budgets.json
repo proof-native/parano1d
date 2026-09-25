@@ -1,0 +1,667 @@
+{
+  "command": [
+    "systemd-run",
+    "--user",
+    "--scope",
+    "--quiet",
+    "--unit=noid-v2-common-budgets",
+    "-p",
+    "MemoryMax=20G",
+    "-p",
+    "MemorySwapMax=0",
+    "/usr/bin/time",
+    "-v",
+    "/home/neo/rust/paranoid/.git/v2-production-20260924/binaries/isolated-v2-common-input-4792f048",
+    "joint-budgets",
+    "/home/neo/rust/parano1d-artifacts/mainnet-v1/history-step-pack-v1",
+    "ad463bd76e27df3c0f414f4fd7640cfb5c45cc7f3a09e44a2f7bc7a8b869485b",
+    "/home/neo/rust/parano1d-artifacts/isolated-v2-apps-20260923",
+    "/home/neo/rust/parano1d-artifacts/v2-joint-common-p63-p206-i504-c63-full-20260925-a",
+    "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+    "/home/neo/rust/parano1d-artifacts/v2-common-p63-p206-i504-c63-budgets-20260925-a",
+    "36"
+  ],
+  "binary_sha256": "4792f0481151b9f2a3058301992575f14be5efa392da6fc89c559920a8452b00",
+  "source_record": "common-p63-p206-i504-c63-full-source.json",
+  "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+  "source_tip": 36,
+  "environment": {
+    "RAYON_NUM_THREADS": "12",
+    "RUST_MIN_STACK": "16777216",
+    "NOID_CPU_BACKEND": "automatic"
+  },
+  "source_base": "cb016840f8047f1fd7a9e67cdf52073b24f99f90",
+  "source_patch": "isolated-source.patch",
+  "qualification": "Native execution and frozen recursive proofs at the common maximum input budget; no full daemon or constrained receiver in this run.",
+  "timing_scope": "Input construction + recursive assembly + proving. Wallet authorizations, one-time authentication, full matrix audits, PoW and negative controls are separate.",
+  "exit_code": 0,
+  "wall_seconds": 2107.783576798014,
+  "peak_rss_kib": 9651792,
+  "log_sha256": "b35411ceca186d4745b52411e426115b4bc1ad426d22c57920ecbc53cb89b89f",
+  "summary": [
+    {
+      "class": 0,
+      "height": 42,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_8",
+      "outputs": 126,
+      "pages": 63,
+      "phase": "joint_input_boundary",
+      "preparation_ms": 18098.551897999998,
+      "verify_ms": 705.695344,
+      "terminal_bytes": 915700,
+      "terminal_sha256": "12abc34a4d855e90a1b4601495d80383c7af380a82796d04f96376eacea52f39"
+    },
+    {
+      "class": 1,
+      "height": 48,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_4",
+      "outputs": 252,
+      "pages": 126,
+      "phase": "joint_input_boundary",
+      "preparation_ms": 48032.186351,
+      "verify_ms": 2582.529821,
+      "terminal_bytes": 983732,
+      "terminal_sha256": "453f1688b24ffcb091b1878f99d5f135e404c053a62ce5d775bd062043d48a6a"
+    },
+    {
+      "class": 1,
+      "height": 51,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_8",
+      "outputs": 126,
+      "pages": 63,
+      "phase": "joint_input_boundary",
+      "preparation_ms": 41817.759481,
+      "verify_ms": 2866.881551,
+      "terminal_bytes": 981076,
+      "terminal_sha256": "56d701a673dbac04c9cae06c69af96bf466df820aa5a591db1dcd0ee1c05bed4"
+    },
+    {
+      "class": 1,
+      "height": 53,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "full_pages",
+      "outputs": 412,
+      "pages": 206,
+      "phase": "joint_input_boundary",
+      "preparation_ms": 43544.895286,
+      "verify_ms": 1775.933628,
+      "terminal_bytes": 979764,
+      "terminal_sha256": "7d6200fad89ee82edd33ac460ee5c076956a4a3425101cd47d4aab35b6c53f1a"
+    }
+  ],
+  "records": [
+    {
+      "height": 1,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 302348
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 30660.162105000003
+    },
+    {
+      "height": 2,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306492
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 497.597322
+    },
+    {
+      "height": 3,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306520
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 486.50798499999996
+    },
+    {
+      "height": 4,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306536
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 971732,
+      "verify_apply_ms": 492.729763
+    },
+    {
+      "height": 5,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306556
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872980,
+      "verify_apply_ms": 473.566648
+    },
+    {
+      "height": 6,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306568
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 872276,
+      "verify_apply_ms": 554.252521
+    },
+    {
+      "height": 7,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306576
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 871252,
+      "verify_apply_ms": 528.991553
+    },
+    {
+      "height": 8,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306584
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 873076,
+      "verify_apply_ms": 597.4160790000001
+    },
+    {
+      "height": 9,
+      "memory": {
+        "process_peak_rss_kib": 383976,
+        "rss_kib": 306596
+      },
+      "phase": "reverify_legacy",
+      "terminal_bytes": 874292,
+      "verify_apply_ms": 515.4018299999999
+    },
+    {
+      "bank": "be82f3bec102f03c63715dac9bb4a939cb9aa5b21d013e38402b321fd8a41fa9",
+      "memory": {
+        "process_peak_rss_kib": 1459276,
+        "rss_kib": 1102696
+      },
+      "ms": 223593.229955,
+      "phase": "joint_budget_setup",
+      "source_tip": 36
+    },
+    {
+      "class": 0,
+      "height": 37,
+      "ms": 22524.250509,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 6949.630922,
+      "calls": 0,
+      "class": 0,
+      "height": 37,
+      "input_ms": 1660.4089769999998,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 3703512,
+        "rss_kib": 2715988
+      },
+      "pages": 63,
+      "pow_ms": 4153.240315999999,
+      "prove_ms": 9505.815241,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914580,
+      "verify_ms": 905.932756,
+      "terminal_sha256": "bd93702db9803cab0302c54d685f4114d2c8315d79e62ba61465c93547475334",
+      "preparation_ms": 18115.85514
+    },
+    {
+      "assembly_ms": 6898.654413,
+      "calls": 0,
+      "class": 0,
+      "height": 38,
+      "input_ms": 1590.97883,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 4960072,
+        "rss_kib": 3206296
+      },
+      "pages": 63,
+      "pow_ms": 833.991445,
+      "prove_ms": 13313.59988,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 916276,
+      "verify_ms": 1013.2327999999999,
+      "terminal_sha256": "7065bb6abaa7bdecf926b01318757711dc2999f1dd33deef9ac8cad884424a38",
+      "preparation_ms": 21803.233122999998
+    },
+    {
+      "assembly_ms": 6751.683212999999,
+      "calls": 0,
+      "class": 0,
+      "height": 39,
+      "input_ms": 1635.190867,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5434460,
+        "rss_kib": 3516304
+      },
+      "pages": 63,
+      "pow_ms": 14.688343,
+      "prove_ms": 9385.341817,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 914740,
+      "verify_ms": 676.07644,
+      "terminal_sha256": "1f72fdbd4150cf997137142c5c79c70760995cfdb9fe3876974e270e4f71ce68",
+      "preparation_ms": 17772.215897
+    },
+    {
+      "assembly_ms": 6832.1530299999995,
+      "calls": 0,
+      "class": 0,
+      "height": 40,
+      "input_ms": 1630.455118,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5612888,
+        "rss_kib": 3663800
+      },
+      "pages": 63,
+      "pow_ms": 2423.215365,
+      "prove_ms": 9544.749442,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913556,
+      "verify_ms": 710.251607,
+      "terminal_sha256": "1b4ce05def5a791c892fc279ee9f7cb91d3bdd583391e0e6ba556811cf0f8354",
+      "preparation_ms": 18007.35759
+    },
+    {
+      "assembly_ms": 6135.710158,
+      "calls": 0,
+      "class": 0,
+      "height": 41,
+      "input_ms": 592.442473,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 5633520,
+        "rss_kib": 3672516
+      },
+      "pages": 23,
+      "pow_ms": 1408.8938719999999,
+      "prove_ms": 12956.245631,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 915124,
+      "verify_ms": 1114.699753,
+      "terminal_sha256": "9bf93ef018ad68c98e6a86f88a4e7b6a26352e3bdf19b21a0cdf80139b8b318e",
+      "preparation_ms": 19684.398262
+    },
+    {
+      "class": 0,
+      "height": 42,
+      "ms": 23173.018633000003,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 7094.783184,
+      "calls": 0,
+      "class": 0,
+      "height": 42,
+      "input_ms": 1691.292652,
+      "label": "joint_class_0_inputs_504_per_page_8",
+      "memory": {
+        "process_peak_rss_kib": 5637552,
+        "rss_kib": 3961120
+      },
+      "pages": 63,
+      "pow_ms": 852.080546,
+      "prove_ms": 9312.476062,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 915700,
+      "verify_ms": 705.695344,
+      "terminal_sha256": "12abc34a4d855e90a1b4601495d80383c7af380a82796d04f96376eacea52f39",
+      "preparation_ms": 18098.551897999998
+    },
+    {
+      "class": 0,
+      "height": 42,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_8",
+      "outputs": 126,
+      "pages": 63,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 5880.904133999999,
+      "calls": 0,
+      "class": 0,
+      "height": 43,
+      "input_ms": 1.75919,
+      "label": "joint_budget_empty_successor",
+      "memory": {
+        "process_peak_rss_kib": 5795016,
+        "rss_kib": 3966252
+      },
+      "pages": 0,
+      "pow_ms": 78.964361,
+      "prove_ms": 9411.199608,
+      "terminal_bound": 1014132,
+      "terminal_bytes": 913332,
+      "verify_ms": 692.387102,
+      "terminal_sha256": "1ca213a696580028fc79a7454c3ce3ef9d874de85aa740cd4742e220a07d2e67",
+      "preparation_ms": 15293.862932
+    },
+    {
+      "class": 1,
+      "height": 44,
+      "ms": 55917.277813,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 14711.140796,
+      "calls": 0,
+      "class": 1,
+      "height": 44,
+      "input_ms": 4310.50242,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 6723632,
+        "rss_kib": 5024784
+      },
+      "pages": 129,
+      "pow_ms": 4066.595454,
+      "prove_ms": 32704.398277000004,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981588,
+      "verify_ms": 1974.288448,
+      "terminal_sha256": "e94a41b483c50a1ea955626a9b5b14305f4cfb0a99713d5d061eb42f1e8a9e78",
+      "preparation_ms": 51726.041493000004
+    },
+    {
+      "class": 1,
+      "height": 45,
+      "ms": 58374.354159,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 15228.039918,
+      "calls": 0,
+      "class": 1,
+      "height": 45,
+      "input_ms": 5592.825194999999,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9225252,
+        "rss_kib": 5172380
+      },
+      "pages": 206,
+      "pow_ms": 128.501247,
+      "prove_ms": 23251.349546,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981716,
+      "verify_ms": 2336.791424,
+      "terminal_sha256": "c265cfcf51ede4f54864cab6925232f7551882852263617b6e4295e48a9be137",
+      "preparation_ms": 44072.214659000005
+    },
+    {
+      "assembly_ms": 15147.912925,
+      "calls": 0,
+      "class": 1,
+      "height": 46,
+      "input_ms": 1154.097378,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9628000,
+        "rss_kib": 5175528
+      },
+      "pages": 39,
+      "pow_ms": 3789.766567,
+      "prove_ms": 22672.157464,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982068,
+      "verify_ms": 1631.7331749999998,
+      "terminal_sha256": "ccce467a976ac69dfea4eb8f12e096f63407813c3d10a79b983d0144269736b6",
+      "preparation_ms": 38974.167767
+    },
+    {
+      "assembly_ms": 15571.625357,
+      "calls": 0,
+      "class": 1,
+      "height": 47,
+      "input_ms": 5421.250063,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9628000,
+        "rss_kib": 5061920
+      },
+      "pages": 206,
+      "pow_ms": 2855.987625,
+      "prove_ms": 24769.346117,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979860,
+      "verify_ms": 2786.8323630000004,
+      "terminal_sha256": "c94288d203b59cdf2b8a0e1b17e45873101701291aea64b49449a8a98bf74e1c",
+      "preparation_ms": 45762.221537000005
+    },
+    {
+      "class": 1,
+      "inputs": 505,
+      "native_rejected": true,
+      "phase": "joint_input_budget_adversarial_check",
+      "r1cs_satisfied": false,
+      "same_matrix": true
+    },
+    {
+      "class": 1,
+      "height": 48,
+      "ms": 59025.335754,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 15582.564648,
+      "calls": 0,
+      "class": 1,
+      "height": 48,
+      "input_ms": 3632.012465,
+      "label": "joint_class_1_inputs_504_per_page_4",
+      "memory": {
+        "process_peak_rss_kib": 9628000,
+        "rss_kib": 5175268
+      },
+      "pages": 126,
+      "pow_ms": 414.277805,
+      "prove_ms": 28817.609238,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 983732,
+      "verify_ms": 2582.529821,
+      "terminal_sha256": "453f1688b24ffcb091b1878f99d5f135e404c053a62ce5d775bd062043d48a6a",
+      "preparation_ms": 48032.186351
+    },
+    {
+      "class": 1,
+      "height": 48,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_4",
+      "outputs": 252,
+      "pages": 126,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 13285.552821,
+      "calls": 0,
+      "class": 1,
+      "height": 49,
+      "input_ms": 1248.069946,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9630800,
+        "rss_kib": 5175280
+      },
+      "pages": 43,
+      "pow_ms": 426.946441,
+      "prove_ms": 22185.129642,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 982196,
+      "verify_ms": 1814.435177,
+      "terminal_sha256": "f5bcb063bf34e98537abe8d46f9843dc82685432d8f9eb4de7e0828ada2eb33c",
+      "preparation_ms": 36718.752409
+    },
+    {
+      "assembly_ms": 15315.193217,
+      "calls": 0,
+      "class": 1,
+      "height": 50,
+      "input_ms": 5004.151343,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9638788,
+        "rss_kib": 5068980
+      },
+      "pages": 206,
+      "pow_ms": 1140.57111,
+      "prove_ms": 22622.096299999997,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979668,
+      "verify_ms": 1622.389987,
+      "terminal_sha256": "dcf6312c5f2aafa7361c59af925a5940dd9b8cdaf4d3d52b1ab00ad1bb446710",
+      "preparation_ms": 42941.440859999995
+    },
+    {
+      "class": 1,
+      "height": 51,
+      "ms": 59589.016293999994,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 13326.540185,
+      "calls": 0,
+      "class": 1,
+      "height": 51,
+      "input_ms": 1799.434788,
+      "label": "joint_class_1_inputs_504_per_page_8",
+      "memory": {
+        "process_peak_rss_kib": 9638788,
+        "rss_kib": 5188152
+      },
+      "pages": 63,
+      "pow_ms": 79.05776300000001,
+      "prove_ms": 26691.784508,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981076,
+      "verify_ms": 2866.881551,
+      "terminal_sha256": "56d701a673dbac04c9cae06c69af96bf466df820aa5a591db1dcd0ee1c05bed4",
+      "preparation_ms": 41817.759481
+    },
+    {
+      "class": 1,
+      "height": 51,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "per_page_8",
+      "outputs": 126,
+      "pages": 63,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 14748.602057999999,
+      "calls": 0,
+      "class": 1,
+      "height": 52,
+      "input_ms": 4212.742921,
+      "label": "joint_budget_funding",
+      "memory": {
+        "process_peak_rss_kib": 9643804,
+        "rss_kib": 4946396
+      },
+      "pages": 169,
+      "pow_ms": 2076.073526,
+      "prove_ms": 25987.672408000002,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 981812,
+      "verify_ms": 2906.331815,
+      "terminal_sha256": "2884707b28314fda1376ebf919128bc88f0d7159eb14aedbf1d3652fb7c7c856",
+      "preparation_ms": 44949.017387
+    },
+    {
+      "class": 1,
+      "height": 53,
+      "ms": 67733.908132,
+      "phase": "joint_recursive_matrix_audit",
+      "satisfied": true
+    },
+    {
+      "assembly_ms": 15193.075308,
+      "calls": 0,
+      "class": 1,
+      "height": 53,
+      "input_ms": 5585.565615,
+      "label": "joint_class_1_inputs_504_full_pages",
+      "memory": {
+        "process_peak_rss_kib": 9643804,
+        "rss_kib": 5196144
+      },
+      "pages": 206,
+      "pow_ms": 682.2253969999999,
+      "prove_ms": 22766.254363,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979764,
+      "verify_ms": 1775.933628,
+      "terminal_sha256": "7d6200fad89ee82edd33ac460ee5c076956a4a3425101cd47d4aab35b6c53f1a",
+      "preparation_ms": 43544.895286
+    },
+    {
+      "class": 1,
+      "height": 53,
+      "input_segments": 256,
+      "inputs": 504,
+      "layout": "full_pages",
+      "outputs": 412,
+      "pages": 206,
+      "phase": "joint_input_boundary"
+    },
+    {
+      "assembly_ms": 12829.793959999999,
+      "calls": 0,
+      "class": 1,
+      "height": 54,
+      "input_ms": 1.975581,
+      "label": "joint_budget_empty_successor",
+      "memory": {
+        "process_peak_rss_kib": 9651792,
+        "rss_kib": 5196180
+      },
+      "pages": 0,
+      "pow_ms": 1803.823019,
+      "prove_ms": 31509.148772,
+      "terminal_bound": 1081396,
+      "terminal_bytes": 979252,
+      "verify_ms": 2277.091694,
+      "terminal_sha256": "9aaccd7d6b69e0ec10bbb0e0216db9828531c61b5f8f200814d5f5b7be12c1f9",
+      "preparation_ms": 44340.918313
+    },
+    {
+      "complete": true,
+      "memory": {
+        "process_peak_rss_kib": 9651792,
+        "rss_kib": 5196180
+      },
+      "mode": "joint-input-budgets",
+      "tip": 54
+    }
+  ]
+}
