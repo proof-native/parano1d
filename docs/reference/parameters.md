@@ -1,5 +1,9 @@
 # Protocol parameter reference
 
+This reference lists the released v1.1 profile. The v2 branch implements a
+[height-based issuance schedule](../protocol/economics.md#v2-issuance); its
+new proof-class capacities are being qualified separately.
+
 ## Core
 
 ```text

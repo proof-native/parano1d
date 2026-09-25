@@ -86,8 +86,10 @@ new root
 No UTXO moves, no segment is copied and slot numbers remain valid. Root update
 work is independent of the number of occupied slots.
 
-Expansion also moves the issuance schedule to the next reward tier. It does not
-alter existing values or create a migration transaction.
+Before v2, expansion also moves issuance to the next reward tier. From v2,
+the [issuance schedule](../protocol/economics.md#v2-issuance) advances by elapsed
+block height instead. Expansion does not alter existing values or create a
+migration transaction. Occupancy-sensitive State-growth fees remain in force.
 
 ## State pressure and fees
 

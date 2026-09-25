@@ -187,9 +187,11 @@ empty half to the existing root. No state copy, migration or network pause is
 required.
 
 Fees distinguish ordinary I/O from net-new state. The state-growth component
-rises with occupancy and is burned; consolidation pays no growth burn. Block
-reward halves when the state domain actually expands, with a permanent 1 NOID
-floor.
+rises with occupancy and is burned; consolidation pays no growth burn. Before
+v2, the block reward halves when the State domain expands. From v2, it follows
+the [fixed height schedule](docs/protocol/economics.md#v2-issuance), starting at
+16 NOID and reducing every 1,051,200 blocks toward a permanent 1 NOID floor.
+State-growth fees continue to reward economical use of live slots.
 
 ### Signatureless Ownership
 

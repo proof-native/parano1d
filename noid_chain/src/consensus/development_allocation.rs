@@ -348,15 +348,19 @@ mod tests {
         }
         assert_eq!(at(h + 2879).payout_each, Some(2_304_000_000));
         assert_eq!(at(h + 2 * 2880 - 1).payout_each, Some(2_304_000_000));
-        assert_eq!(at(end).payout_each, Some(762 * 800_000));
-        assert_eq!(at(end + 1).miner_subsidy, 16_000_000);
+        assert_eq!(at(end).payout_each, Some(762 * 400_000));
+        assert_eq!(at(end + 1).miner_subsidy, 8_000_000);
         assert!(!at(end + 1).active);
         // Every new-rule interval is counted exactly once. The old partial
         // day is not folded into the first new daily record.
         let issued: u128 = (h..=end)
             .map(|height| u128::from(at(height).payout_each.unwrap_or(0)))
             .sum();
-        assert_eq!(issued, u128::from(end - h + 1) * 800_000);
+        let year = super::super::emission::V2_REWARD_INTERVAL_BLOCKS;
+        assert_eq!(
+            issued,
+            u128::from(year) * (800_000 + 565_000) + u128::from(end - h + 1 - 2 * year) * 400_000
+        );
     }
 
     #[test]
@@ -369,9 +373,31 @@ mod tests {
                 |height| development_allocation_with_schedule(height, depth, schedule).unwrap();
             assert!(!at(h).payout_due);
             assert_eq!(at(h).payout_each, None);
-            let reward = super::super::emission::v2_block_reward(depth);
+            let reward = block_reward_with_schedule(h, depth, schedule);
             assert_eq!(at(h).miner_subsidy + 2 * at(h).share_each, reward);
             assert_eq!(at(h + 2879).payout_each, Some((reward / 20) * 2880));
+        }
+    }
+
+    #[test]
+    fn annual_reductions_start_a_new_daily_period_without_losing_accrual() {
+        use super::super::emission::{V2_REWARDS_MICRONOID, V2_REWARD_INTERVAL_BLOCKS};
+        let h = super::super::params::MAINNET_V2_ACTIVATION_HEIGHT;
+        let schedule = ForkSchedule::new(Some(95_125), V2Activation::new(h, 30)).unwrap();
+        for epoch in 1..=2 {
+            let threshold = h + epoch as u64 * V2_REWARD_INTERVAL_BLOCKS;
+            for depth in 24..=32 {
+                let at =
+                    |height| development_allocation_with_schedule(height, depth, schedule).unwrap();
+                let old_share = V2_REWARDS_MICRONOID[epoch - 1] / 20;
+                let new_reward = V2_REWARDS_MICRONOID[epoch];
+                let new_share = new_reward / 20;
+                assert_eq!(at(threshold - 1).payout_each, Some(2880 * old_share));
+                assert_eq!(at(threshold).payout_each, None);
+                assert_eq!(at(threshold).share_each, new_share);
+                assert_eq!(at(threshold).miner_subsidy + 2 * new_share, new_reward);
+                assert_eq!(at(threshold + 2879).payout_each, Some(2880 * new_share));
+            }
         }
     }
 

@@ -7,6 +7,7 @@ use noid_chain::consensus::development_allocation::{
     development_allocation_end_height_with_schedule, development_allocation_with_schedule,
     TARGET_BLOCKS_PER_DAY,
 };
+use noid_chain::consensus::emission::{V2_REWARDS_MICRONOID, V2_REWARD_INTERVAL_BLOCKS};
 use noid_chain::consensus::forks::{ForkSchedule, V2Activation};
 use noid_core::Block128;
 
@@ -182,6 +183,36 @@ fn selected_depth_constant(depth: &StateDepthTrace, values: &[u64]) -> LinExpr {
         })
 }
 
+/// One-hot annual reward epochs derived only from the authenticated height.
+/// Comparisons use fixed constants, so neither the epoch nor matrix shape
+/// is chosen by the witness. Unreachable thresholds above u64::MAX stay off.
+fn reward_epoch_selectors(
+    b: &mut FieldR1csBuilder,
+    height_bits: &[LinExpr],
+    activation: Option<V2Activation>,
+) -> Vec<LinExpr> {
+    let mut started = vec![LinExpr::constant(F128::ONE)];
+    for epoch in 1..V2_REWARDS_MICRONOID.len() {
+        let threshold = activation.and_then(|at| {
+            (epoch as u64)
+                .checked_mul(V2_REWARD_INTERVAL_BLOCKS)
+                .and_then(|elapsed| at.height().checked_add(elapsed))
+        });
+        started.push(match threshold {
+            Some(height) => less_than_bits(b, height_bits, &constant_bits(height, HEIGHT_BITS))
+                .add_const(F128::ONE),
+            None => LinExpr::zero(),
+        });
+    }
+    started.push(LinExpr::zero());
+    // In characteristic two, XOR of monotone adjacent flags is their
+    // disjoint interval selector. v2_active separately excludes old blocks.
+    started
+        .windows(2)
+        .map(|pair| pair[0].add(&pair[1]))
+        .collect()
+}
+
 fn payout_boundary_for(
     b: &mut FieldR1csBuilder,
     height: &LinExpr,
@@ -318,20 +349,22 @@ fn bind_development_allocation_with_schedule(
     let legacy_rewards = (MIN_EXACT_STATE_DEPTH..=MAX_EXACT_STATE_DEPTH)
         .map(|depth| noid_chain::consensus::emission::block_reward(depth as u32))
         .collect::<Vec<_>>();
-    let v2_rewards = (MIN_EXACT_STATE_DEPTH..=MAX_EXACT_STATE_DEPTH)
-        .map(|depth| noid_chain::consensus::emission::v2_block_reward(depth as u32))
-        .collect::<Vec<_>>();
+    let reward_epochs = reward_epoch_selectors(b, &height_bits, activation);
     // All products are computed on fixed integer tables, then selected by
-    // authenticated depth and height. No integer amount is multiplied in F128.
+    // legacy depth or v2 elapsed height. No integer amount is multiplied in F128.
     let selected_amount = |b: &mut FieldR1csBuilder, amount: &dyn Fn(u64) -> u64| {
         let old_values = legacy_rewards
             .iter()
             .copied()
             .map(amount)
             .collect::<Vec<_>>();
-        let new_values = v2_rewards.iter().copied().map(amount).collect::<Vec<_>>();
         let old = selected_depth_constant(child_depth, &old_values);
-        let new = selected_depth_constant(child_depth, &new_values);
+        let new = reward_epochs
+            .iter()
+            .zip(V2_REWARDS_MICRONOID)
+            .fold(LinExpr::zero(), |sum, (selector, reward)| {
+                sum.add(&selector.scale(flat_const(amount(reward) as u128)))
+            });
         old.add(&mul(b, &v2_active, &old.add(&new)))
     };
     let full_subsidy = selected_amount(b, &|reward| reward);
@@ -418,6 +451,7 @@ mod tests {
                 4_320,
                 219_177,
                 DEVELOPMENT_ALLOCATION_END_HEIGHT,
+                u64::MAX - V2_REWARD_INTERVAL_BLOCKS,
                 u64::MAX,
             ] {
                 let at = V2Activation::new(activation, interval).unwrap();
@@ -494,14 +528,19 @@ mod tests {
     }
 
     #[test]
-    fn every_state_level_matches_at_fork_daily_and_final_boundaries() {
+    fn every_state_level_matches_at_fork_annual_daily_and_final_boundaries() {
         let h = noid_chain::consensus::params::MAINNET_V2_ACTIVATION_HEIGHT;
         let at = V2Activation::new(h, 30).unwrap();
         let schedule = ForkSchedule::new(Some(95_125), Some(at)).unwrap();
         let end = development_allocation_end_height_with_schedule(schedule);
         let mut digest = None;
+        let mut heights = vec![h - 1, h, h + 2878, h + 2879, end, end + 1, u64::MAX];
+        for epoch in 1..V2_REWARDS_MICRONOID.len() {
+            let threshold = h + epoch as u64 * V2_REWARD_INTERVAL_BLOCKS;
+            heights.extend([threshold - 1, threshold, threshold + 1, threshold + 2879]);
+        }
         for level in 24..=32 {
-            for height in [h - 1, h, h + 2878, h + 2879, end, end + 1] {
+            for &height in &heights {
                 let native = development_allocation_with_schedule(height, level, schedule).unwrap();
                 let mut b = FieldR1csBuilder::new();
                 let height = alloc_block(&mut b, Block128::from(height));
@@ -510,12 +549,23 @@ mod tests {
                 let amount = alloc_block(&mut b, Block128::from(native.payout_each.unwrap_or(0)));
                 let prepared =
                     PreparedDevelopmentAllocation::new(&mut b, &height, &depth, &amount, schedule);
+                let reward_wire = prepared.trace().miner_subsidy.terms[0].0 as usize;
                 prepared.finish(&mut b);
-                let (matrix, witness) = b.build();
+                let (matrix, mut witness) = b.build();
                 assert!(matrix.satisfies(&witness), "level={level}");
                 let actual = matrix.structural_statement_digest();
                 assert!(digest.is_none_or(|expected| expected == actual));
                 digest = Some(actual);
+                // A State-selected reward, another year or any other
+                // subsidy cannot replace the height-selected amount.
+                for wrong in V2_REWARDS_MICRONOID {
+                    if wrong != native.miner_subsidy {
+                        let original = witness[reward_wire];
+                        witness[reward_wire] = alloc_block_value(wrong);
+                        assert!(!matrix.satisfies(&witness), "level={level}, wrong={wrong}");
+                        witness[reward_wire] = original;
+                    }
+                }
             }
         }
     }

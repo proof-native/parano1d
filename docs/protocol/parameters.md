@@ -1,7 +1,9 @@
 # Consensus parameters
 
-This page groups the production consensus constants. Values are integers unless
-stated otherwise.
+This page groups the released v1.1 consensus constants. Values are integers
+unless stated otherwise. The v2 branch implements a
+[height-based issuance schedule](economics.md#v2-issuance); its new proof-class
+capacities are being qualified separately.
 
 ## Time and finality
 

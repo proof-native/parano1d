@@ -131,9 +131,11 @@ a segment disappears when its last UTXO is spent. The slot domain begins at
 network.
 
 Fees distinguish ordinary I/O from net-new State. The State-growth component
-rises with occupancy and is burned; consolidation pays no growth burn. The
-block reward halves when the State domain expands, with a permanent 1 NOID
-floor.
+rises with occupancy and is burned; consolidation pays no growth burn. Before
+v2, the block reward halves when the State domain expands. From v2, it follows
+the [fixed height schedule](protocol/economics.md#v2-issuance), starting at
+16 NOID and reducing every 1,051,200 blocks toward a permanent 1 NOID floor.
+State-growth fees continue to reward economical use of live slots.
 
 ## One binary proof stack
 

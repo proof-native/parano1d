@@ -1,7 +1,8 @@
 # Network economics
 
-Parano1d ties issuance to Live State capacity and prices persistent State
-growth separately from ordinary transaction work.
+Parano1d v2 schedules issuance by block height and prices persistent State
+growth separately from ordinary transaction work. Before v2, issuance follows
+Live State capacity.
 
 ## Unit
 
@@ -12,7 +13,7 @@ growth separately from ordinary transaction work.
 NOID is the currency ticker; the wallet uses ① as its interface symbol.
 All consensus amounts are integers in μNOID.
 
-## Block reward
+## Legacy block reward (before v2)
 
 The starting subsidy is 50 NOID. It halves whenever the State domain expands
 and never falls below 1 NOID:
@@ -31,7 +32,7 @@ Expansion requires sustained 75% occupancy in a hard-finalized window. The
 network therefore moves to a lower inflation tier only after materially using
 the current State capacity.
 
-## Launch development allocation
+## Legacy launch development allocation
 
 For the first three target-time years, each block subsidy is divided:
 
@@ -55,6 +56,37 @@ height-based, not a wall-clock payment guarantee.
 The payout schedule, recipients and amounts are derived statelessly from height
 and `log_slots` and are proved inside `HistoryStep`. A miner cannot omit,
 redirect or defer a due payout.
+
+## V2 issuance
+
+At the v2 activation height `H = 210,537`, the gross block subsidy becomes
+16 NOID. Each subsequent step begins exactly 1,051,200 blocks after the
+previous one, counted from `H`. This is one nominal 365-day year at the
+30-second block target; actual dates depend on block production.
+
+| Blocks since v2 activation | Nominal years since v2 | Gross subsidy per block |
+|---:|---:|---:|
+| 0 | 0 | 16.00 NOID |
+| 1,051,200 | 1 | 11.30 NOID |
+| 2,102,400 | 2 | 8.00 NOID |
+| 3,153,600 | 3 | 5.65 NOID |
+| 4,204,800 | 4 | 4.00 NOID |
+| 5,256,000 | 5 | 2.83 NOID |
+| 6,307,200 | 6 | 2.00 NOID |
+| 7,358,400 | 7 | 1.41 NOID |
+| 8,409,600 and later | 8 and later | 1.00 NOID |
+
+These are exact integer amounts, not rounded results of a formula. The
+1 NOID floor continues indefinitely, so the schedule does not impose a fixed
+maximum supply. State expansion neither advances nor resets this clock.
+The authenticated block height selects the reward inside `HistoryStep`.
+
+Keeping Live State small still matters. Within each State capacity level,
+the [occupancy multiplier](#fees) increases the charge for adding net-new
+live slots. That entire growth component is burned. Consolidating several
+inputs into fewer outputs avoids the growth charge and frees slots, while
+ordinary transaction fees still apply. The v2 emission change preserves this
+incentive and the existing fee rules.
 
 ## Fees
 

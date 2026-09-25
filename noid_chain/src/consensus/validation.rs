@@ -841,7 +841,12 @@ mod tests {
         let h = 4320;
         let schedule = ForkSchedule::new(Some(5), V2Activation::new(h, 30)).unwrap();
         let end = development_allocation_end_height_with_schedule(schedule);
-        for height in [h - 1, h, h + 2878, h + 2879, end, end + 1] {
+        let mut heights = vec![h - 1, h, h + 2878, h + 2879, end, end + 1];
+        for epoch in 1..super::super::emission::V2_REWARDS_MICRONOID.len() {
+            let threshold = h + epoch as u64 * super::super::emission::V2_REWARD_INTERVAL_BLOCKS;
+            heights.extend([threshold - 1, threshold, threshold + 1, threshold + 2879]);
+        }
+        for height in heights {
             for level in 24..=32 {
                 let mut parent = header(height - 1);
                 parent.log_slots = level;
