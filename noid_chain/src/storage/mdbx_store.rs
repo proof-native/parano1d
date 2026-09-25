@@ -384,6 +384,16 @@ pub struct VerifiedOwnerSnapshot {
     pub utxos: Vec<VerifiedOwnerUtxo>,
 }
 
+/// A bounded page of individually checked owner records. This deliberately
+/// cannot be passed to wallet activation as a complete owner snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedOwnerPage {
+    pub height: u64,
+    pub tip_hash: [u8; 32],
+    pub utxos: Vec<VerifiedOwnerUtxo>,
+    pub next_slot: Option<u32>,
+}
+
 /// Owned per-block material accumulated while a replacement branch is fully
 /// validated in RAM.  `commit_reorg` writes the entire vector together with
 /// the final exact state in one MDBX transaction.
@@ -2187,7 +2197,7 @@ impl MdbxStore {
         &self,
         owner: &[u8; 32],
     ) -> Result<VerifiedOwnerSnapshot, StoreError> {
-        self.get_verified_utxos_by_owner_bounded(owner, None)
+        self.get_verified_utxos_by_owner_bounded(owner, None, None)
     }
 
     /// Check whether an owner has at least one live UTXO without loading its
@@ -2195,14 +2205,36 @@ impl MdbxStore {
     /// while full active-address activation continues to use the complete
     /// snapshot above.
     pub fn has_verified_utxo_by_owner(&self, owner: &[u8; 32]) -> Result<bool, StoreError> {
-        self.get_verified_utxos_by_owner_bounded(owner, Some(1))
+        self.get_verified_utxos_by_owner_bounded(owner, Some(1), None)
             .map(|snapshot| !snapshot.utxos.is_empty())
+    }
+
+    pub fn get_verified_owner_page(
+        &self,
+        owner: &[u8; 32],
+        from_slot: u32,
+        limit: usize,
+    ) -> Result<VerifiedOwnerPage, StoreError> {
+        if !(1..=256).contains(&limit) {
+            return Err(StoreError::Decode("owner page limit must be 1..=256"));
+        }
+        let mut snapshot =
+            self.get_verified_utxos_by_owner_bounded(owner, Some(limit + 1), Some(from_slot))?;
+        let next_slot = snapshot.utxos.get(limit).map(|utxo| utxo.slot_index);
+        snapshot.utxos.truncate(limit);
+        Ok(VerifiedOwnerPage {
+            height: snapshot.height,
+            tip_hash: snapshot.tip_hash,
+            utxos: snapshot.utxos,
+            next_slot,
+        })
     }
 
     fn get_verified_utxos_by_owner_bounded(
         &self,
         owner: &[u8; 32],
         max_utxos: Option<usize>,
+        from_slot: Option<u32>,
     ) -> Result<VerifiedOwnerSnapshot, StoreError> {
         let txn = self.db.begin_ro_txn()?;
 
@@ -2262,7 +2294,12 @@ impl MdbxStore {
         // hence segment-sorted. Verify records as the cursor yields them and
         // merge against one segment's live sparse entries at a time.
         let mut owner_cursor = txn.cursor(&owner_tbl)?;
-        let mut item: Option<(Vec<u8>, Vec<u8>)> = owner_cursor.set_range(owner.as_slice())?;
+        let start = from_slot.map(|slot| owner_index_key(owner, slot));
+        let mut item: Option<(Vec<u8>, Vec<u8>)> = owner_cursor.set_range(
+            start
+                .as_ref()
+                .map_or(owner.as_slice(), |key| key.as_slice()),
+        )?;
         let mut current_segment: Option<(u16, Vec<(u16, SlotValue)>, usize)> = None;
         let mut previous_slot = None;
         let mut verified = Vec::new();
@@ -4442,6 +4479,117 @@ mod tests {
                 .utxos
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn owner_pages_use_inclusive_cursors_across_segments_and_keep_exact_tip_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = MdbxStore::open(directory.path()).unwrap();
+        let owner = [0x71; 32];
+        let other = [0x72; 32];
+        let slots = [(7, owner), (11, owner), (65_539, owner), (70_000, other)];
+        let utxos: Vec<_> = slots
+            .iter()
+            .enumerate()
+            .map(|(index, (slot, owner))| {
+                (
+                    *slot,
+                    SlotValue::with_owner_fields(
+                        100 + index as u64,
+                        index as u64 + 1,
+                        Address(*owner).as_fields(),
+                    ),
+                )
+            })
+            .collect();
+        let state = ChainState::from_sparse_utxos(17, &utxos, 4).unwrap();
+        let mut header = crate::consensus::genesis_header();
+        header.state_root = state.cached_state_root();
+        header.log_slots = 17;
+        header.active_slot_count = 4;
+        header.alloc_counter = 4;
+        let hash = crate::hash_block_header(&header);
+        let meta = ConsensusMeta {
+            tip_height: 0,
+            tip_hash: hash,
+            cumulative_chainwork: crate::block_work(&header.difficulty_target),
+            finalized: FinalizedCheckpoint { height: 0, hash },
+        };
+        let segments: Vec<_> = (0..2)
+            .map(|id| {
+                (
+                    id,
+                    16,
+                    Some(state.state.try_get_segment_columns(id).unwrap()),
+                )
+            })
+            .collect();
+        let roots: Vec<_> = (0..2)
+            .map(|id| {
+                (
+                    id,
+                    state.state.segment_live_count(id),
+                    state.cached_exact_segment_root(id).unwrap(),
+                )
+            })
+            .collect();
+        store
+            .commit_block(
+                &header,
+                &hash,
+                &BlockUndoLog::empty(0, 17),
+                &segments,
+                &roots,
+                &[],
+                &[],
+                None,
+                state.circulating_supply_micronoid,
+                &meta,
+                true,
+            )
+            .unwrap();
+        let first = store.get_verified_owner_page(&owner, 0, 2).unwrap();
+        assert_eq!(
+            first
+                .utxos
+                .iter()
+                .map(|utxo| utxo.slot_index)
+                .collect::<Vec<_>>(),
+            [7, 11]
+        );
+        assert_eq!(first.next_slot, Some(65_539));
+        let last = store
+            .get_verified_owner_page(&owner, first.next_slot.unwrap(), 2)
+            .unwrap();
+        assert_eq!(
+            last.utxos
+                .iter()
+                .map(|utxo| utxo.slot_index)
+                .collect::<Vec<_>>(),
+            [65_539]
+        );
+        assert_eq!(last.next_slot, None);
+        assert_eq!((first.height, first.tip_hash), (0, hash));
+        assert_eq!((last.height, last.tip_hash), (0, hash));
+        let middle = store.get_verified_owner_page(&owner, 8, 1).unwrap();
+        assert_eq!(middle.utxos[0].slot_index, 11);
+        assert_eq!(middle.next_slot, Some(65_539));
+        assert!(store
+            .get_verified_owner_page(&owner, u32::MAX, 1)
+            .unwrap()
+            .utxos
+            .is_empty());
+        assert!(store.get_verified_owner_page(&owner, 0, 0).is_err());
+        assert!(store.get_verified_owner_page(&owner, 0, 257).is_err());
+        let complete = store.get_verified_utxos_by_owner(&owner).unwrap();
+        assert_eq!(
+            complete.utxos,
+            first
+                .utxos
+                .into_iter()
+                .chain(last.utxos)
+                .collect::<Vec<_>>()
         );
     }
 

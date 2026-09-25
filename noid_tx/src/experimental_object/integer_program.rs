@@ -18,7 +18,8 @@ pub const INSTRUCTION_BITS: usize = 20;
 pub type Program = [[Block128; 2]; PROGRAM_STEPS];
 pub const EMPTY_PROGRAM: Program = [[Block128(0); 2]; PROGRAM_STEPS];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Register {
     State0 = 0,
@@ -39,7 +40,8 @@ impl Register {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Operand {
     State0 = 0,
@@ -97,7 +99,8 @@ impl Operand {
     ];
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Opcode {
     Keep = 0,
@@ -127,7 +130,8 @@ impl Opcode {
     ];
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum PredicateSource {
     Always = 0,
@@ -149,7 +153,8 @@ impl PredicateSource {
     ];
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Predicate {
     pub source: PredicateSource,
     pub inverted: bool,

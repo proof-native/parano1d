@@ -2462,9 +2462,16 @@ async fn main() -> anyhow::Result<()> {
         // Remote wallets use P2P block subscription independently.
         {
             let hook_wallet = shared_wallet.clone();
+            let hook_store = chain.read().await.store.clone();
             let hook_canonical_tip_changes = canonical_tip_change_tx.clone();
             miner.set_block_applied_hook(std::sync::Arc::new(move |block| {
                 update_wallet_for_block(&hook_wallet, block);
+                if let Err(error) =
+                    wallet::retain_object_receipts_for_block(&hook_wallet, &hook_store, block)
+                {
+                    tracing::error!(height = block.header.height, %error,
+                        "committed mined block but contract receipt retention failed");
+                }
                 hook_canonical_tip_changes.send_replace(
                     noid_p2p::object_protocol::ChainPoint::new(
                         block.header.height,
@@ -4465,6 +4472,10 @@ async fn apply_exact_suffix_offthread(
                         "exact suffix ended before its verified tip".into(),
                     ));
                 }
+                if let Err(error) = wallet::retain_object_receipts_at_tip(&apply_wallet, &ctx) {
+                    tracing::error!(height = ctx.tip_height(), %error,
+                        "committed suffix but contract receipt retention failed");
+                }
                 let view = ChainView::from_mdbx(&ctx);
                 Ok(AppliedExactSuffix::Live(AppliedCompactSuffix {
                     height: ctx.tip_height(),
@@ -4558,6 +4569,10 @@ async fn apply_exact_suffix_offthread(
                             .expect("committed exact reorg blocks have canonical transactions")
                     })
                     .collect();
+                if let Err(error) = wallet::retain_object_receipts_at_tip(&apply_wallet, &ctx) {
+                    tracing::error!(height = ctx.tip_height(), %error,
+                        "committed suffix but contract receipt retention failed");
+                }
                 let view = ChainView::from_mdbx(&ctx);
                 Ok(AppliedExactSuffix::Reorg(AppliedReorg {
                     result: reorg,

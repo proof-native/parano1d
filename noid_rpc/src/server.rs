@@ -32,6 +32,7 @@ use noid_miner::template::{TemplateBuilder, TemplateChainSnapshot};
 use noid_miner::{AdaptiveProofCapacity, PreparedBlockAttempt};
 
 use crate::api::ParanoidApiServer;
+mod objects;
 use crate::types::{
     AddressInfo, BlockDetailsInfo, BlockHeaderInfo, BlockTemplateResponse, BlockTransactionInfo,
     BlockTransactionInputInfo, BlockTransactionOutputInfo, ChainInfo, FeeBreakdownInfo,
@@ -55,9 +56,10 @@ use crate::wallet_submit::{
 /// preparation, PoW, proof and commit lifecycle.
 const EXTERNAL_MINING_TEMPLATE_TTL: Duration = Duration::from_secs(30);
 
-/// Large enough for the maximum canonical transaction intent encoded as JSON
-/// hex, while rejecting jsonrpsee's otherwise unnecessary 10 MiB default.
-const RPC_MAX_REQUEST_BODY_BYTES: u32 = 1024 * 1024;
+/// Bound a holder receipt plus its JSON hex encoding and framing. The terminal
+/// transport ceiling is unchanged; this API also carries its inclusion path.
+const RPC_MAX_REQUEST_BODY_BYTES: u32 =
+    (2 * noid_block::contract_receipt::MAX_RECEIPT_BYTES + 16 * 1024) as u32;
 
 type ExternalMiningTemplateId = [u8; 16];
 
@@ -964,7 +966,90 @@ fn is_wallet_fee_rejection(error: &noid_mempool::SubmitError) -> bool {
 }
 
 impl RpcHandler {
-    async fn pending_v2_class(&self) -> RpcResult<Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>> {
+    async fn wallet_send_reviewed(
+        &self,
+        to_address: String,
+        amount_micronoid: u64,
+        fee_micronoid: u64,
+        expected_sender: Option<&str>,
+        requires_v2: bool,
+    ) -> RpcResult<WalletSendResult> {
+        let _wallet_operation = self.wallet_operation_gate.lock().await;
+        if requires_v2 {
+            let height = self
+                .chain
+                .read()
+                .await
+                .tip_height()
+                .checked_add(1)
+                .ok_or_else(|| rpc_err("height exhausted"))?;
+            self.require_contracts_for_height(height)?;
+        }
+        if let Some(expected) = expected_sender {
+            if self
+                .wallet
+                .active_address()
+                .as_ref()
+                .map(|(_, address)| address.as_str())
+                != Some(expected)
+            {
+                return Err(rpc_err(
+                    "active wallet address changed; review the funding again",
+                ));
+            }
+        }
+        self.reload_active_wallet().await?;
+        let to_address = parse_address_param(&to_address)?.0;
+
+        let (fee_active_slot_count, fee_log_slots) = self.mempool.fee_context().await;
+        let fee_floor = self.mempool.fee_floor().await;
+        let plan = self
+            .wallet
+            .plan_send(
+                amount_micronoid,
+                (fee_micronoid != 0).then_some(fee_micronoid),
+                fee_active_slot_count,
+                fee_log_slots,
+                fee_floor,
+            )
+            .map_err(wallet_plan_error)?;
+        tracing::info!(
+            amount_micronoid,
+            fee_micronoid = plan.fee_micronoid,
+            input_count = plan.input_count,
+            output_count = plan.output_count,
+            "wallet_send deterministic plan ready"
+        );
+
+        self.submit_wallet_transaction(WalletSubmissionRequest {
+            to_address,
+            amount_micronoid,
+            fee_micronoid: plan.fee_micronoid,
+            automatic_fee: fee_micronoid == 0,
+            expected_input_count: plan.input_count,
+            expected_output_count: plan.output_count,
+            pending_history_amount_micronoid: amount_micronoid,
+            build: WalletSubmissionBuild::Payment,
+            failure_label: "wallet send",
+        })
+        .await
+    }
+
+    fn require_contracts_for_height(&self, height: u64) -> RpcResult<()> {
+        if !noid_chain::consensus::params::v2_active(height) {
+            return Err(rpc_err("contracts are not active at the next block"));
+        }
+        self.history_step_runtime
+            .as_deref()
+            .ok_or_else(|| rpc_err("contract verifier unavailable"))?
+            .v2()
+            .map_err(rpc_err)?;
+        Ok(())
+    }
+
+    async fn pending_v2_class(
+        &self,
+    ) -> RpcResult<Option<(noid_recursive::acceptance::history_step::v2::V2Config, u64)>> {
         let height = self.chain.read().await.tip_height().saturating_add(1);
         if !noid_chain::consensus::params::v2_active(height) {
             return Ok(None);
@@ -1474,6 +1559,10 @@ impl RpcHandler {
                     "committed RPC block but wallet update failed"
                 );
             }
+            if let Err(error) = wallet.retain_object_receipts(&ctx.store, committed.block()) {
+                tracing::error!(height = committed.block().header.height, %error,
+                    "committed RPC block but contract receipt retention failed");
+            }
             let view = noid_mempool::ChainView::from_mdbx(&ctx);
             canonical_tip_changes.send_replace(noid_p2p::object_protocol::ChainPoint::new(
                 committed.block().header.height,
@@ -1531,6 +1620,95 @@ impl RpcHandler {
 
 #[async_trait]
 impl ParanoidApiServer for RpcHandler {
+    async fn get_contract_protocol(&self) -> RpcResult<crate::object_types::ObjectProtocolInfo> {
+        objects::protocol_info(self).await
+    }
+
+    async fn preview_object_call(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallPreview> {
+        objects::preview(self, request).await
+    }
+
+    async fn create_object(
+        &self,
+        definition: crate::object_types::ObjectDefinition,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        objects::create(definition)
+    }
+    async fn get_object_status(
+        &self,
+        opening_hex: String,
+        slot_index: u32,
+    ) -> RpcResult<crate::object_types::ObjectStatus> {
+        objects::status(self, opening_hex, slot_index).await
+    }
+    async fn get_object_instances(
+        &self,
+        opening_hex: String,
+        from_slot: u32,
+        limit: u32,
+    ) -> RpcResult<crate::object_types::ObjectInstances> {
+        objects::instances(self, opening_hex, from_slot, limit).await
+    }
+    async fn wallet_fund_object(
+        &self,
+        opening_hex: String,
+        amount_micronoid: u64,
+        fee_micronoid: u64,
+        expected_sender: Option<String>,
+    ) -> RpcResult<WalletSendResult> {
+        let opening = objects::opening(&opening_hex)?;
+        self.wallet
+            .remember_object_opening(&opening)
+            .map_err(rpc_err)?;
+        self.wallet_send_reviewed(
+            opening.root().to_bech32(),
+            amount_micronoid,
+            fee_micronoid,
+            expected_sender.as_deref(),
+            true,
+        )
+        .await
+    }
+    async fn wallet_call_object(
+        &self,
+        request: crate::object_types::ObjectCallRequest,
+    ) -> RpcResult<crate::object_types::ObjectCallResult> {
+        objects::call(self, request).await
+    }
+    async fn wallet_get_object_opening(
+        &self,
+        address: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        objects::describe(
+            &self
+                .wallet
+                .load_object_opening(parse_address_param(&address)?.0)
+                .map_err(rpc_err)?,
+        )
+    }
+    async fn wallet_watch_object(
+        &self,
+        opening_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectInfo> {
+        let opening = objects::opening(&opening_hex)?;
+        self.wallet
+            .remember_object_opening(&opening)
+            .map_err(rpc_err)?;
+        objects::describe(&opening)
+    }
+    async fn export_object_receipt(&self, opening_hex: String, txid: String) -> RpcResult<String> {
+        objects::export_receipt(self, opening_hex, txid).await
+    }
+    async fn verify_object_receipt(
+        &self,
+        receipt_hex: String,
+    ) -> RpcResult<crate::object_types::ObjectReceiptResult> {
+        objects::verify_receipt(self, receipt_hex).await
+    }
+
     // -----------------------------------------------------------------------
     // Chain state (always available)
     // -----------------------------------------------------------------------
@@ -2753,42 +2931,8 @@ impl ParanoidApiServer for RpcHandler {
         amount_micronoid: u64,
         fee_micronoid: u64,
     ) -> RpcResult<WalletSendResult> {
-        let _wallet_operation = self.wallet_operation_gate.lock().await;
-        self.reload_active_wallet().await?;
-        let to_address = parse_address_param(&to_address)?.0;
-
-        let (fee_active_slot_count, fee_log_slots) = self.mempool.fee_context().await;
-        let fee_floor = self.mempool.fee_floor().await;
-        let plan = self
-            .wallet
-            .plan_send(
-                amount_micronoid,
-                (fee_micronoid != 0).then_some(fee_micronoid),
-                fee_active_slot_count,
-                fee_log_slots,
-                fee_floor,
-            )
-            .map_err(wallet_plan_error)?;
-        tracing::info!(
-            amount_micronoid,
-            fee_micronoid = plan.fee_micronoid,
-            input_count = plan.input_count,
-            output_count = plan.output_count,
-            "wallet_send deterministic plan ready"
-        );
-
-        self.submit_wallet_transaction(WalletSubmissionRequest {
-            to_address,
-            amount_micronoid,
-            fee_micronoid: plan.fee_micronoid,
-            automatic_fee: fee_micronoid == 0,
-            expected_input_count: plan.input_count,
-            expected_output_count: plan.output_count,
-            pending_history_amount_micronoid: amount_micronoid,
-            build: WalletSubmissionBuild::Payment,
-            failure_label: "wallet send",
-        })
-        .await
+        self.wallet_send_reviewed(to_address, amount_micronoid, fee_micronoid, None, false)
+            .await
     }
 
     async fn wallet_plan_consolidation(&self) -> RpcResult<WalletConsolidationPlan> {

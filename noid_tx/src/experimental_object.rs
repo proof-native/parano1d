@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
-//! Unfrozen v2 object carrier for isolated experiments. These types do not
-//! activate a network rule. Commitments and execution match the bounded
+//! V2 contract carrier. Activation belongs to the network's fork schedule.
+//! Commitments and execution match the bounded
 //! integer HistoryStep relation and its authenticated transaction context.
 
 pub mod applications;
@@ -24,6 +24,8 @@ pub const PROGRAM_STEPS: usize = integer_program::PROGRAM_STEPS;
 /// Raw body fields carried by the component witness and bound to its spine.
 /// This count is independent of the number of program instructions.
 pub const BODY_CONTEXT_FIELDS: usize = 8;
+/// Default for component research fixtures; production uses the pinned bank's
+/// per-class call budget and never derives it from this value.
 pub const CONTRACT_SLOTS: usize = 16;
 pub const OBJECT_VERSION: u16 = 3;
 const OPENING_MAGIC: &[u8; 8] = b"NOIDOBJ3";
@@ -53,7 +55,7 @@ pub enum ObjectError {
 
 impl core::fmt::Display for ObjectError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "experimental object: {self:?}")
+        write!(f, "contract: {self:?}")
     }
 }
 impl std::error::Error for ObjectError {}

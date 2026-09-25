@@ -17,3 +17,4 @@ pub use history_step_witness::{
 };
 
 pub mod candidate_history;
+pub mod contract_receipt;

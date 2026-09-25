@@ -27,6 +27,7 @@
 
 pub mod builder;
 pub mod keystore;
+mod object_files;
 pub mod persistence;
 pub mod prover;
 pub mod scanner;
@@ -195,6 +196,29 @@ pub fn update_for_accepted_block(
     Ok(())
 }
 
+pub fn retain_object_receipts_for_block(
+    wallet: &SharedWallet,
+    store: &noid_chain::storage::MdbxStore,
+    block: &noid_chain::Block,
+) -> Result<(), String> {
+    let guard = wallet.lock().map_err(|_| "wallet state lock is poisoned")?;
+    if let Some(wallet) = guard.as_ref() {
+        object_files::retain_from_block(&wallet.keystore_path, store, block)?;
+    }
+    Ok(())
+}
+
+pub fn retain_object_receipts_at_tip(
+    wallet: &SharedWallet,
+    chain: &noid_chain::storage::MdbxChainContext,
+) -> Result<(), String> {
+    let guard = wallet.lock().map_err(|_| "wallet state lock is poisoned")?;
+    if let Some(wallet) = guard.as_ref() {
+        object_files::retain_from_chain(&wallet.keystore_path, chain)?;
+    }
+    Ok(())
+}
+
 fn recover_outgoing_receipts_from_block(
     wallet: &mut WalletState,
     owned_addresses: &std::collections::HashSet<[u8; 32]>,
@@ -322,6 +346,7 @@ pub fn reconcile_receipts_at_startup(
         .map(|entry| entry.tx_hash)
         .collect::<std::collections::HashSet<_>>();
     let tip = chain.tip_height();
+    object_files::retain_from_chain(&wallet.keystore_path, chain)?;
     let first = tip
         .saturating_sub(RECENT_BLOCK_RETENTION_DEPTH.saturating_sub(1))
         .max(1);
@@ -499,6 +524,81 @@ fn fee_breakdown_info(
 }
 
 impl WalletOps for WalletHandle {
+    fn build_object_call(
+        &self,
+        opening: noid_tx::experimental_object::ObjectOpening,
+        page: noid_tx::TxPage,
+        height: u64,
+    ) -> Result<Vec<u8>, String> {
+        let witness = {
+            let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+            let wallet = guard.as_ref().ok_or("wallet not initialized")?;
+            builder::object_owner_witness(wallet, &opening, &page, height)?
+        };
+        let proof = noid_gkr::wallet_authorization::prove_experimental_object_authorization(
+            &page, &opening, height, witness,
+        )
+        .map_err(|e| e.to_string())?;
+        noid_tx::experimental_object::ObjectIntent {
+            opening,
+            spend: noid_tx::PagedSpendIntent::new(
+                vec![page],
+                proof.to_bytes().map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| e.to_string())?,
+        }
+        .to_bytes()
+        .map_err(|e| e.to_string())
+    }
+
+    fn remember_object_opening(
+        &self,
+        opening: &noid_tx::experimental_object::ObjectOpening,
+    ) -> Result<(), String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::save_opening(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            opening,
+        )
+    }
+    fn load_object_opening(
+        &self,
+        root: [u8; 32],
+    ) -> Result<noid_tx::experimental_object::ObjectOpening, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::load_opening(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            root,
+        )
+    }
+    fn remember_object_receipt(&self, txid: [u8; 32], bytes: &[u8]) -> Result<(), String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::save_receipt(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            txid,
+            bytes,
+        )
+    }
+    fn load_object_receipt(&self, txid: [u8; 32]) -> Result<Vec<u8>, String> {
+        let guard = self.inner.lock().map_err(|_| "wallet lock poisoned")?;
+        object_files::load_receipt(
+            &guard
+                .as_ref()
+                .ok_or("wallet not initialized")?
+                .keystore_path,
+            txid,
+        )
+    }
+
     fn status(&self) -> WalletStatus {
         let guard = self.inner.lock().unwrap();
         match &*guard {
@@ -875,6 +975,14 @@ impl WalletOps for WalletHandle {
 
     fn on_accepted_block(&self, block: &noid_chain::block::Block) -> Result<(), String> {
         update_for_accepted_block(&self.inner, block)
+    }
+
+    fn retain_object_receipts(
+        &self,
+        store: &noid_chain::storage::MdbxStore,
+        block: &noid_chain::Block,
+    ) -> Result<(), String> {
+        retain_object_receipts_for_block(&self.inner, store, block)
     }
 
     fn plan_send(

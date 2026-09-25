@@ -93,6 +93,35 @@ pub struct WalletReceiptSlice {
 }
 
 pub trait WalletOps: Send + Sync {
+    /// Prove with the locally selected policy authority. No key material is
+    /// accepted from RPC or returned by this boundary.
+    fn build_object_call(
+        &self,
+        _opening: noid_tx::experimental_object::ObjectOpening,
+        _page: noid_tx::TxPage,
+        _height: u64,
+    ) -> Result<Vec<u8>, String> {
+        Err("object wallet unavailable".into())
+    }
+    fn remember_object_opening(
+        &self,
+        _opening: &noid_tx::experimental_object::ObjectOpening,
+    ) -> Result<(), String> {
+        Err("object wallet unavailable".into())
+    }
+    fn load_object_opening(
+        &self,
+        _root: [u8; 32],
+    ) -> Result<noid_tx::experimental_object::ObjectOpening, String> {
+        Err("object opening unavailable".into())
+    }
+    fn remember_object_receipt(&self, _txid: [u8; 32], _bytes: &[u8]) -> Result<(), String> {
+        Err("object wallet unavailable".into())
+    }
+    fn load_object_receipt(&self, _txid: [u8; 32]) -> Result<Vec<u8>, String> {
+        Err("object receipt unavailable".into())
+    }
+
     /// Overall wallet status (exists, address, balance).
     fn status(&self) -> WalletStatus;
 
@@ -163,6 +192,14 @@ pub trait WalletOps: Send + Sync {
     /// artifacts. The caller invokes this while it still holds the chain write
     /// guard, establishing the global `chain -> wallet` lock order.
     fn on_accepted_block(&self, block: &Block) -> Result<(), String>;
+
+    fn retain_object_receipts(
+        &self,
+        _store: &noid_chain::storage::MdbxStore,
+        _block: &Block,
+    ) -> Result<(), String> {
+        Ok(())
+    }
 
     /// Deterministically plan one ordinary canonical payment transaction using
     /// at most eight active-owner UTXOs.

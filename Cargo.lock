@@ -4190,6 +4190,7 @@ dependencies = [
  "hex",
  "http 1.4.1",
  "jsonrpsee",
+ "noid_block",
  "noid_chain",
  "noid_mempool",
  "noid_miner",
