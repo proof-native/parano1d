@@ -64,8 +64,10 @@ also exercises transport, offline restart and same-tip certificate recovery.
 It retains the same B25-only legacy-origin scope.
 The [both-class component run](results/2026-09-25-full-legacy-origin/REPORT.md)
 measured a 15,093,850-byte certificate and 1,429 ms certificate verification
-on four PCLMUL CPUs. Its full daemon transport and producer checks are separate
-from that component measurement.
+on four PCLMUL CPUs. The [daemon continuation](results/2026-09-25-retired-production/REPORT.md)
+also cold-synchronized through P2P and produced a contract block without old
+matrices, within an 8 GiB node envelope. Four-CPU PCLMUL proving took 76–79 s;
+it is not a 30-second mining-capacity result.
 
 For 112 independent one-page payments, the body is 36,716 bytes. At 223 and 255
 such payments it would be 72,569 and 82,905 bytes. The measured proof sizes and

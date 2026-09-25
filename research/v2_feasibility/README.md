@@ -23,6 +23,9 @@ uses B255 and both old accumulated claims are live.
 The [conditional soundness inventory](results/2026-09-25-v2-soundness/REPORT.md)
 now includes the joint bank and both retirement arguments alongside the legacy
 ancestry. Its exact bank and preprocessing keys are recorded in the result.
+The [retired-node production run](results/2026-09-25-retired-production/REPORT.md)
+completed cold sync, receipt verification after body pruning, real contract
+block production and an offline restart after a both-class legacy boundary.
 The [wallet discovery run](results/2026-09-25-contract-discovery/REPORT.md)
 covers participant calls, reorganization rollback and a real GUI-submitted call.
 The [core candidate](CORE_CANDIDATE.md) lists the operations and policies that
@@ -135,9 +138,9 @@ cargo run --release --manifest-path research/v2_feasibility/Cargo.toml \
 
 ## Required next gates
 
-Preserve the published legacy matrix identities. Finish the both-legacy-class
-origin qualification, select final class limits and freeze the bank under the
-source-pinned mainnet height. The final pack needs reproducible generation and
+Preserve the published legacy matrix identities. Select final class limits and
+freeze the bank under the source-pinned mainnet height. The final pack needs
+reproducible generation and
 its own soundness inventory. Completed isolated-network runs cover contracts,
 GUI calls, pruning, reorgs through activation, restart, cold synchronization and
 bounded receiver load; they do not make the H10 test pack a mainnet artifact.

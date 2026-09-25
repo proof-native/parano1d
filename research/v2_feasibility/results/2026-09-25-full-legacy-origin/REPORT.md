@@ -56,6 +56,7 @@ and [source.json](source.json). Executable SHA-256 digests identify the tested
 binaries; the captured source HEAD identifies the measurement context.
 Jobs ran sequentially without concurrent builds or other proof tests.
 
-These results cover the protocol component. A full daemon test of cold
-synchronization followed by retired-node block production is tracked
-separately; this report does not claim that result before it completes.
+These results cover the protocol component. The subsequent
+[daemon continuation](../2026-09-25-retired-production/REPORT.md) completed
+cold synchronization, pruning, retired-node contract production and an offline
+restart under a four-CPU/8 GiB envelope.
