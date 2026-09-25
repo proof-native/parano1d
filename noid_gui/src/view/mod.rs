@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2026 Paranoid Zero.
 
+mod contracts;
 mod explorer;
 mod mining;
 mod present;
@@ -670,6 +671,7 @@ fn wallet_setup_workspace<'a>(
 fn application(app: &App, compact: bool) -> Element<'_, Message> {
     let page = match app.section {
         Section::Present => present::view(app, compact),
+        Section::Contracts => contracts::view(app, compact),
         Section::Proofs => proofs::view(app, compact),
         Section::Mine => mining::view(app, compact),
         Section::Explorer => explorer::view(app, compact),
@@ -883,6 +885,12 @@ fn command_bar(app: &App) -> Element<'static, Message> {
             Message::Navigate(Section::Settings),
             app.section == Section::Settings,
         ),
+        command(
+            "F8",
+            navigation_label("Contracts"),
+            Message::Navigate(Section::Contracts),
+            app.section == Section::Contracts
+        ),
         command("F10", navigation_label("Quit"), Message::Exit, false),
     ]
     .spacing(4)
@@ -927,7 +935,9 @@ fn command(
         .align_y(Alignment::Center),
     )
     .height(Length::Fill)
-    .width(Length::FillPortion(1))
+    .width(Length::FillPortion(
+        (key.chars().count() + label.chars().count() + 2) as u16,
+    ))
     .padding(0)
     .on_press(message)
     .style(move |_, status| {
@@ -1020,7 +1030,7 @@ fn interface_settings(app: &App) -> Element<'_, Message> {
             settings_field(
                 "KEYBOARD",
                 "Shortcuts are available from every wallet section.",
-                text("F1–F7 NAVIGATION · F10 QUIT · ESC BACK")
+                text("F1–F8 NAVIGATION · F10 QUIT · ESC BACK")
                     .size(13)
                     .color(theme::CYAN)
                     .into(),

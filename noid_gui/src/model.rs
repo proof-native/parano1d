@@ -159,6 +159,7 @@ pub enum SecretImportMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Present,
+    Contracts,
     Proofs,
     Mine,
     Explorer,

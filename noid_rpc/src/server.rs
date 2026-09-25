@@ -2371,7 +2371,16 @@ impl ParanoidApiServer for RpcHandler {
         let height = chain.tip_height();
         let diff = tip.difficulty_target;
         let diff_bits = noid_chain::consensus::target_leading_zero_bits(&diff);
-        let reward = block_reward_at_height(tip.height, tip.log_slots);
+        let next_height = tip
+            .height
+            .checked_add(1)
+            .ok_or_else(|| rpc_err("height exhausted"))?;
+        let reward = block_reward_at_height(next_height, tip.log_slots);
+        let needs_legacy = self
+            .history_step_runtime
+            .as_deref()
+            .map(|runtime| runtime.needs_legacy_matrix_cache(next_height))
+            .unwrap_or_else(|| !noid_chain::consensus::params::v2_active(next_height));
         Ok(MiningInfo {
             height,
             difficulty_bits: diff_bits,
@@ -2379,6 +2388,11 @@ impl ParanoidApiServer for RpcHandler {
             block_reward_micronoid: reward,
             block_reward_noid: reward as f64 / 1_000_000.0,
             active_slot_count: tip.active_slot_count,
+            matrix_cache_classes: if needs_legacy {
+                vec!["b25".into(), "b255".into()]
+            } else {
+                Vec::new()
+            },
         })
     }
 

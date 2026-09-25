@@ -49,6 +49,7 @@ fn node_log_content(contents: &str) -> text_editor::Content {
 #[derive(Debug)]
 pub struct App {
     pub snapshot: AppSnapshot,
+    pub contracts: crate::contracts::State,
     pub section: Section,
     pub backend_state: BackendState,
     pub backend_error: Option<String>,
@@ -196,6 +197,8 @@ pub enum AddressOperation {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    Contract(crate::contracts::Action),
+    ContractFinished(Result<crate::contracts::Outcome, String>),
     Navigate(Section),
     ToggleAddressPicker,
     SelectAddress(u32),
@@ -341,6 +344,7 @@ impl App {
 
         let app = Self {
             snapshot,
+            contracts: Default::default(),
             section: Section::Present,
             backend_state: if mock {
                 BackendState::Mock
@@ -475,6 +479,36 @@ impl App {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Contract(action) => {
+                if self.send_in_flight
+                    || self.consolidation_in_flight
+                    || self.address_operation.is_some()
+                    || self.secret_action_in_flight
+                    || self.shutting_down
+                {
+                    return Task::none();
+                }
+                match self.contracts.action(
+                    action,
+                    &self.snapshot.active_address().address,
+                    self.snapshot.network.height,
+                ) {
+                    Ok(Some(request)) => {
+                        self.contracts.busy = true;
+                        let backend = self.backend.clone();
+                        return Task::perform(
+                            async move { backend.contract_operation(request).await },
+                            Message::ContractFinished,
+                        );
+                    }
+                    Ok(None) => {}
+                    Err(error) => self.contracts.error = Some(error),
+                }
+            }
+            Message::ContractFinished(result) => {
+                self.contracts.finish(result);
+                return self.refresh_snapshot();
+            }
             Message::Navigate(section) => {
                 if self.secret_action_in_flight
                     || self.photo_scan_active
@@ -501,6 +535,9 @@ impl App {
                 }
                 if section == Section::Proofs {
                     return self.refresh_receipts_view();
+                }
+                if section == Section::Contracts {
+                    return self.update(Message::Contract(crate::contracts::Action::Home));
                 }
                 if section == Section::Settings && self.settings_tab == SettingsTab::Node {
                     self.resume_node_log();
@@ -2194,6 +2231,7 @@ impl App {
                         Named::F5 => Some(Message::Navigate(Section::Mine)),
                         Named::F6 => Some(Message::Navigate(Section::Explorer)),
                         Named::F7 => Some(Message::Navigate(Section::Settings)),
+                        Named::F8 => Some(Message::Navigate(Section::Contracts)),
                         Named::F10 => Some(Message::Exit),
                         Named::Escape if self.block_transaction_position.is_some() => {
                             Some(Message::CloseBlockTransaction)
@@ -2346,7 +2384,10 @@ impl App {
     }
 
     pub fn wallet_action_in_flight(&self) -> bool {
-        self.send_in_flight || self.consolidation_plan_in_flight || self.consolidation_in_flight
+        self.send_in_flight
+            || self.consolidation_plan_in_flight
+            || self.consolidation_in_flight
+            || self.contracts.busy
     }
 
     pub fn settings_dirty(&self) -> bool {
@@ -2618,7 +2659,7 @@ impl App {
     }
 }
 
-fn parse_noid_amount(input: &str) -> Result<u64, String> {
+pub(crate) fn parse_noid_amount(input: &str) -> Result<u64, String> {
     let normalized = input.trim().replace(',', ".");
     if normalized.is_empty() {
         return Err("Enter an amount.".into());
@@ -2662,7 +2703,7 @@ fn parse_noid_amount(input: &str) -> Result<u64, String> {
     Ok(amount)
 }
 
-fn parse_optional_noid_fee(input: &str) -> Result<u64, String> {
+pub(crate) fn parse_optional_noid_fee(input: &str) -> Result<u64, String> {
     if input.trim().is_empty() {
         return Ok(0);
     }

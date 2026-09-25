@@ -6,6 +6,7 @@
 mod app;
 mod app_icon;
 mod backend;
+mod contracts;
 mod i18n;
 mod model;
 mod secret;

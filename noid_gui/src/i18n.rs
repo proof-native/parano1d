@@ -8,6 +8,8 @@ use iced::widget::{Text, TextInput};
 
 use crate::model::Language;
 
+mod contracts;
+
 thread_local! {
     static ACTIVE_LANGUAGE: Cell<Language> = const { Cell::new(Language::English) };
 }
@@ -29,6 +31,7 @@ pub fn navigation_label(source: &'static str) -> &'static str {
         (Language::Russian, "Mining") => "Майнинг",
         (Language::Russian, "Scope") => "Поиск",
         (Language::Russian, "Settings") => "Настройки",
+        (Language::Russian, "Contracts") => "Контракты",
         (Language::Russian, "Quit") => "Выход",
         (Language::Chinese, "Main") => "概览",
         (Language::Chinese, "Addresses") => "地址",
@@ -37,6 +40,7 @@ pub fn navigation_label(source: &'static str) -> &'static str {
         (Language::Chinese, "Mining") => "挖矿",
         (Language::Chinese, "Scope") => "查询",
         (Language::Chinese, "Settings") => "设置",
+        (Language::Chinese, "Contracts") => "合约",
         (Language::Chinese, "Quit") => "退出",
         _ => source,
     }
@@ -72,6 +76,9 @@ where
 }
 
 fn translate_localized(language: Language, source: &str) -> String {
+    if let Some(translated) = contracts::translate(language, source) {
+        return translated;
+    }
     if let Some((russian, chinese)) = exact_translation(source) {
         return match language {
             Language::English => source,
@@ -831,9 +838,10 @@ fn exact_translation(source: &str) -> Option<(&'static str, &'static str)> {
         "STATE" => ("СОСТОЯНИЕ", "状态"),
 
         // Mining and block details.
-        "MATRIX CACHE" => ("КЭШ МАТРИЦ", "矩阵缓存"),
-        "RETRY MATRIX PREPARATION" => ("ПОВТОРИТЬ ПОДГОТОВКУ МАТРИЦ", "重试矩阵准备"),
-        "PREPARING B25 MATRIX…" => ("ПОДГОТОВКА МАТРИЦЫ B25…", "正在准备 B25 矩阵…"),
+        "PROOF DATA" => ("ДАННЫЕ ДОКАЗАТЕЛЬСТВА", "证明数据"),
+        "RETRY PREPARATION" => ("ПОВТОРИТЬ ПОДГОТОВКУ", "重新准备"),
+        "PREPARING PROOF DATA…" => ("ПОДГОТОВКА ДАННЫХ ДОКАЗАТЕЛЬСТВА…", "正在准备证明数据…"),
+        "Unsupported proof data preparation profile. Update the wallet." => ("Неизвестный профиль подготовки доказательства. Обновите кошелёк.", "不支持此证明数据准备配置。请更新钱包。"),
         "NODE ERROR" => ("ОШИБКА УЗЛА", "节点错误"),
         "INTERNAL MINER" => ("ВСТРОЕННЫЙ МАЙНЕР", "内置矿工"),
         "MINER" => ("МАЙНЕР", "矿工"),
@@ -1055,9 +1063,9 @@ fn exact_translation(source: &str) -> Option<(&'static str, &'static str)> {
             "Горячие клавиши работают в любом разделе кошелька.",
             "在钱包的任何页面都可以使用快捷键。",
         ),
-        "F1–F7 NAVIGATION · F10 QUIT · ESC BACK" => (
-            "F1–F7 РАЗДЕЛЫ · F10 ВЫХОД · ESC НАЗАД",
-            "F1–F7 切换页面 · F10 退出 · ESC 返回",
+        "F1–F8 NAVIGATION · F10 QUIT · ESC BACK" => (
+            "F1–F8 РАЗДЕЛЫ · F10 ВЫХОД · ESC НАЗАД",
+            "F1–F8 切换页面 · F10 退出 · ESC 返回",
         ),
         "SECRET" => ("СЕКРЕТ", "密钥"),
         "NODE" => ("УЗЕЛ", "节点"),

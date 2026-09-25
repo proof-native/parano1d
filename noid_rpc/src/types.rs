@@ -549,8 +549,11 @@ pub struct MiningInfo {
     pub block_reward_micronoid: u64,
     /// Block reward in NOID.
     pub block_reward_noid: f64,
-    /// Number of live UTXOs (determines reward via occupancy formula).
+    /// Number of live UTXOs in the current State.
     pub active_slot_count: u64,
+    /// Legacy lazy-cache preparations still useful for mining the next block.
+    /// An empty list means the authenticated v2 pack is already loaded.
+    pub matrix_cache_classes: Vec<String>,
 }
 
 /// Coarse initial synchronization stage for operator interfaces.
