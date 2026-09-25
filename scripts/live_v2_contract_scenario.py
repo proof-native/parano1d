@@ -54,6 +54,21 @@ def rpc(node, method, params=None):
     return live.rpc(node.rpc_port, method, params, timeout=600)
 
 
+def receiver_resources(unit):
+    group = subprocess.check_output(["systemctl", "--user", "show", unit + ".scope",
+        "-p", "ControlGroup", "--value"], text=True).strip()
+    live.require(group, "receiver resource scope is missing")
+    control = Path("/sys/fs/cgroup") / group.lstrip("/")
+    values = {name: (control / name).read_text().strip() for name in (
+        "memory.max", "memory.swap.max", "cpu.max", "memory.current", "memory.peak",
+        "memory.events", "cpu.stat")}
+    live.require(values["memory.max"] == str(8 * 1024**3)
+                 and values["memory.swap.max"] == "0", "receiver memory limits differ")
+    quota, period = map(int, values["cpu.max"].split())
+    live.require(quota == 4 * period, "receiver CPU quota differs")
+    return values
+
+
 def cli(node, arguments):
     result = subprocess.run([str(CLI), "--rpc", f"http://127.0.0.1:{node.rpc_port}",
         "--rpc-timeout", "600", "--json", "contract", *map(str, arguments)],
@@ -95,7 +110,8 @@ def main():
     live.BASE = BASE
     unit = f"noid-v2-contract-receiver-{os.getpid()}"
     b = Node("receiver", 26310, 26311, command_prefix=("systemd-run", "--user", "--scope", "--quiet",
-        f"--unit={unit}", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0", "taskset", "-c", "0,2,4,6"))
+        f"--unit={unit}", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0",
+        "-p", "CPUQuota=400%", "taskset", "-c", "0,2,4,6"))
     a = Node("producer", 26300, 26301, command_prefix=("taskset", "-c", "1,3,5,7,8,9,10,11"))
     report = {"status":"running", "binary_sha256":{p.name:live.sha256(p) for p in (NODE, MINER, CLI)},
         "receiver_cpu_affinity":[0,2,4,6], "receiver_backend":"pclmul", "receiver_memory_max":8*1024**3,
@@ -149,13 +165,13 @@ def main():
                 live.require(obj["slot"] is not None,"successor missing")
         calls.clear()
     def memory():
-        group=subprocess.check_output(["systemctl","--user","show",unit+".scope","-p","ControlGroup","--value"],text=True).strip()
-        if group:
-            base=Path('/sys/fs/cgroup')/group.lstrip('/')
-            report.setdefault("receiver_resource_samples",[]).append({"height":a.height(),
-                "peak_bytes":int((base/'memory.peak').read_text()),"events":(base/'memory.events').read_text()})
+        values = receiver_resources(unit)
+        report.setdefault("receiver_resource_samples", []).append({"height": a.height(),
+            "peak_bytes": int(values["memory.peak"]), "events": values["memory.events"],
+            "cgroup": values})
     try:
         b.start("01-receiver")
+        report["receiver_enforcement"] = receiver_resources(unit)
         a.start("02-producer",mode="extminer",genesis=True,seeds=[b.seed])
         payer=rpc(a,"walletActiveAddress")["address"];payee=rpc(b,"walletActiveAddress")["address"]
         report.update(payer=payer,payee=payee)

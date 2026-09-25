@@ -213,6 +213,67 @@ enforced limits, final counters, source and executable identity, and the
 precise timing and memory scopes.
 
 This qualifies standalone proof verification under the stated local hardware
-profile. Full daemon workload, transaction admission, P2P delivery, sequential
-cache use and startup remain separate checks. Earlier daemon results used
-different banks and do not qualify this profile.
+profile. Daemon workloads, transaction admission, P2P delivery, sequential
+cache use and startup are separate checks. The following run covers the light
+contract lifecycle with this bank; earlier daemon results used different banks.
+
+## Contract lifecycle through real daemons
+
+A fresh loopback-only network mined and accepted H1 through H64, crossing v1.1
+at H5 and v2 at H10 with the exact isolated bank above. Six templates and custom
+integer programs used normal CLI/RPC wallet authorization, mempool admission,
+external mining, recursive proofs, P2P delivery and persistent State. All post-
+fork blocks used Small. The largest workload in this run was nine ordinary
+payments or seven contract calls; full-capacity daemon checks are separate.
+
+Eighteen confirmed calls exercised collection, expiry recovery, timed release,
+allowance limits, budget resets, recurring payments, tranche vesting, persistent
+counters and closing. Ten rejected operations covered pre-activation funding,
+wrong authority, early release, overflow, wrong incarnation, excessive payment,
+exhausted or premature claims and a stale reviewed inclusion height. At H9,
+the mining RPC reported the scheduled next-block reward and stopped offering
+legacy cache controls for v2.
+
+The receiver was offline for H19–H21 and recovered the exact selected tip over
+P2P. The missed H19 call exported with a later authenticated proof. All 18 calls
+exported and verified on both nodes before pruning and again after 43 further
+real blocks: 72 receipt checks in total. Both nodes confirmed that the original
+call bodies had been removed. The receiver restarted at H64, reopened the
+identical tip, and both processes stopped successfully. This run did not reorg
+across the activation boundary.
+
+Both daemons shared the same laptop. The producer used affinity
+`1,3,5,7,8,9,10,11`, six proof workers and AVX2+VPCLMUL; the external nonce worker
+used two threads. The receiver used affinity `0,2,4,6`, four proof workers,
+forced PCLMUL, an enforced four-CPU quota, 8 GiB memory and no swap. No builds
+or independent proof benchmarks ran alongside the scenario.
+
+| Workload | Height | Producer preparation | Receiver terminal verification |
+|---|---:|---:|---:|
+| First v2 block | 10 | 20.110 s | 2.212 s |
+| Nine ordinary payments | 11 | 23.738 s | 3.457 s |
+| Six contract calls | 12 | 21.508 s | 2.737 s |
+| Budget reset and recurring claim | 15 | 25.322 s | 3.482 s |
+| Seven closing calls | 18 | 19.106 s | 2.764 s |
+| 43 empty blocks, median | 22–64 | 22.665 s | 3.256 s |
+
+Preparation excludes wallet authorization, PoW and delivery. Verification is
+the running receiver's check of each distinct terminal before State application,
+using its normal sequential cache. Empty-block preparation ranged from 18.781
+to 32.092 s; verification ranged from 2.708 to 4.791 s. The individual workload
+rows are single observations on shared hardware.
+
+The highest sampled receiver cgroup peak was 806,969,344 bytes (769.59 MiB).
+Both measured process lifetimes had zero memory-limit or OOM events. Initial
+embedded receiver startup to responsive RPC took 10.524 s; restarts at H18 and
+H64 took 11.010 and 11.512 s. These are actual node startup measurements, unlike
+the standalone matrix-authentication setup above. The complete scenario took
+1,843.533 s. This light workload does not establish the full Large memory peak.
+
+[Daemon records](contract-daemons.json) retain the actual resource limits,
+startup times, all block preparation and received-terminal observations,
+negative cases, receipt sizes and source/binary/log hashes. The node source is
+equivalent to commit `cb9504f`; the record also preserves its build base and
+patch identity. Reproduce with `scripts/live_v2_contract_scenario.py` in a
+fresh loopback-only namespace, using the pinned isolated node and a new
+`NOID_V2_LIVE_DIR`, with pruning enabled.
