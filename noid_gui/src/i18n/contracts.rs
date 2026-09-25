@@ -47,6 +47,8 @@ pub(super) fn translate(language: Language, source: &str) -> Option<String> {
         "The preview does not match the requested call." => ("Предварительный расчёт не соответствует запрошенному вызову.", "预览与请求的调用不符。"),
         "Call details changed. Preview and review the transaction again." => ("Параметры вызова изменились. Пересчитайте и проверьте транзакцию заново.", "调用详情已更改。请重新计算并核对交易。"),
         "The call does not satisfy the program conditions." => ("Вызов не удовлетворяет условиям программы.", "调用不满足程序条件。"),
+        "The program result is outside the unsigned 64-bit range. Check the amounts and program." => ("Результат вычисления выходит за диапазон беззнакового 64-битного числа. Проверьте суммы и программу.", "程序计算结果超出无符号 64 位整数范围。请检查金额和程序。"),
+        "A program condition must evaluate to 0 or 1." => ("Условие программы должно принимать значение 0 или 1.", "程序条件的值必须是 0 或 1。"),
         "Saved contract list changed. Reload it." => ("Список контрактов изменился. Обновите его.", "已保存的合约列表已更改，请重新加载。"),
         "Saved contract opening changed." => ("Сохранённые условия контракта изменились.", "保存的合约条款已更改。"),
         "Contract program details are incomplete." => ("Данные программы контракта неполные.", "合约程序详情不完整。"),

@@ -316,8 +316,18 @@ fn contract_error(error: String) -> String {
         | "call body changed; preview and authorize the call again" => {
             "Call details changed. Preview and review the transaction again.".into()
         }
-        "contract: IntegerProgram(Assertion)" => {
+        message if message.starts_with("contract: Program(Assertion { step: ")
+            && message.ends_with(" })") => {
             "The call does not satisfy the program conditions.".into()
+        }
+        message if (message.starts_with("contract: Program(Overflow { step: ")
+            || message.starts_with("contract: Program(Underflow { step: "))
+            && message.ends_with(" })") => {
+            "The program result is outside the unsigned 64-bit range. Check the amounts and program.".into()
+        }
+        message if message.starts_with("contract: Program(NonBooleanPredicate { step: ")
+            && message.ends_with(" })") => {
+            "A program condition must evaluate to 0 or 1.".into()
         }
         "contract deadline branch changed; review the call again" => {
             "Contract authority or deadline branch changed. Review the transaction again.".into()
@@ -455,6 +465,26 @@ impl Backend {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn live_integer_program_errors_have_readable_messages() {
+        assert_eq!(
+            contract_error("contract: Program(Assertion { step: 6 }) (-32000)".into()),
+            "The call does not satisfy the program conditions."
+        );
+        for kind in ["Overflow", "Underflow"] {
+            assert_eq!(contract_error(format!("contract: Program({kind} {{ step: 0 }})")),
+                "The program result is outside the unsigned 64-bit range. Check the amounts and program.");
+        }
+        assert_eq!(
+            contract_error("contract: Program(NonBooleanPredicate { step: 4 })".into()),
+            "A program condition must evaluate to 0 or 1."
+        );
+        assert_eq!(
+            contract_error("unrecognized server error".into()),
+            "unrecognized server error"
+        );
+    }
 
     fn backend(directory: &Path) -> Backend {
         Backend {
