@@ -935,8 +935,7 @@ pub struct RpcHandler {
     pub allow_custom_coinbase: bool,
     /// Pinned self-recursive HistoryStep runtime shared with local mining and
     /// inbound bundle verification.
-    pub history_step_runtime:
-        Option<Arc<noid_miner::HistoryProtocolRuntime>>,
+    pub history_step_runtime: Option<Arc<noid_miner::HistoryProtocolRuntime>>,
     /// Process-wide prepared ghost authorization reused by every block attempt.
     pub history_step_ghost: Option<
         Arc<noid_recursive::acceptance::history_step::PreparedHistoryStepGhostAuthorization>,
@@ -1385,7 +1384,8 @@ impl RpcHandler {
             .as_secs();
 
         let builder = TemplateBuilder::new(self.mempool.clone()).with_history_protocol(
-            self.history_step_runtime.as_deref()
+            self.history_step_runtime
+                .as_deref()
                 .ok_or_else(|| rpc_err("HistoryStep runtime is unavailable"))?,
         );
         // Snapshot/reorg installation holds the same gate while it replaces
@@ -2137,9 +2137,13 @@ impl ParanoidApiServer for RpcHandler {
                 (
                     bundle.history_step_terminal_bytes().len() as u64,
                     bytes.len() as u64,
-                    Some(noid_chain::history_step::HistoryStepTerminalMetadata::decode_prefix(
-                        bundle.history_step_terminal_bytes(),
-                    ).map_err(|error| rpc_err(error.to_string()))?.class_id()),
+                    Some(
+                        noid_chain::history_step::HistoryStepTerminalMetadata::decode_prefix(
+                            bundle.history_step_terminal_bytes(),
+                        )
+                        .map_err(|error| rpc_err(error.to_string()))?
+                        .class_id(),
+                    ),
                 )
             }
             None => (0, 0, None),
@@ -2328,11 +2332,15 @@ impl ParanoidApiServer for RpcHandler {
             // actually proved. A pruned terminal leaves that detail unknown.
             match terminal_class {
                 Some(class) => {
-                    let class = noid_recursive::acceptance::history_step::v2::banked::Class::from_wire(class)
+                    let class =
+                        noid_recursive::acceptance::history_step::v2::banked::Class::from_wire(
+                            class,
+                        )
                         .map_err(|error| rpc_err(error.to_string()))?;
                     match self.history_step_runtime.as_deref() {
                         Some(runtime) => {
-                            let config = runtime.v2().map_err(rpc_err)?.bank().config().class(class);
+                            let config =
+                                runtime.v2().map_err(rpc_err)?.bank().config().class(class);
                             format!("B{} / m{}", config.pages(), config.outer_m())
                         }
                         // Body inspection is still useful if the verifier is
@@ -2343,11 +2351,13 @@ impl ParanoidApiServer for RpcHandler {
                 }
                 None => "v2 / class unavailable".to_owned(),
             }
-        } else { match stream.proof_class {
-            noid_chain::consensus::BlockProofClass::B25 => "B25 / m22",
-            noid_chain::consensus::BlockProofClass::B255 => "B255 / m24",
-        }
-        .to_string() };
+        } else {
+            match stream.proof_class {
+                noid_chain::consensus::BlockProofClass::B25 => "B25 / m22",
+                noid_chain::consensus::BlockProofClass::B255 => "B255 / m24",
+            }
+            .to_string()
+        };
         let retained = RetainedBlockInfo {
             proof_class,
             logical_transactions: logical_txids.len() as u16,

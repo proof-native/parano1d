@@ -19,10 +19,10 @@ use std::{
     time::Instant,
 };
 pub mod banked;
-pub mod production;
 mod boundaries;
 mod legacy_tail;
 mod payments;
+pub mod production;
 mod proof;
 mod state;
 pub use legacy_tail::measure as legacy_tail;

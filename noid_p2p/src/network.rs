@@ -3786,7 +3786,8 @@ async fn run_swarm(
     // enter the same bounded automatic manager as DNS bootstrap sources, so a
     // restart cannot create a second untracked dial burst.
     let mut successful_peer_cache = crate::peer_store::load(&data_dir);
-    let mut fork_origins = crate::fork_origin::ForkOriginTransfers::new(data_dir.join("fork-origins"));
+    let mut fork_origins =
+        crate::fork_origin::ForkOriginTransfers::new(data_dir.join("fork-origins"));
     let local_peer_id = *swarm.local_peer_id();
     let mut automatic_peers = AutomaticPeerState::new(local_peer_id);
     for peer in successful_peer_cache.entries() {
@@ -5706,8 +5707,18 @@ async fn handle_network_command(
     sync_paths: &PeerSyncPaths,
 ) {
     match cmd {
-        NetworkCommand::FetchForkOrigin { peer, request, reply } => {
-            fork_origins.request(swarm, peer, request, reply, sync_paths.is_dispatchable(peer));
+        NetworkCommand::FetchForkOrigin {
+            peer,
+            request,
+            reply,
+        } => {
+            fork_origins.request(
+                swarm,
+                peer,
+                request,
+                reply,
+                sync_paths.is_dispatchable(peer),
+            );
         }
         NetworkCommand::AnnounceBlock { bundle } => {
             let height = bundle.height();

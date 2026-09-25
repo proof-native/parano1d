@@ -60,9 +60,9 @@ use noid_node::snapshot_header_staging::{
 use noid_p2p::{NetworkEvent, P2PNetwork};
 
 mod origin_recovery;
-use origin_recovery::ensure_terminal_origin;
 use noid_rpc::types::NodeSyncStage;
 use noid_rpc::{start_rpc_server, ExternalMiningAttemptInvalidator, WalletOperationGate};
+use origin_recovery::ensure_terminal_origin;
 
 struct AppliedCompactSuffix {
     height: u64,
@@ -1061,8 +1061,9 @@ fn embedded_history_step_runtime(
         Some(Arc::new(runtime)),
         embedded_history_step_pack::embedded_v2_runtime()?,
         data_dir.join("fork-origins"),
-    )?.with_legacy_matrix_cache_available(pack.has_legacy_matrices())
-      .with_large_v2_mining(large_v2_mining);
+    )?
+    .with_legacy_matrix_cache_available(pack.has_legacy_matrices())
+    .with_large_v2_mining(large_v2_mining);
     if let Some(keys) = retirement_keys {
         runtime = runtime.with_retirement_keys(keys)?;
     }
@@ -2015,8 +2016,8 @@ async fn main() -> anyhow::Result<()> {
     let history_proof_bank_id = embedded_history_step_pack::embedded_history_step_pack()
         .map(|pack| pack.runtime_metadata_digest())
         .unwrap_or([0; 32]);
-    let history_step_runtime =
-        embedded_history_step_runtime(&data_dir, cli.v2_large_blocks).map_err(anyhow::Error::msg)?;
+    let history_step_runtime = embedded_history_step_runtime(&data_dir, cli.v2_large_blocks)
+        .map_err(anyhow::Error::msg)?;
     match &history_step_runtime {
         None => tracing::warn!(
             "HistoryStep verification unavailable in this pack-free development build"
@@ -2083,7 +2084,9 @@ async fn main() -> anyhow::Result<()> {
     }
     let ctx = MdbxChainContext::open_or_create(&data_dir).context("open MDBX")?;
     if let Some(runtime) = &history_step_runtime {
-        runtime.attach_canonical_store(ctx.store.clone()).map_err(anyhow::Error::msg)?;
+        runtime
+            .attach_canonical_store(ctx.store.clone())
+            .map_err(anyhow::Error::msg)?;
     }
     let tip_height = ctx.tip_height();
     let state_root = hex::encode(ctx.tip_header().state_root);
@@ -4286,12 +4289,21 @@ async fn apply_exact_suffix_offthread(
     use noid_node::networking::sync_plan::SyncPlanKind;
 
     if let Some(runtime) = &history_step_runtime {
-        ensure_terminal_origin(runtime, &fetched.terminal_bytes, fetched.terminal_source, p2p_cmd)
-            .await.map_err(|error| match error {
-                origin_recovery::OriginRecoveryError::InvalidTerminal(error) =>
-                    ExactSuffixApplyError::terminal(fetched.terminal_source, error),
-                origin_recovery::OriginRecoveryError::Unavailable(error) => ExactSuffixApplyError::Other(error),
-            })?;
+        ensure_terminal_origin(
+            runtime,
+            &fetched.terminal_bytes,
+            fetched.terminal_source,
+            p2p_cmd,
+        )
+        .await
+        .map_err(|error| match error {
+            origin_recovery::OriginRecoveryError::InvalidTerminal(error) => {
+                ExactSuffixApplyError::terminal(fetched.terminal_source, error)
+            }
+            origin_recovery::OriginRecoveryError::Unavailable(error) => {
+                ExactSuffixApplyError::Other(error)
+            }
+        })?;
     }
     let _wallet_operation = wallet_operation_gate.lock().await;
     let (reserved_input_slots, reserved_output_slots) = mempool.reserved_slots().await;
@@ -9381,12 +9393,16 @@ async fn handle_p2p_events(
             let origin_commands = p2p_cmd.clone();
             tokio::task::spawn_blocking(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    if let Err(error) = tokio::runtime::Handle::current().block_on(ensure_terminal_origin(
-                        &runtime, &terminal_bytes, from, &origin_commands,
-                    )) {
+                    if let Err(error) = tokio::runtime::Handle::current().block_on(
+                        ensure_terminal_origin(&runtime, &terminal_bytes, from, &origin_commands),
+                    ) {
                         return match error {
-                            origin_recovery::OriginRecoveryError::InvalidTerminal(error) => BoundaryProofMaintenanceResult::TerminalRejected(error),
-                            origin_recovery::OriginRecoveryError::Unavailable(error) => BoundaryProofMaintenanceResult::LocalFailure(error),
+                            origin_recovery::OriginRecoveryError::InvalidTerminal(error) => {
+                                BoundaryProofMaintenanceResult::TerminalRejected(error)
+                            }
+                            origin_recovery::OriginRecoveryError::Unavailable(error) => {
+                                BoundaryProofMaintenanceResult::LocalFailure(error)
+                            }
                         };
                     }
                     let ctx = verification_chain.blocking_read();

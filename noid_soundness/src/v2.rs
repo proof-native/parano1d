@@ -15,7 +15,7 @@ use crate::{
         history_query_escape, initial_list_size_bound, maximum_layer_proximity,
         select_unweighted_history,
     },
-    parameters::{history_class_parameters, HistoryClassParameters, ProductionParameters},
+    parameters::{HistoryClassParameters, ProductionParameters, history_class_parameters},
     qrom::{ideal_breakdown, maximum_query_cap_below_half},
     resource::{self, CategoryOneCertificate},
 };

@@ -8,7 +8,7 @@ use noid_gkr::zk_auth_qrom::{
 };
 use noid_ivc_core::{
     field::gf2_256::C1_CHALLENGE_MIN_ENTROPY_BITS,
-    pcs::{fri_commit_layout, PcsParams, BASEFOLD_RATE_QUARTER_C1_QUERIES},
+    pcs::{BASEFOLD_RATE_QUARTER_C1_QUERIES, PcsParams, fri_commit_layout},
 };
 use noid_poseidon2b::{
     Digest,
