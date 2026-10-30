@@ -7018,8 +7018,9 @@ async fn handle_swarm_event(
             relay::Event::CircuitReqDenied {
                 src_peer_id,
                 dst_peer_id,
+                status,
             } => {
-                tracing::debug!(source = %src_peer_id, destination = %dst_peer_id, "relay: circuit request denied");
+                tracing::debug!(source = %src_peer_id, destination = %dst_peer_id, ?status, "relay: circuit request denied");
             }
             relay::Event::CircuitReqAccepted {
                 src_peer_id,
